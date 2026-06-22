@@ -711,6 +711,8 @@ async function doSignIn(){
     if(error)throw error;
     if(!data||data.length===0){document.getElementById('le').style.display='block';return;}
     CU=data[0];
+    // Save session so page refresh doesn't sign out
+    try{localStorage.setItem('bc_user',JSON.stringify(CU));}catch(e){}
     document.getElementById('ls').style.display='none';
     document.getElementById('app').classList.remove('h');
     document.getElementById('sname').textContent=CU.full_name;
@@ -725,7 +727,7 @@ async function doSignIn(){
   }
 }
 
-function doSignOut(){CU=null;document.getElementById('app').classList.add('h');document.getElementById('ls').style.display='flex';document.getElementById('lp').value='';}
+function doSignOut(){CU=null;try{localStorage.removeItem('bc_user');}catch(e){}document.getElementById('app').classList.add('h');document.getElementById('ls').style.display='flex';document.getElementById('lp').value='';}
 
 function applyRole(){
   const perms=ROLES[CU.role]?.can||[];
