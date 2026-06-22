@@ -1781,6 +1781,36 @@ async function saveUsr(){
 }
 
 document.getElementById('ntpt').textContent=LANG==='ar'?POL_AR:POL;
+
+// Auto-restore login on page load/refresh
+(function restoreSession(){
+  try{
+    const saved=localStorage.getItem('bc_user');
+    if(!saved)return;
+    CU=JSON.parse(saved);
+    if(!CU||!CU.id)return;
+    // Verify user still active in DB
+    db.from('users').select('*').eq('id',CU.id).eq('active',true).single().then(({data,error})=>{
+      if(error||!data){
+        localStorage.removeItem('bc_user');
+        CU=null;
+        return;
+      }
+      CU=data;
+      localStorage.setItem('bc_user',JSON.stringify(CU));
+      document.getElementById('ls').style.display='none';
+      document.getElementById('app').classList.remove('h');
+      document.getElementById('sname').textContent=CU.full_name;
+      document.getElementById('srole').textContent=ROLES[CU.role]?.l||CU.role;
+      document.getElementById('sbranch').textContent=CU.branch;
+      applyRole();
+      go('dash',document.getElementById('ni-dash'));
+    });
+  }catch(e){
+    console.log('Session restore error:',e);
+    localStorage.removeItem('bc_user');
+  }
+})();
 </script>
 </body>
 </html>
