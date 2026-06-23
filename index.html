@@ -1063,7 +1063,7 @@ function openEditProds(){
   var saveBtn=document.createElement('button');
   saveBtn.textContent='Save changes';
   saveBtn.style.cssText='padding:8px 16px;font-size:12px;border:1px solid #1D9E75;border-radius:8px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:600';
-  saveBtn.onclick=saveEditProds;
+  saveBtn.onclick=function(){saveEditProds();};
   footer.appendChild(cancelBtn);
   footer.appendChild(saveBtn);
   box.appendChild(footer);
@@ -1771,7 +1771,9 @@ async function loadPur(){
     tr.innerHTML='<td style="font-weight:700">'+po.po_num+'</td><td>'+(supMap[po.supplier_id]||'-')+'</td><td>'+(po.date||'-')+'</td><td>'+(po.items||0)+' items</td><td style="font-weight:700">'+f(po.total)+'</td><td><span class="bx '+(sm[po.status]||'gr')+'">'+po.status+'</span></td><td>'+poBtn+'</td>';
     var poBtn=po.status==='pending'?('<button onclick="event.stopPropagation();markDelivered(\''+po.id+'\')">Mark delivered</button>'):'<span style="color:#3B6D11">Received</span>';
     tr.innerHTML='<td style="font-weight:700">'+po.po_num+'</td><td>'+(supMap[po.supplier_id]||'-')+'</td><td>'+(po.date||'-')+'</td><td>'+(po.items||0)+' items</td><td style="font-weight:700">'+f(po.total)+'</td><td><span class="bx '+(sm[po.status]||'gr')+'">'+po.status+'</span></td><td>'+poBtn+'</td>';
-    tr.onclick=()=>openPODetail(po.id,supMap);
+    (function(poId){
+      tr.onclick=function(){openPODetail(poId);};
+    })(po.id);
     body.appendChild(tr);
   });
   if(!data?.length)body.innerHTML='<tr><td colspan="7" style="text-align:center;padding:16px;color:#888">No purchase orders yet.</td></tr>';
@@ -1794,7 +1796,7 @@ async function markDelivered(poId){
   loadPur();
 }
 
-async function openPODetail(poId,supMap){
+async function openPODetail(poId){
   var{data:po}=await db.from('purchase_orders').select('*').eq('id',poId).single();
   var{data:items}=await db.from('po_items').select('*').eq('po_id',poId);
   if(!po)return;
@@ -1805,7 +1807,11 @@ async function openPODetail(poId,supMap){
     var{data:invData}=await db.from('inventory').select('id,brand,model,hp,unit_type,ac_type').in('id',invIds);
     (invData||[]).forEach(function(inv){invMap[inv.id]=inv.brand+' '+inv.model+' '+inv.hp+' '+(inv.unit_type||'')+' '+(inv.ac_type||'');});
   }
-  var supName=supMap?supMap[po.supplier_id]||'-':'-';
+  var supName='-';
+  if(po.supplier_id){
+    var{data:supRec}=await db.from('suppliers').select('name').eq('id',po.supplier_id).single();
+    if(supRec)supName=supRec.name;
+  }
   var smColor={received:'g',pending:'a',cancelled:'r'};
   var overlay=document.createElement('div');
   overlay.className='po-modal';
