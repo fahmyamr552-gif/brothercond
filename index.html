@@ -939,7 +939,7 @@ async function openTask(id){
     set('ddate',CT.date||'-');
     set('dds',CT.description||'-');
     set('dcreated',CT.created_by||'-');
-    set('dtax',CT.use_tax===false?'No tax (0%)':'v 14% VAT included');
+    set('dtax',CT.use_tax===false?'No tax (0%)':'14% VAT included');
     // Products table
     const tbody=S('pvb');
     if(tbody){
@@ -1061,6 +1061,7 @@ function openEditProds(){
   cancelBtn.style.cssText='padding:8px 16px;font-size:12px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer';
   cancelBtn.onclick=function(){overlay.remove();};
   var saveBtn=document.createElement('button');
+  saveBtn.id='ep-save-btn';
   saveBtn.textContent='Save changes';
   saveBtn.style.cssText='padding:8px 16px;font-size:12px;border:1px solid #1D9E75;border-radius:8px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:600';
   saveBtn.onclick=function(){saveEditProds();};
@@ -1102,27 +1103,38 @@ function addEpRow(){
 }
 
 
+var _savingProds=false;
 async function saveEditProds(){
+  if(_savingProds)return;
   if(!CT){toast('No task selected',true);return;}
   var tbody=document.getElementById('ep-tbody');
   if(!tbody){toast('Cannot find product table',true);return;}
   const rows=[];
-  tbody.querySelectorAll('tr').forEach(tr=>{
-    const i=tr.id.replace('epr-','');
-    const name=document.getElementById('epn-'+i)?.value.trim();
-    const qty=parseInt(document.getElementById('epq-'+i)?.value)||0;
-    const price=parseFloat(document.getElementById('epp-'+i)?.value)||0;
-    if(name&&qty>0)rows.push({task_id:CT.id,name,qty,price,inventory_id:null});
+  tbody.querySelectorAll('tr').forEach(function(tr){
+    var i=tr.id.replace('epr-','');
+    var nameEl=document.getElementById('epn-'+i);
+    var qtyEl=document.getElementById('epq-'+i);
+    var priceEl=document.getElementById('epp-'+i);
+    if(!nameEl)return;
+    var name=nameEl.value.trim();
+    var qty=parseInt(qtyEl?qtyEl.value:0)||0;
+    var price=parseFloat(priceEl?priceEl.value:0)||0;
+    if(name&&qty>0)rows.push({task_id:CT.id,name:name,qty:qty,price:price,inventory_id:null});
   });
   if(!rows.length){toast('Add at least one product',true);return;}
-  // Delete existing products and re-insert
-  const{error:de}=await db.from('task_products').delete().eq('task_id',CT.id);
-  if(de){toast('Error: '+de.message,true);return;}
-  const{error:ie}=await db.from('task_products').insert(rows);
-  if(ie){toast('Error: '+ie.message,true);return;}
-  // Reload task
+  _savingProds=true;
+  var saveB=document.getElementById('ep-save-btn');
+  if(saveB){saveB.disabled=true;saveB.textContent='Saving...';}
+  // Close modal first to prevent double-click
   document.querySelectorAll('.ep-modal').forEach(function(e){e.remove();});
-  toast('Products updated!');
+  // Delete existing products
+  var{error:de}=await db.from('task_products').delete().eq('task_id',CT.id);
+  if(de){_savingProds=false;toast('Error deleting: '+de.message,true);return;}
+  // Insert new products
+  var{error:ie}=await db.from('task_products').insert(rows);
+  _savingProds=false;
+  if(ie){toast('Error saving: '+ie.message,true);return;}
+  toast('Products saved!');
   openTask(CT.id);
 }
 
