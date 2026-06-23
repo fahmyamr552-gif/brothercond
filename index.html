@@ -452,7 +452,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
       <div class="sh" style="margin-bottom:0">Products</div>
       <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#666;cursor:pointer;background:#f5f5f0;padding:5px 10px;border-radius:8px;border:1px solid #e0ddd8">
-        <input type="checkbox" id="tax-toggle" checked onchange="ntRec();document.querySelectorAll('#ntb tr').forEach(tr=>calcR(tr.cells[1]?.querySelector('input')||tr.cells[1]))" style="width:auto">
+        <input type="checkbox" id="tax-toggle" checked onchange="recalcAllRows()" style="width:auto">
         Include 14% tax
       </label>
     </div>
@@ -940,7 +940,7 @@ async function openTask(id){
     set('ddate',CT.date||'—');
     set('dds',CT.description||'—');
     set('dcreated',CT.created_by||'—');
-    set('dtax',CT.use_tax===false?'No tax (0%)':'14% tax included');
+    set('dtax',CT.use_tax===false?'❌ No tax':'✓ 14% VAT included');
     // Products table
     const tbody=S('pvb');
     if(tbody){
@@ -951,7 +951,7 @@ async function openTask(id){
         r.innerHTML='<td colspan="5" style="text-align:center;color:#888;padding:12px">No products added.</td>';
         tbody.appendChild(r);
       }
-      const taskUseTax=CT.use_tax!==false;
+      const taskUseTax=CT.use_tax===false?false:true;
       // Update product table headers based on tax setting
       const thB=document.querySelector('#pvb')?.closest('table')?.querySelector('th:nth-child(4)');
       const thT=document.querySelector('#pvb')?.closest('table')?.querySelector('th:nth-child(5)');
@@ -1351,7 +1351,7 @@ function doPrint(){
   const sub=printUseTax?gr/1.14:gr;const tax=printUseTax?gr-sub:0;
   const pd=CT.pays.reduce((a,p)=>a+p.amount,0);const rem=Math.max(0,gr-pd);
   const cu=CT.cust||{};
-  const printUseTax=CT.use_tax!==false;
+  const printUseTax=CT.use_tax===false?false:true;
   const rows=CT.prods.map(p=>{const tot=p.qty*p.price;const bt=printUseTax?tot/1.14:tot;return`<tr><td style="padding:5px 8px;border-bottom:1px solid #ddd">${p.name}</td><td style="text-align:center;padding:5px 8px;border-bottom:1px solid #ddd">${p.qty}</td><td style="text-align:right;padding:5px 8px;border-bottom:1px solid #ddd">${f(p.price)}</td>${printUseTax?`<td style="text-align:right;padding:5px 8px;border-bottom:1px solid #ddd">${f(bt)}</td>`:''}<td style="text-align:right;padding:5px 8px;border-bottom:1px solid #ddd;font-weight:700">${f(tot)}</td></tr>`;}).join('');
   const payRows=CT.pays.map(p=>`<tr><td style="padding:3px 8px">${p.method}</td><td style="padding:3px 8px">${p.note||''}</td><td style="text-align:right;padding:3px 8px;font-weight:700">${f(p.amount)}</td></tr>`).join('');
   const psMap={paid:'Paid in full',unpaid:'Unpaid',downpayment:'Down payment - remainder due '+(CT.due_date||'—'),installments:'Installments - final due '+(CT.due_date||'—')};
@@ -1436,6 +1436,14 @@ async function addRow(){
 
 function onPS2(sel){const tr=sel.closest('tr');const o=sel.selectedOptions[0];if(o?.dataset.price){tr.cells[2].querySelector('input').value=o.dataset.price;calcR(tr.cells[1].querySelector('input'));chkStk(tr.cells[1].querySelector('input'));}}
 function chkStk(inp){const tr=inp.closest('tr');const sel=tr.cells[0].querySelector('select');if(!sel?.value)return;const o=sel.selectedOptions[0];if(!o?.dataset.qty)return;const av=parseInt(o.dataset.qty);const rq=parseInt(inp.value)||0;const w=document.getElementById('ntwn');if(rq>av){w.style.display='flex';document.getElementById('ntwm').textContent=`Warning: Only ${av} in stock. You can still proceed.`;}else w.style.display='none';}
+function recalcAllRows(){
+  document.querySelectorAll('#ntb tr').forEach(tr=>{
+    const inp=tr.cells[1]?.querySelector('input');
+    if(inp)calcR(inp);
+  });
+  ntRec();
+}
+
 function calcR(inp){
   const tr=inp.closest('tr');
   const q=parseFloat(tr.cells[1].querySelector('input').value)||0;
