@@ -452,14 +452,14 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
       <div class="sh" style="margin-bottom:0">Products</div>
       <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#666;cursor:pointer;background:#f5f5f0;padding:5px 10px;border-radius:8px;border:1px solid #e0ddd8">
-        <input type="checkbox" id="tax-toggle" checked onchange="ntRec()" style="width:auto">
+        <input type="checkbox" id="tax-toggle" checked onchange="ntRec();document.querySelectorAll('#ntb tr').forEach(tr=>calcR(tr.cells[1]?.querySelector('input')||tr.cells[1]))" style="width:auto">
         Include 14% tax
       </label>
     </div>
     <div id="ntwn" class="wn" style="display:none">&#9888; <span id="ntwm"></span></div>
     <div class="tw">
       <table style="table-layout:fixed">
-        <thead><tr><th style="width:38%">Product</th><th style="width:9%">Qty</th><th style="width:15%">Unit price</th><th style="width:17%">Before tax</th><th style="width:16%">Total (14%)</th><th style="width:5%"></th></tr></thead>
+        <thead><tr><th style="width:38%">Product</th><th style="width:9%">Qty</th><th style="width:15%">Unit price</th><th class="th-before" style="width:17%">Before tax</th><th class="th-total" style="width:16%">Total (14%)</th><th style="width:5%"></th></tr></thead>
         <tbody id="ntb"></tbody>
       </table>
     </div>
@@ -951,13 +951,29 @@ async function openTask(id){
         r.innerHTML='<td colspan="5" style="text-align:center;color:#888;padding:12px">No products added.</td>';
         tbody.appendChild(r);
       }
+      const taskUseTax=CT.use_tax!==false;
+      // Update product table headers based on tax setting
+      const thB=document.querySelector('#pvb')?.closest('table')?.querySelector('th:nth-child(4)');
+      const thT=document.querySelector('#pvb')?.closest('table')?.querySelector('th:nth-child(5)');
+      if(thB)thB.style.display=taskUseTax?'':'none';
+      if(thT)thT.textContent=taskUseTax?'Total (14%)':'Total';
       CT.prods.forEach(p=>{
-        const total=p.qty*p.price;const bt=total/1.14;sub+=total;
+        const total=p.qty*p.price;
+        const bt=taskUseTax?total/1.14:total;
+        sub+=total;
         const r=document.createElement('tr');
-        r.innerHTML=`<td>${p.name}</td><td>${p.qty}</td><td>${f(p.price)}</td><td>${f(bt)}</td><td style="color:#1D9E75;font-weight:700">${f(total)}</td>`;
+        r.innerHTML=`<td>${p.name}</td><td>${p.qty}</td><td>${f(p.price)}</td><td style="${taskUseTax?'':'display:none'}">${f(bt)}</td><td style="color:#1D9E75;font-weight:700">${f(total)}</td>`;
         tbody.appendChild(r);
       });
-      set('vsub',f(sub/1.14));set('vtax',f(sub-sub/1.14));set('vgr',f(sub));
+      if(taskUseTax){
+        set('vsub',f(sub/1.14));set('vtax',f(sub-sub/1.14));set('vgr',f(sub));
+        if(S('vsub')?.closest('.tr'))S('vsub').closest('.tr').style.display='';
+        if(S('vtax')?.closest('.tr'))S('vtax').closest('.tr').style.display='';
+      } else {
+        set('vsub','');set('vtax','');set('vgr',f(sub));
+        if(S('vsub')?.closest('.tr'))S('vsub').closest('.tr').style.display='none';
+        if(S('vtax')?.closest('.tr'))S('vtax').closest('.tr').style.display='none';
+      }
     }
     if(S('plc'))S('plc').style.display=CT.type==='sales'?'block':'none';
     if(S('plt'))S('plt').textContent=LANG==='ar'?POL_AR:POL;
@@ -1332,10 +1348,11 @@ async function deleteTask(){
 function doPrint(){
   if(!CT)return;
   const gr=CT.prods.reduce((a,p)=>a+p.qty*p.price,0);
-  const sub=gr/1.14;const tax=gr-sub;
+  const sub=printUseTax?gr/1.14:gr;const tax=printUseTax?gr-sub:0;
   const pd=CT.pays.reduce((a,p)=>a+p.amount,0);const rem=Math.max(0,gr-pd);
   const cu=CT.cust||{};
-  const rows=CT.prods.map(p=>{const tot=p.qty*p.price;const bt=tot/1.14;return`<tr><td style="padding:5px 8px;border-bottom:1px solid #ddd">${p.name}</td><td style="text-align:center;padding:5px 8px;border-bottom:1px solid #ddd">${p.qty}</td><td style="text-align:right;padding:5px 8px;border-bottom:1px solid #ddd">${f(p.price)}</td><td style="text-align:right;padding:5px 8px;border-bottom:1px solid #ddd">${f(bt)}</td><td style="text-align:right;padding:5px 8px;border-bottom:1px solid #ddd;font-weight:700">${f(tot)}</td></tr>`;}).join('');
+  const printUseTax=CT.use_tax!==false;
+  const rows=CT.prods.map(p=>{const tot=p.qty*p.price;const bt=printUseTax?tot/1.14:tot;return`<tr><td style="padding:5px 8px;border-bottom:1px solid #ddd">${p.name}</td><td style="text-align:center;padding:5px 8px;border-bottom:1px solid #ddd">${p.qty}</td><td style="text-align:right;padding:5px 8px;border-bottom:1px solid #ddd">${f(p.price)}</td>${printUseTax?`<td style="text-align:right;padding:5px 8px;border-bottom:1px solid #ddd">${f(bt)}</td>`:''}<td style="text-align:right;padding:5px 8px;border-bottom:1px solid #ddd;font-weight:700">${f(tot)}</td></tr>`;}).join('');
   const payRows=CT.pays.map(p=>`<tr><td style="padding:3px 8px">${p.method}</td><td style="padding:3px 8px">${p.note||''}</td><td style="text-align:right;padding:3px 8px;font-weight:700">${f(p.amount)}</td></tr>`).join('');
   const psMap={paid:'Paid in full',unpaid:'Unpaid',downpayment:'Down payment - remainder due '+(CT.due_date||'—'),installments:'Installments - final due '+(CT.due_date||'—')};
   const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>BrotherCond - ${CT.task_num}</title><style>body{font-family:Arial,sans-serif;font-size:12px;color:#111;margin:28px}table{width:100%;border-collapse:collapse}th{background:#f5f5f3;padding:7px 8px;text-align:left;border-bottom:1px solid #ccc;font-size:11px;font-weight:700}.ig{display:grid;grid-template-columns:1fr 1fr;gap:8px 24px;margin-bottom:16px}.il{font-size:10px;color:#888;margin-bottom:1px}.iv{font-weight:700;font-size:13px}</style></head><body>
@@ -1353,11 +1370,11 @@ ${cu.id_number?`<div><div class="il">ID / Passport</div><div class="iv">${cu.id_
 <div><div class="il">Payment status</div><div class="iv">${psMap[CT.pay_status]||CT.pay_status}</div></div>
 </div>
 ${CT.description?`<div style="margin-bottom:14px;padding:8px;background:#f8f8f6;border-radius:4px;font-size:11px;color:#555">${CT.description}</div>`:''}
-<table style="margin-bottom:14px"><thead><tr><th style="width:38%">Product</th><th style="width:8%;text-align:center">Qty</th><th style="width:16%;text-align:right">Unit price</th><th style="width:17%;text-align:right">Before tax</th><th style="width:17%;text-align:right">Total (14%)</th></tr></thead><tbody>${rows}</tbody></table>
+<table style="margin-bottom:14px"><thead><tr><th style="width:${printUseTax?'38':'46'}%">Product</th><th style="width:8%;text-align:center">Qty</th><th style="width:16%;text-align:right">Unit price</th>${printUseTax?'<th style="width:17%;text-align:right">Before tax</th>':''}<th style="text-align:right">${printUseTax?'Total (14%)':'Total'}</th></tr></thead><tbody>${rows}</tbody></table>
 <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;font-size:12px;margin-bottom:16px">
-<div style="display:flex;gap:22px"><span style="color:#888">Subtotal</span><span style="min-width:110px;text-align:right">${f(sub)}</span></div>
-<div style="display:flex;gap:22px"><span style="color:#888">Tax (14%)</span><span style="min-width:110px;text-align:right">${f(tax)}</span></div>
-<div style="display:flex;gap:22px;font-weight:700;border-top:1px solid #ccc;padding-top:5px"><span>Grand total</span><span style="min-width:110px;text-align:right;color:#1D9E75">${f(gr)}</span></div>
+${printUseTax?`<div style="display:flex;gap:22px"><span style="color:#888">Subtotal (before tax)</span><span style="min-width:110px;text-align:right">${f(sub)}</span></div>
+<div style="display:flex;gap:22px"><span style="color:#888">Tax (14%)</span><span style="min-width:110px;text-align:right">${f(tax)}</span></div>`:''}
+<div style="display:flex;gap:22px;font-weight:700;border-top:1px solid #ccc;padding-top:5px"><span>Total</span><span style="min-width:110px;text-align:right;color:#1D9E75">${f(gr)}</span></div>
 </div>
 ${payRows?`<div style="margin-bottom:14px"><div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;margin-bottom:6px">Payments received</div><table style="width:260px"><thead><tr><th>Method</th><th>Note</th><th style="text-align:right">Amount</th></tr></thead><tbody>${payRows}</tbody></table><div style="display:flex;gap:14px;margin-top:6px;font-size:12px"><span>Paid: <b>${f(pd)}</b></span><span style="color:${rem>0?'#c0392b':'#27ae60'}">Remaining: <b>${f(rem)}</b></span>${CT.due_date?`<span style="color:#854F0B">Due: <b>${CT.due_date}</b></span>`:''}</div></div>`:''}
 ${CT.type==='sales'?`<div style="margin-top:16px;padding:10px;background:#f8f8f6;border-radius:4px;font-size:10px;color:#666;line-height:1.8;border:1px solid #ddd;white-space:pre-wrap;font-family:Arial">${POL}</div>`:''}
@@ -1423,11 +1440,13 @@ function calcR(inp){
   const tr=inp.closest('tr');
   const q=parseFloat(tr.cells[1].querySelector('input').value)||0;
   const p=parseFloat(tr.cells[2].querySelector('input').value)||0;
-  const useTax=document.getElementById('tax-toggle')?.checked!==false;
+  const useTax=document.getElementById('tax-toggle')?.checked===true;
   const total=q*p;
-  const beforeTax=useTax?total/1.14:total;
-  tr.querySelector('.pt').value=total?Math.round(beforeTax):'';
-  tr.querySelector('.tt2').value=total?Math.round(total):'';
+  const beforeTax=useTax?(total/1.14):total;
+  const ptEl=tr.querySelector('.pt');
+  const ttEl=tr.querySelector('.tt2');
+  if(ptEl)ptEl.value=total?Math.round(beforeTax):'';
+  if(ttEl)ttEl.value=total?Math.round(total):'';
   ntRec();
 }
 function ntRec(){
@@ -1435,14 +1454,25 @@ function ntRec(){
   document.querySelectorAll('#ntb tr').forEach(tr=>{
     total+=(parseFloat(tr.cells[1].querySelector('input').value)||0)*(parseFloat(tr.cells[2].querySelector('input').value)||0);
   });
-  const useTax=document.getElementById('tax-toggle')?.checked!==false;
+  const useTax=document.getElementById('tax-toggle')?.checked===true;
   const beforeTax=useTax?total/1.14:total;
   const tax=useTax?total-beforeTax:0;
-  document.getElementById('nts').textContent=f(beforeTax);
-  document.getElementById('ntt2').textContent=f(tax);
+  // Show/hide before tax column and label
+  const btCols=document.querySelectorAll('.pt');
+  const ttCols=document.querySelectorAll('.tt2');
+  const thBefore=document.querySelector('th.th-before');
+  const thTotal=document.querySelector('th.th-total');
+  btCols.forEach(el=>el.closest('td').style.display=useTax?'':'none');
+  if(thBefore)thBefore.style.display=useTax?'':'none';
+  if(thTotal)thTotal.textContent=useTax?'Total (14%)':'Total';
+  document.getElementById('nts').textContent=useTax?f(beforeTax):'';
+  document.getElementById('ntt2').textContent=useTax?f(tax):'';
   document.getElementById('ntg').textContent=f(total);
-  // Update column header
-  const th=document.querySelector('#ntb')?.closest('table')?.querySelector('th:last-of-type');
+  // Show/hide subtotal and tax rows
+  const subRow=document.getElementById('nts')?.closest('.tr');
+  const taxRow=document.getElementById('ntt2')?.closest('.tr');
+  if(subRow)subRow.style.display=useTax?'':'none';
+  if(taxRow)taxRow.style.display=useTax?'':'none';
 }
 
 async function saveTask(){
