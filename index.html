@@ -718,10 +718,17 @@ function can(p){return CU&&ROLES[CU.role]?.can.includes(p);}
 async function doSignIn(){
   const u=document.getElementById('lu').value.trim();
   const p=document.getElementById('lp').value;
+  const errEl=document.getElementById('le');
+  if(!u||!p){if(errEl){errEl.textContent='Enter username and password.';errEl.style.display='block';}return;}
+  if(typeof db==='undefined'||!db){if(errEl){errEl.textContent='Connection error. Please check VPN and refresh.';errEl.style.display='block';}return;}
+  if(errEl)errEl.style.display='none';
+  const btn=document.querySelector('.btn.bp[onclick*="doSignIn"]');
+  if(btn){btn.textContent='Signing in...';btn.disabled=true;}
   try{
     const{data,error}=await db.from('users').select('*').eq('username',u).eq('password',p).eq('active',true);
+    if(btn){btn.textContent='Sign in';btn.disabled=false;}
     if(error)throw error;
-    if(!data||data.length===0){document.getElementById('le').style.display='block';return;}
+    if(!data||data.length===0){if(errEl){errEl.textContent='Wrong username or password.';errEl.style.display='block';}return;}
     CU=data[0];
     // Save session so page refresh doesn't sign out
     try{localStorage.setItem('bc_user',JSON.stringify(CU));}catch(e){}
@@ -734,8 +741,10 @@ async function doSignIn(){
     go('dash',document.getElementById('ni-dash'));
   }catch(err){
     console.error('Login error:',err);
-    document.getElementById('le').textContent='Error: '+err.message;
-    document.getElementById('le').style.display='block';
+    const errEl2=document.getElementById('le');
+    if(errEl2){errEl2.textContent='Connection error: '+err.message+'. Check VPN.';errEl2.style.display='block';}
+    const btn2=document.querySelector('.btn.bp[onclick*="doSignIn"]');
+    if(btn2){btn2.textContent='Sign in';btn2.disabled=false;}
   }
 }
 
@@ -1024,8 +1033,8 @@ function openEditProds(){
   let html='<div id="edit-prods-modal" onclick="if(event.target===this)this.remove()" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9000;display:flex;align-items:center;justify-content:center">';
   html+='<div style="background:#fff;border-radius:14px;padding:24px;width:640px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.2)">';
   html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">';
-  html+='<div style="font-size:15px;font-weight:700">Edit products &mdash; '+CT.task_num+'</div>';
-  html+='<button onclick="document.getElementById('edit-prods-modal').remove()" style="border:none;background:none;font-size:24px;cursor:pointer;color:#888">&times;</button>';
+  html+='<div style="font-size:15px;font-weight:700">Edit products — '+CT.task_num+'</div>';
+  html+='<button onclick="document.getElementById('edit-prods-modal').remove()" style="border:none;background:none;font-size:24px;cursor:pointer;color:#888">×</button>';
   html+='</div>';
   html+='<div style="overflow-x:auto;border:1px solid #e0ddd8;border-radius:8px;margin-bottom:10px">';
   html+='<table style="width:100%;border-collapse:collapse;font-size:12px">';
@@ -1042,7 +1051,7 @@ function openEditProds(){
     const tot=Math.round(p.qty*p.price);
     const bt=taskUseTax?Math.round(p.qty*p.price/1.14):'';
     html+='<tr id="epr-'+i+'">';
-    html+='<td><input value="'+p.name.replace(/"/g,'&quot;')+'" id="epn-'+i+'" style="width:100%;font-size:12px;padding:4px;border:1px solid #ccc;border-radius:4px"></td>';
+    html+='<td><input value="'+p.name.replace(/"/g,'"')+'" id="epn-'+i+'" style="width:100%;font-size:12px;padding:4px;border:1px solid #ccc;border-radius:4px"></td>';
     html+='<td><input type="number" value="'+p.qty+'" id="epq-'+i+'" min="1" style="width:100%;text-align:center;border:1px solid #ccc;border-radius:4px" oninput="epCalc('+i+')"></td>';
     html+='<td><input type="number" value="'+p.price+'" id="epp-'+i+'" min="0" style="width:100%;border:1px solid #ccc;border-radius:4px" oninput="epCalc('+i+')"></td>';
     if(taskUseTax)html+='<td id="epbt-'+i+'" style="text-align:right;padding:0 6px;color:#888">'+bt+'</td>';
@@ -1402,12 +1411,12 @@ async function loadSubTasks(){
     d.style.cssText='display:flex;align-items:center;gap:10px;padding:10px;background:#f9f9f6;border:1px solid #e0ddd8;border-radius:8px;margin-bottom:7px;cursor:pointer';
     d.innerHTML=`
       <div style="flex:1">
-        <div style="font-weight:700">${st.task_num} &middot; ${st.type}</div>
-        <div style="font-size:11px;color:#888;margin-top:2px">${st.date||'—'} &middot; ${st.salesperson} &middot; ${st.description||'—'}</div>
+        <div style="font-weight:700">${st.task_num} · ${st.type}</div>
+        <div style="font-size:11px;color:#888;margin-top:2px">${st.date||'—'} · ${st.salesperson} · ${st.description||'—'}</div>
         ${gr>0?`<div style="font-size:12px;color:#1D9E75;font-weight:700;margin-top:3px">${f(gr)}</div>`:''}
       </div>
       <span class="bx ${sm[st.status]||'gr'}">${sl[st.status]||st.status}</span>
-      <span style="font-size:18px;color:#ccc">&rsaquo;</span>`;
+      <span style="font-size:18px;color:#ccc">›</span>`;
     d.onclick=()=>openTask(st.id);
     list.appendChild(d);
   });
@@ -1467,7 +1476,7 @@ function doPrint(){
     if(CT.completion_time)compSection+=`<div style="margin-bottom:5px;font-size:12px"><b>Completed at:</b> ${new Date(CT.completion_time).toLocaleString('en-GB')}</div>`;
     if(CT.completion_notes)compSection+=`<div style="margin-bottom:5px;font-size:12px"><b>What was done:</b><br>${CT.completion_notes}</div>`;
     if(CT.technician_note)compSection+=`<div style="margin-bottom:5px;font-size:12px"><b>Technician note:</b> ${CT.technician_note}</div>`;
-    if(CT.customer_confirmed)compSection+='<div style="font-size:12px;color:#3B6D11"><b>&#10003; Customer confirmed &amp; satisfied</b></div>';
+    if(CT.customer_confirmed)compSection+='<div style="font-size:12px;color:#3B6D11"><b>&#10003; Customer confirmed & satisfied</b></div>';
     compSection+='</div>';
   }
 
@@ -1837,12 +1846,12 @@ async function loadCust(search){
   const body=document.getElementById('custl');body.innerHTML='<div style="padding:20px;text-align:center;color:#888">Loading...</div>';
   let q=db.from('customers').select('*').order('full_name');if(search)q=q.or(`full_name.ilike.%${search}%,phone.ilike.%${search}%`);
   const{data}=await q;body.innerHTML='';
-  (data||[]).forEach(c=>{const d=document.createElement('div');d.className='lr';d.innerHTML=`<div class="av">${ini(c.full_name)}</div><div style="flex:1"><div style="font-weight:700">${c.full_name}</div><div style="font-size:11px;color:#888">${c.phone||'—'} - ${c.address||'—'}</div>${c.id_number?`<div style="font-size:11px;color:#888">ID: ${c.id_number}</div>`:''}</div><span style="color:#ccc">&rsaquo;</span>`;d.onclick=()=>openCD(c);body.appendChild(d);});
+  (data||[]).forEach(c=>{const d=document.createElement('div');d.className='lr';d.innerHTML=`<div class="av">${ini(c.full_name)}</div><div style="flex:1"><div style="font-weight:700">${c.full_name}</div><div style="font-size:11px;color:#888">${c.phone||'—'} - ${c.address||'—'}</div>${c.id_number?`<div style="font-size:11px;color:#888">ID: ${c.id_number}</div>`:''}</div><span style="color:#ccc">›</span>`;d.onclick=()=>openCD(c);body.appendChild(d);});
   if(!data?.length)body.innerHTML='<div style="padding:20px;text-align:center;color:#888">No customers found.</div>';
 }
 
 function editCustomer(c){
-  document.getElementById('cdcard').innerHTML=`<div class="r3" style="margin-bottom:10px"><div class="fg"><label>Full name *</label><input id="ec-name" value="${c.full_name||''}"></div><div class="fg"><label>Phone *</label><input id="ec-phone" value="${c.phone||''}"></div><div class="fg"><label>Second phone</label><input id="ec-phone2" value="${c.phone2||''}"></div></div><div class="r2" style="margin-bottom:10px"><div class="fg"><label>Address</label><input id="ec-addr" value="${c.address||''}"></div><div class="fg"><label>ID / Passport</label><input id="ec-id" value="${c.id_number||''}"></div></div><div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn bs" onclick="openCD(${JSON.stringify(c).replace(/"/g,'&quot;')})">Cancel</button><button class="btn bs bp" onclick="saveEditCustomer('${c.id}')">&#10003; Save</button></div>`;
+  document.getElementById('cdcard').innerHTML=`<div class="r3" style="margin-bottom:10px"><div class="fg"><label>Full name *</label><input id="ec-name" value="${c.full_name||''}"></div><div class="fg"><label>Phone *</label><input id="ec-phone" value="${c.phone||''}"></div><div class="fg"><label>Second phone</label><input id="ec-phone2" value="${c.phone2||''}"></div></div><div class="r2" style="margin-bottom:10px"><div class="fg"><label>Address</label><input id="ec-addr" value="${c.address||''}"></div><div class="fg"><label>ID / Passport</label><input id="ec-id" value="${c.id_number||''}"></div></div><div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn bs" onclick="openCD(${JSON.stringify(c).replace(/"/g,'"')})">Cancel</button><button class="btn bs bp" onclick="saveEditCustomer('${c.id}')">&#10003; Save</button></div>`;
 }
 
 async function saveEditCustomer(id){
@@ -1856,7 +1865,7 @@ async function saveEditCustomer(id){
 
 async function openCD(c){
   go('cd',null);document.getElementById('ptitle').textContent=c.full_name;document.getElementById('cdname').textContent=c.full_name;
-  document.getElementById('cdcard').innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px"><div style="display:flex;align-items:center;gap:14px"><div class="av" style="width:50px;height:50px;font-size:16px">${ini(c.full_name)}</div><div style="font-size:16px;font-weight:700">${c.full_name}</div></div>${can('export')?`<button class="btn bs bp" onclick="editCustomer(${JSON.stringify(c).replace(/"/g,'&quot;')})">&#9998; Edit</button>`:''}</div><div class="r2"><div class="fg"><label>Phone</label><div style="padding:4px 0;font-weight:700">${c.phone||'—'}</div></div><div class="fg"><label>Second phone</label><div style="padding:4px 0;font-weight:700">${c.phone2||'—'}</div></div><div class="fg"><label>Address</label><div style="padding:4px 0;font-weight:700">${c.address||'—'}</div></div><div class="fg"><label>ID / Passport</label><div style="padding:4px 0;font-weight:700">${c.id_number||'—'}</div></div></div>`;
+  document.getElementById('cdcard').innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px"><div style="display:flex;align-items:center;gap:14px"><div class="av" style="width:50px;height:50px;font-size:16px">${ini(c.full_name)}</div><div style="font-size:16px;font-weight:700">${c.full_name}</div></div>${can('export')?`<button class="btn bs bp" onclick="editCustomer(${JSON.stringify(c).replace(/"/g,'"')})">&#9998; Edit</button>`:''}</div><div class="r2"><div class="fg"><label>Phone</label><div style="padding:4px 0;font-weight:700">${c.phone||'—'}</div></div><div class="fg"><label>Second phone</label><div style="padding:4px 0;font-weight:700">${c.phone2||'—'}</div></div><div class="fg"><label>Address</label><div style="padding:4px 0;font-weight:700">${c.address||'—'}</div></div><div class="fg"><label>ID / Passport</label><div style="padding:4px 0;font-weight:700">${c.id_number||'—'}</div></div></div>`;
   const{data:tasks}=await db.from('tasks').select('id,task_num,type,branch,salesperson,date,status').eq('customer_id',c.id).order('created_at',{ascending:false});
   const tp=await db.from('task_products').select('task_id,qty,price');const prods=tp.data||[];
   const grand=id=>prods.filter(p=>p.task_id===id).reduce((a,p)=>a+p.qty*p.price,0);
@@ -1892,7 +1901,7 @@ async function expCust(){
 async function loadSup(){
   const{data}=await db.from('suppliers').select('*').order('name');
   const el=document.getElementById('supl');el.innerHTML='';
-  (data||[]).forEach(s=>{const d=document.createElement('div');d.className='lr';d.innerHTML=`<div class="av" style="background:#EEEDFE;color:#3C3489">${ini(s.name)}</div><div style="flex:1"><div style="font-weight:700">${s.name}</div><div style="font-size:11px;color:#888">${s.phone||'—'} - ${s.address||'—'}</div>${s.tax_number?`<div style="font-size:11px;color:#888">Tax: ${s.tax_number}</div>`:''}</div><span style="color:#ccc">&rsaquo;</span>`;d.onclick=()=>openSD(s);el.appendChild(d);});
+  (data||[]).forEach(s=>{const d=document.createElement('div');d.className='lr';d.innerHTML=`<div class="av" style="background:#EEEDFE;color:#3C3489">${ini(s.name)}</div><div style="flex:1"><div style="font-weight:700">${s.name}</div><div style="font-size:11px;color:#888">${s.phone||'—'} - ${s.address||'—'}</div>${s.tax_number?`<div style="font-size:11px;color:#888">Tax: ${s.tax_number}</div>`:''}</div><span style="color:#ccc">›</span>`;d.onclick=()=>openSD(s);el.appendChild(d);});
   if(!data?.length)el.innerHTML='<div style="padding:20px;text-align:center;color:#888">No suppliers yet.</div>';
 }
 
