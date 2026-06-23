@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html><!-- v20260623_214330 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -797,7 +797,7 @@ async function loadDash(){
     let rev=0,col=0,out=0;
     tasks.forEach(t=>{const g=grand(t.id),p=paid(t.id);rev+=g;col+=p;out+=Math.max(0,g-p);});
     const exp=(tpo.data||[]).reduce((a,p)=>a+(p.total||0),0);
-    document.getElementById('dstats').innerHTML='<div class="sc"><div class="sl">Total revenue</div><div class="sv">\'+(f(rev))+</div></div> <div class="sc"><div class="sl">Collected</div><div class="sv" style="color:#3B6D11">\'+(f(col))+</div></div> <div class="sc"><div class="sl">Outstanding</div><div class="sv" style="color:#A32D2D">\'+(f(out))+</div></div> <div class="sc"><div class="sl">Expenses</div><div class="sv">\'+(f(exp))+</div></div>\';\'';
+    document.getElementById('dstats').innerHTML='<div class="sc"><div class="sl">Total revenue</div><div class="sv">'+f(rev)+'</div></div><div class="sc"><div class="sl">Collected</div><div class="sv" style="color:#3B6D11">'+f(col)+'</div></div><div class="sc"><div class="sl">Outstanding</div><div class="sv" style="color:#A32D2D">'+f(out)+'</div></div><div class="sc"><div class="sl">Expenses</div><div class="sv">'+f(exp)+'</div></div>';
     const today=new Date().toISOString().slice(0,10);
     const todayEl=document.getElementById('dtoday');
     const tt=tasks.filter(t=>t.date===today);
@@ -939,7 +939,7 @@ async function openTask(id){
     set('ddate',CT.date||'-');
     set('dds',CT.description||'-');
     set('dcreated',CT.created_by||'-');
-    set('dtax',CT.use_tax===false?'X No tax':'v 14% VAT included');
+    set('dtax',CT.use_tax===false?'No tax (0%)':'v 14% VAT included');
     // Products table
     const tbody=S('pvb');
     if(tbody){
@@ -1178,7 +1178,7 @@ function renderPays(){
   } else if(isFullyPaid){
     remBox.style.background='#EAF3DE';
     remLabel.style.color='#3B6D11';remLabel.textContent='Remaining';
-    remVal.style.color='#3B6D11';remVal.textContent='EGP 0 v';
+    remVal.style.color='#3B6D11';remVal.textContent='EGP 0 Paid';
   } else if(gr===0&&pd>0){
     remBox.style.background='#E6F1FB';
     remLabel.style.color='#185FA5';remLabel.textContent='Advance paid';
@@ -1493,7 +1493,7 @@ function doPrint(){
   }
 
   // Build full HTML
-  let html='<!DOCTYPE html><html><head><meta charset="utf-8">';
+  let html='<!DOCTYPE html><!-- v20260623_214330 --><html><head><meta charset="utf-8">';
   html+=('<title>BrotherCond - '+(CT.task_num)+'</title>');
   html+='<style>body{font-family:Arial,sans-serif;font-size:12px;color:#111;margin:28px}table{width:100%;border-collapse:collapse}th{text-align:left;padding:7px 8px;border-bottom:1px solid #ccc;background:#f5f5f3;font-size:11px;font-weight:700}.ig{display:grid;grid-template-columns:1fr 1fr;gap:8px 24px;margin-bottom:16px}.il{font-size:10px;color:#888;margin-bottom:1px}.iv{font-weight:700;font-size:13px}</style>';
   html+='</head><body>';
@@ -1769,13 +1769,90 @@ async function loadPur(){
   (data||[]).forEach(po=>{
     const tr=document.createElement('tr');tr.className='hv';tr.style.cursor='pointer';
     tr.innerHTML='<td style="font-weight:700">'+po.po_num+'</td><td>'+(supMap[po.supplier_id]||'-')+'</td><td>'+(po.date||'-')+'</td><td>'+(po.items||0)+' items</td><td style="font-weight:700">'+f(po.total)+'</td><td><span class="bx '+(sm[po.status]||'gr')+'">'+po.status+'</span></td><td>'+poBtn+'</td>';
-    var poBtn=po.status==='pending'?('<button onclick="event.stopPropagation();markDelivered(\''+po.id+'\')">Mark delivered</button>'):'<span style="color:#3B6D11">v Received</span>';
+    var poBtn=po.status==='pending'?('<button onclick="event.stopPropagation();markDelivered(\''+po.id+'\')">Mark delivered</button>'):'<span style="color:#3B6D11">Received</span>';
     tr.innerHTML='<td style="font-weight:700">'+po.po_num+'</td><td>'+(supMap[po.supplier_id]||'-')+'</td><td>'+(po.date||'-')+'</td><td>'+(po.items||0)+' items</td><td style="font-weight:700">'+f(po.total)+'</td><td><span class="bx '+(sm[po.status]||'gr')+'">'+po.status+'</span></td><td>'+poBtn+'</td>';
     tr.onclick=()=>openPODetail(po.id,supMap);
     body.appendChild(tr);
   });
   if(!data?.length)body.innerHTML='<tr><td colspan="7" style="text-align:center;padding:16px;color:#888">No purchase orders yet.</td></tr>';
 }
+
+async function markDelivered(poId){
+  if(!confirm('Mark this PO as received? This will add items to inventory.'))return;
+  var{data:items,error}=await db.from('po_items').select('*').eq('po_id',poId);
+  if(error){toast('Error: '+error.message,true);return;}
+  for(var k=0;k<(items||[]).length;k++){
+    var item=items[k];
+    if(item.inventory_id&&item.qty>0){
+      var{data:inv}=await db.from('inventory').select('qty').eq('id',item.inventory_id).single();
+      if(inv){await db.from('inventory').update({qty:(inv.qty||0)+item.qty}).eq('id',item.inventory_id);}
+    }
+  }
+  await db.from('purchase_orders').update({status:'received'}).eq('id',poId);
+  document.querySelectorAll('.po-modal').forEach(function(e){e.remove();});
+  toast('Marked as received - inventory updated!');
+  loadPur();
+}
+
+async function openPODetail(poId,supMap){
+  var{data:po}=await db.from('purchase_orders').select('*').eq('id',poId).single();
+  var{data:items}=await db.from('po_items').select('*').eq('po_id',poId);
+  if(!po)return;
+  // Get inventory names for items
+  var invIds=(items||[]).map(function(i){return i.inventory_id;}).filter(Boolean);
+  var invMap={};
+  if(invIds.length){
+    var{data:invData}=await db.from('inventory').select('id,brand,model,hp,unit_type,ac_type').in('id',invIds);
+    (invData||[]).forEach(function(inv){invMap[inv.id]=inv.brand+' '+inv.model+' '+inv.hp+' '+(inv.unit_type||'')+' '+(inv.ac_type||'');});
+  }
+  var supName=supMap?supMap[po.supplier_id]||'-':'-';
+  var smColor={received:'g',pending:'a',cancelled:'r'};
+  var overlay=document.createElement('div');
+  overlay.className='po-modal';
+  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9000;display:flex;align-items:center;justify-content:center';
+  overlay.onclick=function(e){if(e.target===overlay)overlay.remove();};
+  var html='<div style="background:#fff;border-radius:14px;padding:24px;width:580px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.25)">';
+  html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">';
+  html+='<div><div style="font-size:16px;font-weight:700">'+po.po_num+'</div><div style="font-size:12px;color:#888">'+(po.date||'-')+' . '+supName+'</div></div>';
+  html+='<div style="display:flex;gap:8px;align-items:center">';
+  html+='<span class="bx '+smColor[po.status]+'">'+po.status+'</span>';
+  html+='<button onclick="document.querySelectorAll(\'.po-modal\').forEach(function(e){e.remove();})" style="border:none;background:none;font-size:24px;cursor:pointer;color:#888">X</button>';
+  html+='</div></div>';
+  html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;font-size:12px">';
+  html+='<div><span style="color:#888">Supplier:</span> <b>'+supName+'</b></div>';
+  html+='<div><span style="color:#888">Order date:</span> <b>'+(po.date||'-')+'</b></div>';
+  html+='<div><span style="color:#888">Expected delivery:</span> <b>'+(po.delivery_date||'-')+'</b></div>';
+  html+='<div><span style="color:#888">Notes:</span> <b>'+(po.notes||'-')+'</b></div>';
+  html+='</div>';
+  html+='<div style="border:1px solid #e0ddd8;border-radius:8px;overflow:hidden;margin-bottom:14px">';
+  html+='<table style="width:100%;border-collapse:collapse;font-size:12px">';
+  html+='<thead><tr style="background:#f9f9f6"><th style="padding:8px 10px;text-align:left">Product</th><th style="padding:8px 10px;text-align:center;width:60px">Qty</th><th style="padding:8px 10px;text-align:right;width:110px">Unit cost</th><th style="padding:8px 10px;text-align:right;width:110px">Total</th></tr></thead>';
+  html+='<tbody>';
+  (items||[]).forEach(function(it){
+    var name=invMap[it.inventory_id]||'Unknown product';
+    html+='<tr><td style="padding:7px 10px;border-top:1px solid #f0f0e8">'+name+'</td>';
+    html+='<td style="padding:7px 10px;text-align:center;border-top:1px solid #f0f0e8">'+it.qty+'</td>';
+    html+='<td style="padding:7px 10px;text-align:right;border-top:1px solid #f0f0e8">'+f(it.unit_cost)+'</td>';
+    html+='<td style="padding:7px 10px;text-align:right;font-weight:700;border-top:1px solid #f0f0e8">'+f(it.qty*it.unit_cost)+'</td></tr>';
+  });
+  html+='</tbody></table></div>';
+  html+='<div style="display:flex;justify-content:space-between;align-items:center">';
+  html+='<div style="font-size:15px;font-weight:700">Total: '+f(po.total)+'</div>';
+  if(po.status==='pending'){
+    html+='<button id="md-btn-'+po.id+'" style="padding:9px 18px;font-size:13px;border:1px solid #639922;border-radius:8px;background:#EAF3DE;color:#3B6D11;cursor:pointer;font-weight:600">Mark as received - update inventory</button>';
+  }else{
+    html+='<span style="color:#3B6D11;font-weight:600">Received - inventory updated</span>';
+  }
+  html+='</div></div>';
+  overlay.innerHTML=html;
+  document.body.appendChild(overlay);
+  var mdBtn=overlay.querySelector('[id^="md-btn-"]');
+  if(mdBtn){
+    var mdId=mdBtn.id.replace('md-btn-','');
+    mdBtn.onclick=function(){markDelivered(mdId);};
+  }
+}
+
 
 async function loadFinStats(){
   const[tr2,tp2,tpy2,tpo]=await Promise.all([db.from('tasks').select('id'),db.from('task_products').select('task_id,qty,price'),db.from('payments').select('task_id,amount'),db.from('purchase_orders').select('total')]);
@@ -1784,7 +1861,7 @@ async function loadFinStats(){
   const paid=id=>pays.filter(p=>p.task_id===id).reduce((a,p)=>a+p.amount,0);
   let rev=0,col=0,out=0;tasks.forEach(t=>{const g=grand(t.id),p=paid(t.id);rev+=g;col+=p;out+=Math.max(0,g-p);});
   const exp=(tpo.data||[]).reduce((a,p)=>a+(p.total||0),0);
-  document.getElementById('fstats').innerHTML=('<div class="sc"><div class="sl">Total revenue</div><div class="sv">'+(f(rev))+'</div></div><div class="sc"><div class="sl">Collected</div><div class="sv" style="color:#3B6D11">'+(f(col))+'</div></div><div class="sc"><div class="sl">Outstanding</div><div class="sv" style="color:#A32D2D">'+(f(out))+'</div></div><div class="sc"><div class="sl">Net profit</div><div class="sv" style="color:#1D9E75">'+(f(col-exp))+'</div></div>');
+  document.getElementById('fstats').innerHTML='<div class="sc"><div class="sl">Total revenue</div><div class="sv">'+f(rev)+'</div></div><div class="sc"><div class="sl">Collected</div><div class="sv" style="color:#3B6D11">'+f(col)+'</div></div><div class="sc"><div class="sl">Outstanding</div><div class="sv" style="color:#A32D2D">'+f(out)+'</div></div><div class="sc"><div class="sl">Net profit</div><div class="sv" style="color:#1D9E75">'+f(col-exp)+'</div></div>';
 }
 
 async function finTab(type,btn){
@@ -1819,7 +1896,7 @@ async function finTab(type,btn){
   }
   const tasks=(type==='all'?allTasks:allTasks.filter(t=>t.type===type));
   const psMap={paid:'g',unpaid:'r',downpayment:'a',installments:'b'};
-  var rows=tasks.map(t=>{var g=grand(t.id),p=paid(t.id),r=g-p;var rDisp=r<0?('<span style="color:#185FA5;font-weight:700">Credit '+f(Math.abs(r))+'</span>'):r===0&&g>0?('<span style="color:#3B6D11;font-weight:700">EGP 0 v</span>'):('<span style="color:'+(r>0?'#A32D2D':'#888')+';font-weight:700">'+f(r)+'</span>');var pDisp=p>0?('<span style="color:#3B6D11;font-weight:700">'+f(p)+'</span>'):('<span style="color:#888">EGP 0</span>');return'<tr class="hv" onclick="openTask(\''+t.id+'\')"><td style="font-weight:700">'+t.task_num+'</td><td>'+(t.customer_name||'-')+'</td><td style="text-transform:capitalize">'+t.type+'</td><td>'+t.branch+'</td><td>'+(t.date||'-')+'</td><td style="font-weight:700">'+f(g)+'</td><td>'+pDisp+'</td><td>'+rDisp+'</td><td><span class="bx '+(psMap[t.pay_status]||'gr')+'">'+(t.pay_status||'-')+'</span></td></tr>';}).join('');
+  var rows=tasks.map(t=>{var g=grand(t.id),p=paid(t.id),r=g-p;var rDisp=r<0?('<span style="color:#185FA5;font-weight:700">Credit '+f(Math.abs(r))+'</span>'):r===0&&g>0?('<span style="color:#3B6D11;font-weight:700">EGP 0 - Paid</span>'):('<span style="color:'+(r>0?'#A32D2D':'#888')+';font-weight:700">'+f(r)+'</span>');var pDisp=p>0?('<span style="color:#3B6D11;font-weight:700">'+f(p)+'</span>'):('<span style="color:#888">EGP 0</span>');return'<tr class="hv" onclick="openTask(\''+t.id+'\')"><td style="font-weight:700">'+t.task_num+'</td><td>'+(t.customer_name||'-')+'</td><td style="text-transform:capitalize">'+t.type+'</td><td>'+t.branch+'</td><td>'+(t.date||'-')+'</td><td style="font-weight:700">'+f(g)+'</td><td>'+pDisp+'</td><td>'+rDisp+'</td><td><span class="bx '+(psMap[t.pay_status]||'gr')+'">'+(t.pay_status||'-')+'</span></td></tr>';}).join('');
   const tots=tasks.reduce((a,t)=>({g:a.g+grand(t.id),p:a.p+paid(t.id),r:a.r+Math.max(0,grand(t.id)-paid(t.id))}),{g:0,p:0,r:0});
   const tl={all:'All transactions',sales:'Sales',maintenance:'Maintenance',installation:'Installation',uninstall:'Uninstall'};
   el.innerHTML=('<div class="cd"><div class="sh">'+(tl[type]||type)+'</div><div class="tw"><table><thead><tr><th>Task #</th><th>Customer</th><th>Type</th><th>Branch</th><th>Date</th><th>Total</th><th>Paid</th><th>Remaining</th><th>Status</th></tr></thead><tbody>'+(rows)+'</tbody></table></div><div class="tr" style="border-top:1px solid #e8e8e0"><span class="tl">Revenue</span><span class="tv">'+(f(tots.g))+'</span></div><div class="tr" style="padding-top:0"><span class="tl">Collected</span><span class="tv" style="color:#3B6D11">'+(f(tots.p))+'</span></div><div class="tr" style="padding-top:0"><span class="tl">Outstanding</span><span class="tv" style="color:#A32D2D">'+(f(tots.r))+'</span></div></div>');
