@@ -947,7 +947,7 @@ async function openTask(id){
     // Customer card
     const cu=CT.cust;
     const tcc=S('tcc');
-    if(tcc)tcc.innerHTML=cu?`<div style="display:flex;align-items:center;gap:10px;padding:10px;background:#f5f5f0;border-radius:8px;border:1px solid #e0ddd8"><div class="av">${ini(cu.full_name)}</div><div><div style="font-weight:700">${cu.full_name}</div><div style="font-size:11px;color:#888">${cu.phone||''} - ${cu.address||''}</div>${cu.id_number?`<div style="font-size:11px;color:#888">ID: ${cu.id_number}</div>`:''}</div></div>`:'<div style="color:#888">-</div>';
+    if(tcc)tcc.innerHTML=cu?('<div style="display:flex;align-items:center;gap:10px;padding:10px;background:#f5f5f0;border-radius:8px;border:1px solid #e0ddd8"><div class="av">'+ini(cu.full_name)+'</div><div><div style="font-weight:700">'+cu.full_name+'</div><div style="font-size:11px;color:#888">'+(cu.phone||'')+' - '+(cu.address||'')+'</div>'+(cu.id_number?'<div style="font-size:11px;color:#888">ID: '+cu.id_number+'</div>':'')+'</div></div>'):'<div style="color:#888">-</div>';
     // Order info
     set('dbr',CT.branch);set('dsp',CT.salesperson);set('dty',CT.type);
     set('ddate',CT.date||'-');
@@ -1242,7 +1242,7 @@ function openPayModal(){
   document.getElementById('pmeth').value='Cash';
   document.getElementById('pm-confirm-box').style.display='none';
   // Info line
-  const remDisplay=rem<0?`<b style="color:#185FA5">Credit: ${f(Math.abs(rem))}</b>`:rem===0?`<b style="color:#3B6D11">Fully paid v</b>`:`<b style="color:#A32D2D">Remaining: ${f(rem)}</b>`;
+  var remDisplay=rem<0?('<b style="color:#185FA5">Credit: '+f(Math.abs(rem))+'</b>'):rem===0?('<b style="color:#3B6D11">Fully paid v</b>'):('<b style="color:#A32D2D">Remaining: '+f(rem)+'</b>');
   document.getElementById('pm-task-info').innerHTML=`<b>${CT.task_num}</b> . ${CT.customer_name||'-'}<br>Order total: <b>${f(gr)}</b> . Paid so far: <b style="color:#3B6D11">${f(pd)}</b> . ${remDisplay}`;
   // Quick buttons
   const qEl=document.getElementById('pm-quick');qEl.innerHTML='';
@@ -1808,7 +1808,8 @@ async function loadPur(){
     const tr=document.createElement('tr');tr.className='hv';tr.style.cursor='pointer';
     tr.innerHTML=`<td style="font-weight:700">${po.po_num}</td><td>${supMap[po.supplier_id]||'-'}</td><td>${po.date||'-'}</td><td>${po.items||0} items</td><td style="font-weight:700">${f(po.total)}</td>
     <td><span class="bx ${sm[po.status]||'gr'}">${po.status.charAt(0).toUpperCase()+po.status.slice(1)}</span></td>
-    <td>${po.status==='pending'?`<button onclick="event.stopPropagation();markDelivered('${po.id}')" style="padding:4px 10px;font-size:11px;border:1px solid #639922;border-radius:6px;background:#EAF3DE;color:#3B6D11;cursor:pointer">Mark delivered</button>`:'<span style="color:#3B6D11;font-size:12px">&#10003; Received</span>'}</td>`;
+    var poBtn=po.status==='pending'?('<button onclick="event.stopPropagation();markDelivered(\''+po.id+'\')">Mark delivered</button>'):'<span style="color:#3B6D11">v Received</span>';
+    tr.innerHTML='<td style="font-weight:700">'+po.po_num+'</td><td>'+(supMap[po.supplier_id]||'-')+'</td><td>'+(po.date||'-')+'</td><td>'+(po.items||0)+' items</td><td style="font-weight:700">'+f(po.total)+'</td><td><span class="bx '+(sm[po.status]||'gr')+'">'+po.status+'</span></td><td>'+poBtn+'</td>';
     tr.onclick=()=>openPODetail(po.id,supMap);
     body.appendChild(tr);
   });
@@ -1850,14 +1851,14 @@ async function finTab(type,btn){
     const credits=allTasks.filter(t=>(grand(t.id)-paid(t.id))<0);
     let html='<div class="cd"><div class="sh">Outstanding balances</div>';
     if(!out.length){html+='<div style="font-size:12px;color:#3B6D11">No outstanding payments.</div>';}
-    else{out.forEach(t=>{const g=grand(t.id),p=paid(t.id),r=g-p;html+=`<div style="padding:10px;background:#f9f9f6;border-radius:8px;margin-bottom:8px;border:1px solid #e0ddd8;cursor:pointer" onclick="openTask('${t.id}')"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px"><div><b>${t.customer_name||'-'}</b> <span style="font-size:11px;color:#888">${t.task_num} . ${t.type} . ${t.date||'-'}</span></div><span style="font-weight:700;color:#A32D2D;font-size:14px">${f(r)}</span></div><div style="font-size:12px;color:#888;display:flex;gap:14px;flex-wrap:wrap"><span>Total: <b style="color:#111">${f(g)}</b></span><span>Paid: <b style="color:#3B6D11">${f(p)}</b></span><span>Remaining: <b style="color:#A32D2D">${f(r)}</b></span>${t.due_date?`<span style="color:#854F0B">Due: <b>${t.due_date}</b></span>`:''}</div></div>`;});}
+    else{out.forEach(t=>{const g=grand(t.id),p=paid(t.id),r=g-p;html+='<div style="padding:10px;background:#f9f9f6;border-radius:8px;margin-bottom:8px;border:1px solid #e0ddd8;cursor:pointer" onclick="openTask(\''+t.id+'\')"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px"><div><b>'+(t.customer_name||'-')+'</b> <span style="font-size:11px;color:#888">'+t.task_num+' . '+t.type+' . '+(t.date||'-')+'</span></div><span style="font-weight:700;color:#A32D2D;font-size:14px">'+f(r)+'</span></div><div style="font-size:12px;color:#888;display:flex;gap:14px;flex-wrap:wrap"><span>Total: <b style="color:#111">'+f(g)+'</b></span><span>Paid: <b style="color:#3B6D11">'+f(p)+'</b></span><span>Remaining: <b style="color:#A32D2D">'+f(r)+'</b></span>'+(t.due_date?'<span style="color:#854F0B">Due: <b>'+t.due_date+'</b></span>':'')+'</div></div>';});}
     const tot=out.reduce((a,t)=>a+Math.max(0,grand(t.id)-paid(t.id)),0);
     html+=`<div class="tr" style="border-top:1px solid #e8e8e0"><span class="tl" style="font-weight:700">Total outstanding</span><span class="tv" style="color:#A32D2D;font-weight:700">${f(tot)}</span></div></div>`;
     el.innerHTML=html;return;
   }
   const tasks=(type==='all'?allTasks:allTasks.filter(t=>t.type===type));
   const psMap={paid:'g',unpaid:'r',downpayment:'a',installments:'b'};
-  const rows=tasks.map(t=>{const g=grand(t.id),p=paid(t.id),r=g-p;const rDisp=r<0?`<span style="color:#185FA5;font-weight:700">Credit ${f(Math.abs(r))}</span>`:r===0&&g>0?`<span style="color:#3B6D11;font-weight:700">EGP 0 v</span>`:`<span style="color:${r>0?'#A32D2D':'#888'};font-weight:700">${f(r)}</span>`;const pDisp=p>0?`<span style="color:#3B6D11;font-weight:700">${f(p)}</span>`:`<span style="color:#888">EGP 0</span>`;return`<tr class="hv" onclick="openTask('${t.id}')"><td style="font-weight:700">${t.task_num}</td><td>${t.customer_name||'-'}</td><td style="text-transform:capitalize">${t.type}</td><td>${t.branch}</td><td>${t.date||'-'}</td><td style="font-weight:700">${f(g)}</td><td>${pDisp}</td><td>${rDisp}</td><td><span class="bx ${psMap[t.pay_status]||'gr'}">${t.pay_status||'-'}</span></td></tr>`;}).join('');
+  var rows=tasks.map(t=>{var g=grand(t.id),p=paid(t.id),r=g-p;var rDisp=r<0?('<span style="color:#185FA5;font-weight:700">Credit '+f(Math.abs(r))+'</span>'):r===0&&g>0?('<span style="color:#3B6D11;font-weight:700">EGP 0 v</span>'):('<span style="color:'+(r>0?'#A32D2D':'#888')+';font-weight:700">'+f(r)+'</span>');var pDisp=p>0?('<span style="color:#3B6D11;font-weight:700">'+f(p)+'</span>'):('<span style="color:#888">EGP 0</span>');return'<tr class="hv" onclick="openTask(\''+t.id+'\')"><td style="font-weight:700">'+t.task_num+'</td><td>'+(t.customer_name||'-')+'</td><td style="text-transform:capitalize">'+t.type+'</td><td>'+t.branch+'</td><td>'+(t.date||'-')+'</td><td style="font-weight:700">'+f(g)+'</td><td>'+pDisp+'</td><td>'+rDisp+'</td><td><span class="bx '+(psMap[t.pay_status]||'gr')+'">'+(t.pay_status||'-')+'</span></td></tr>';}).join('');
   const tots=tasks.reduce((a,t)=>({g:a.g+grand(t.id),p:a.p+paid(t.id),r:a.r+Math.max(0,grand(t.id)-paid(t.id))}),{g:0,p:0,r:0});
   const tl={all:'All transactions',sales:'Sales',maintenance:'Maintenance',installation:'Installation',uninstall:'Uninstall'};
   el.innerHTML=`<div class="cd"><div class="sh">${tl[type]||type}</div><div class="tw"><table><thead><tr><th>Task #</th><th>Customer</th><th>Type</th><th>Branch</th><th>Date</th><th>Total</th><th>Paid</th><th>Remaining</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div><div class="tr" style="border-top:1px solid #e8e8e0"><span class="tl">Revenue</span><span class="tv">${f(tots.g)}</span></div><div class="tr" style="padding-top:0"><span class="tl">Collected</span><span class="tv" style="color:#3B6D11">${f(tots.p)}</span></div><div class="tr" style="padding-top:0"><span class="tl">Outstanding</span><span class="tv" style="color:#A32D2D">${f(tots.r)}</span></div></div>`;
@@ -1867,10 +1868,11 @@ async function loadCust(search){
   const body=document.getElementById('custl');body.innerHTML='<div style="padding:20px;text-align:center;color:#888">Loading...</div>';
   let q=db.from('customers').select('*').order('full_name');if(search)q=q.or(`full_name.ilike.%${search}%,phone.ilike.%${search}%`);
   const{data}=await q;body.innerHTML='';
-  (data||[]).forEach(c=>{const d=document.createElement('div');d.className='lr';d.innerHTML=`<div class="av">${ini(c.full_name)}</div><div style="flex:1"><div style="font-weight:700">${c.full_name}</div><div style="font-size:11px;color:#888">${c.phone||'-'} - ${c.address||'-'}</div>${c.id_number?`<div style="font-size:11px;color:#888">ID: ${c.id_number}</div>`:''}</div><span style="color:#ccc">></span>`;d.onclick=()=>openCD(c);body.appendChild(d);});
+  (data||[]).forEach(c=>{var d=document.createElement('div');d.className='lr';d.innerHTML='<div class="av">'+ini(c.full_name)+'</div><div style="flex:1"><div style="font-weight:700">'+c.full_name+'</div><div style="font-size:11px;color:#888">'+(c.phone||'-')+' - '+(c.address||'-')+'</div>'+(c.id_number?'<div style="font-size:11px;color:#888">ID: '+c.id_number+'</div>':'')+'</div><span style="color:#ccc">&gt;</span>';d.onclick=()=>openCD(c);body.appendChild(d);});
   if(!data?.length)body.innerHTML='<div style="padding:20px;text-align:center;color:#888">No customers found.</div>';
 }
 
+function editCust(){var c=window._editCustData;if(!c)return;editCustomer(c);}
 function editCustomer(c){
   document.getElementById('cdcard').innerHTML=`<div class="r3" style="margin-bottom:10px"><div class="fg"><label>Full name *</label><input id="ec-name" value="${c.full_name||''}"></div><div class="fg"><label>Phone *</label><input id="ec-phone" value="${c.phone||''}"></div><div class="fg"><label>Second phone</label><input id="ec-phone2" value="${c.phone2||''}"></div></div><div class="r2" style="margin-bottom:10px"><div class="fg"><label>Address</label><input id="ec-addr" value="${c.address||''}"></div><div class="fg"><label>ID / Passport</label><input id="ec-id" value="${c.id_number||''}"></div></div><div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn bs" onclick="openCD(${JSON.stringify(c).replace(/"/g,'"')})">Cancel</button><button class="btn bs bp" onclick="saveEditCustomer('${c.id}')">&#10003; Save</button></div>`;
 }
@@ -1886,7 +1888,9 @@ async function saveEditCustomer(id){
 
 async function openCD(c){
   go('cd',null);document.getElementById('ptitle').textContent=c.full_name;document.getElementById('cdname').textContent=c.full_name;
-  document.getElementById('cdcard').innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px"><div style="display:flex;align-items:center;gap:14px"><div class="av" style="width:50px;height:50px;font-size:16px">${ini(c.full_name)}</div><div style="font-size:16px;font-weight:700">${c.full_name}</div></div>${can('export')?`<button class="btn bs bp" onclick="editCustomer(${JSON.stringify(c).replace(/"/g,'"')})">&#9998; Edit</button>`:''}</div><div class="r2"><div class="fg"><label>Phone</label><div style="padding:4px 0;font-weight:700">${c.phone||'-'}</div></div><div class="fg"><label>Second phone</label><div style="padding:4px 0;font-weight:700">${c.phone2||'-'}</div></div><div class="fg"><label>Address</label><div style="padding:4px 0;font-weight:700">${c.address||'-'}</div></div><div class="fg"><label>ID / Passport</label><div style="padding:4px 0;font-weight:700">${c.id_number||'-'}</div></div></div>`;
+  var editBtn=can('export')?'<button class="btn bs bp" onclick="editCust()">Edit</button>':'';
+  document.getElementById('cdcard').innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px"><div style="display:flex;align-items:center;gap:14px"><div class="av" style="width:50px;height:50px;font-size:16px">'+ini(c.full_name)+'</div><div style="font-size:16px;font-weight:700">'+c.full_name+'</div></div>'+editBtn+'</div><div class="r2"><div class="fg"><label>Phone</label><div style="padding:4px 0;font-weight:700">'+(c.phone||'-')+'</div></div><div class="fg"><label>Second phone</label><div style="padding:4px 0;font-weight:700">'+(c.phone2||'-')+'</div></div><div class="fg"><label>Address</label><div style="padding:4px 0;font-weight:700">'+(c.address||'-')+'</div></div><div class="fg"><label>ID / Passport</label><div style="padding:4px 0;font-weight:700">'+(c.id_number||'-')+'</div></div></div>';
+  window._editCustData=c;
   const{data:tasks}=await db.from('tasks').select('id,task_num,type,branch,salesperson,date,status').eq('customer_id',c.id).order('created_at',{ascending:false});
   const tp=await db.from('task_products').select('task_id,qty,price');const prods=tp.data||[];
   const grand=id=>prods.filter(p=>p.task_id===id).reduce((a,p)=>a+p.qty*p.price,0);
@@ -1922,7 +1926,7 @@ async function expCust(){
 async function loadSup(){
   const{data}=await db.from('suppliers').select('*').order('name');
   const el=document.getElementById('supl');el.innerHTML='';
-  (data||[]).forEach(s=>{const d=document.createElement('div');d.className='lr';d.innerHTML=`<div class="av" style="background:#EEEDFE;color:#3C3489">${ini(s.name)}</div><div style="flex:1"><div style="font-weight:700">${s.name}</div><div style="font-size:11px;color:#888">${s.phone||'-'} - ${s.address||'-'}</div>${s.tax_number?`<div style="font-size:11px;color:#888">Tax: ${s.tax_number}</div>`:''}</div><span style="color:#ccc">></span>`;d.onclick=()=>openSD(s);el.appendChild(d);});
+  (data||[]).forEach(s=>{var d=document.createElement('div');d.className='lr';d.innerHTML='<div class="av" style="background:#EEEDFE;color:#3C3489">'+ini(s.name)+'</div><div style="flex:1"><div style="font-weight:700">'+s.name+'</div><div style="font-size:11px;color:#888">'+(s.phone||'-')+' - '+(s.address||'-')+'</div>'+(s.tax_number?'<div style="font-size:11px;color:#888">Tax: '+s.tax_number+'</div>':'')+'</div><span style="color:#ccc">&gt;</span>';d.onclick=()=>openSD(s);el.appendChild(d);});
   if(!data?.length)el.innerHTML='<div style="padding:20px;text-align:center;color:#888">No suppliers yet.</div>';
 }
 
@@ -1949,7 +1953,7 @@ async function saveAS(){
 async function loadUsr(){
   const{data}=await db.from('users').select('*').order('full_name');
   const el=document.getElementById('usrl');el.innerHTML='';
-  (data||[]).forEach(u=>{const rp=ROLES[u.role]||ROLES.technician;const d=document.createElement('div');d.style.cssText='display:grid;grid-template-columns:1fr 100px 100px 80px 90px;gap:8px;align-items:center;padding:9px 14px;border-bottom:1px solid #f0f0e8';d.innerHTML=`<div><div style="font-weight:700">${u.full_name}</div><div style="font-size:11px;color:#888">@${u.username}</div></div><span class="bx ${rp.c}">${rp.l}</span><span style="font-size:12px;color:#888">${u.branch}</span><span class="bx ${u.active?'g':'r'}">${u.active?'Active':'Inactive'}</span>${u.role!=='owner'?`<button class="btn bs" onclick="togUsr('${u.id}',${!u.active})">${u.active?'Deactivate':'Activate'}</button>`:'<span></span>'}`;el.appendChild(d);});
+  (data||[]).forEach(u=>{var rp=ROLES[u.role]||ROLES.technician;var d=document.createElement('div');d.style.cssText='display:grid;grid-template-columns:1fr 100px 100px 80px 90px;gap:8px;align-items:center;padding:9px 14px;border-bottom:1px solid #f0f0e8';d.innerHTML='<div><div style="font-weight:700">'+u.full_name+'</div><div style="font-size:11px;color:#888">@'+u.username+'</div></div><span class="bx '+rp.c+'">'+rp.l+'</span><span style="font-size:12px;color:#888">'+u.branch+'</span><span class="bx '+(u.active?'g':'r')+'">'+(u.active?'Active':'Inactive')+'</span>'+(u.role!=='owner'?'<button class="btn bs" onclick="togUsr(\''+u.id+'\','+(  !u.active)+')">'+( u.active?'Deactivate':'Activate')+'</button>':'<span></span>');el.appendChild(d);});
 }
 async function togUsr(id,active){await db.from('users').update({active}).eq('id',id);loadUsr();toast(active?'User activated':'User deactivated');}
 async function saveUsr(){
