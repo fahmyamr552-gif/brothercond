@@ -796,7 +796,7 @@ async function loadDash(){
     const paid=id=>{const py=pays.filter(p=>p.task_id===id);return py.reduce((a,p)=>a+p.amount,0);};
     let rev=0,col=0,out=0;
     tasks.forEach(t=>{const g=grand(t.id),p=paid(t.id);rev+=g;col+=p;out+=Math.max(0,g-p);});
-    const exp=(tpo.data||[]).reduce((a,p)=>a+(p.total||0),0);
+    const exp=(tpo.data||[]).filter(p=>p.status==='received').reduce((a,p)=>a+(p.total||0),0);
     document.getElementById('dstats').innerHTML='<div class="sc"><div class="sl">Total revenue</div><div class="sv">'+f(rev)+'</div></div><div class="sc"><div class="sl">Collected</div><div class="sv" style="color:#3B6D11">'+f(col)+'</div></div><div class="sc"><div class="sl">Outstanding</div><div class="sv" style="color:#A32D2D">'+f(out)+'</div></div><div class="sc"><div class="sl">Expenses</div><div class="sv">'+f(exp)+'</div></div>';
     const today=new Date().toISOString().slice(0,10);
     const todayEl=document.getElementById('dtoday');
@@ -1719,8 +1719,25 @@ async function saveTask(){
   }).select().single();
   if(te){toast('Error: '+te.message,true);return;}
   const rows=taskRows.map(r=>({task_id:task.id,name:r.name,qty:r.qty,price:r.price,inventory_id:r.pid||null}));
-  taskRows.forEach(r=>{if(r.pid&&task.type==='sales'){const inv=INV.find(x=>x.id===r.pid);if(inv){db.from('inventory').update({qty:Math.max(0,inv.qty-r.qty),sold:(inv.sold||0)+r.qty}).eq('id',r.pid);inv.qty=Math.max(0,inv.qty-r.qty);}}});
-  if(rows.length){const{error:re}=await db.from('task_products').insert(rows);if(re){toast('Error saving products: '+re.message,true);return;}}
+  if(rows.length){
+    var{error:re}=await db.from('task_products').insert(rows);
+    if(re){toast('Error saving products: '+re.message,true);return;}
+  }
+  // Deduct from inventory for sales tasks - fetch current qty from DB to be accurate
+  if(task.type==='sales'){
+    for(var ri=0;ri<taskRows.length;ri++){
+      var rr=taskRows[ri];
+      if(rr.pid){
+        var{data:invRow}=await db.from('inventory').select('qty,sold').eq('id',rr.pid).single();
+        if(invRow){
+          await db.from('inventory').update({
+            qty:Math.max(0,(invRow.qty||0)-rr.qty),
+            sold:(invRow.sold||0)+rr.qty
+          }).eq('id',rr.pid);
+        }
+      }
+    }
+  }
   toast('Task created!');go('tasks',document.getElementById('ni-tasks'));
 }
 
@@ -1813,64 +1830,174 @@ async function markDelivered(poId){
 async function openPODetail(poId){
   var{data:po}=await db.from('purchase_orders').select('*').eq('id',poId).single();
   var{data:items}=await db.from('po_items').select('*').eq('po_id',poId);
+  var{data:poPays}=await db.from('po_payments').select('*').eq('po_id',poId).order('created_at',{ascending:true});
   if(!po)return;
-  // Get inventory names for items
+  // Get inventory names
   var invIds=(items||[]).map(function(i){return i.inventory_id;}).filter(Boolean);
   var invMap={};
   if(invIds.length){
-    var{data:invData}=await db.from('inventory').select('id,brand,model,hp,unit_type,ac_type').in('id',invIds);
-    (invData||[]).forEach(function(inv){invMap[inv.id]=inv.brand+' '+inv.model+' '+inv.hp+' '+(inv.unit_type||'')+' '+(inv.ac_type||'');});
+    var{data:invData}=await db.from('inventory').select('id,brand,model,hp').in('id',invIds);
+    (invData||[]).forEach(function(inv){invMap[inv.id]=inv.brand+' '+inv.model+' '+inv.hp;});
   }
+  // Get supplier name
   var supName='-';
   if(po.supplier_id){
     var{data:supRec}=await db.from('suppliers').select('name').eq('id',po.supplier_id).single();
     if(supRec)supName=supRec.name;
   }
   var smColor={received:'g',pending:'a',cancelled:'r'};
+  var totalPaid=(poPays||[]).reduce(function(a,p){return a+p.amount;},0);
+  var remaining=Math.max(0,(po.total||0)-totalPaid);
+
   var overlay=document.createElement('div');
   overlay.className='po-modal';
   overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9000;display:flex;align-items:center;justify-content:center';
   overlay.onclick=function(e){if(e.target===overlay)overlay.remove();};
-  var html='<div style="background:#fff;border-radius:14px;padding:24px;width:580px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.25)">';
+
+  var html='<div style="background:#fff;border-radius:14px;padding:24px;width:600px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.25)">';
+  // Header
   html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">';
-  html+='<div><div style="font-size:16px;font-weight:700">'+po.po_num+'</div><div style="font-size:12px;color:#888">'+(po.date||'-')+' . '+supName+'</div></div>';
+  html+='<div><div style="font-size:16px;font-weight:700">'+po.po_num+'</div>';
+  html+='<div style="font-size:12px;color:#888">'+(po.date||'-')+' . '+supName+'</div></div>';
   html+='<div style="display:flex;gap:8px;align-items:center">';
   html+='<span class="bx '+smColor[po.status]+'">'+po.status+'</span>';
-  html+='<button onclick="document.querySelectorAll(\'.po-modal\').forEach(function(e){e.remove();})" style="border:none;background:none;font-size:24px;cursor:pointer;color:#888">X</button>';
+  if(can('export'))html+='<button id="del-po-btn" style="padding:4px 10px;font-size:11px;border:1px solid #E24B4A;border-radius:6px;background:#FCEBEB;color:#A32D2D;cursor:pointer">Delete PO</button>';
+  html+='<button id="po-close-btn" style="border:none;background:none;font-size:24px;cursor:pointer;color:#888">X</button>';
   html+='</div></div>';
+
+  // Info grid
   html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;font-size:12px">';
   html+='<div><span style="color:#888">Supplier:</span> <b>'+supName+'</b></div>';
   html+='<div><span style="color:#888">Order date:</span> <b>'+(po.date||'-')+'</b></div>';
-  html+='<div><span style="color:#888">Expected delivery:</span> <b>'+(po.delivery_date||'-')+'</b></div>';
+  html+='<div><span style="color:#888">Delivery:</span> <b>'+(po.delivery_date||'-')+'</b></div>';
   html+='<div><span style="color:#888">Notes:</span> <b>'+(po.notes||'-')+'</b></div>';
   html+='</div>';
+
+  // Items table
   html+='<div style="border:1px solid #e0ddd8;border-radius:8px;overflow:hidden;margin-bottom:14px">';
   html+='<table style="width:100%;border-collapse:collapse;font-size:12px">';
-  html+='<thead><tr style="background:#f9f9f6"><th style="padding:8px 10px;text-align:left">Product</th><th style="padding:8px 10px;text-align:center;width:60px">Qty</th><th style="padding:8px 10px;text-align:right;width:110px">Unit cost</th><th style="padding:8px 10px;text-align:right;width:110px">Total</th></tr></thead>';
-  html+='<tbody>';
+  html+='<thead><tr style="background:#f9f9f6"><th style="padding:8px 10px;text-align:left">Product</th>';
+  html+='<th style="padding:8px 10px;text-align:center;width:60px">Qty</th>';
+  html+='<th style="padding:8px 10px;text-align:right;width:110px">Unit cost</th>';
+  html+='<th style="padding:8px 10px;text-align:right;width:110px">Total</th></tr></thead><tbody>';
   (items||[]).forEach(function(it){
-    var name=invMap[it.inventory_id]||'Unknown product';
+    var name=invMap[it.inventory_id]||'Unknown';
     html+='<tr><td style="padding:7px 10px;border-top:1px solid #f0f0e8">'+name+'</td>';
     html+='<td style="padding:7px 10px;text-align:center;border-top:1px solid #f0f0e8">'+it.qty+'</td>';
     html+='<td style="padding:7px 10px;text-align:right;border-top:1px solid #f0f0e8">'+f(it.unit_cost)+'</td>';
     html+='<td style="padding:7px 10px;text-align:right;font-weight:700;border-top:1px solid #f0f0e8">'+f(it.qty*it.unit_cost)+'</td></tr>';
   });
   html+='</tbody></table></div>';
+
+  // Payment section
+  html+='<div style="background:#f9f9f6;border:1px solid #e0ddd8;border-radius:10px;padding:14px;margin-bottom:14px">';
+  html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
+  html+='<div style="font-weight:700;font-size:13px">Payment to supplier</div>';
+  html+='<button id="po-pay-btn" style="padding:5px 12px;font-size:12px;border:1px solid #1D9E75;border-radius:7px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:600">+ Record payment</button>';
+  html+='</div>';
+  html+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">';
+  html+='<div style="background:#fff;border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:#888;text-transform:uppercase;font-weight:700;margin-bottom:3px">PO Total</div><div style="font-size:15px;font-weight:700">'+f(po.total)+'</div></div>';
+  html+='<div style="background:#EAF3DE;border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:#3B6D11;text-transform:uppercase;font-weight:700;margin-bottom:3px">Paid</div><div style="font-size:15px;font-weight:700;color:#3B6D11">'+f(totalPaid)+'</div></div>';
+  html+='<div style="background:'+(remaining>0?'#FCEBEB':'#EAF3DE')+';border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:'+(remaining>0?'#A32D2D':'#3B6D11')+';text-transform:uppercase;font-weight:700;margin-bottom:3px">Remaining</div><div style="font-size:15px;font-weight:700;color:'+(remaining>0?'#A32D2D':'#3B6D11')+'">'+f(remaining)+'</div></div>';
+  html+='</div>';
+  // Payment history
+  if((poPays||[]).length){
+    (poPays||[]).forEach(function(p){
+      html+='<div style="display:flex;gap:8px;padding:5px 0;font-size:12px;border-top:1px solid #f0f0e8;align-items:center">';
+      html+='<b>'+f(p.amount)+'</b><span style="background:#f0f0e8;padding:2px 8px;border-radius:20px;font-size:11px">'+p.method+'</span>';
+      if(p.note)html+='<span style="color:#888">'+p.note+'</span>';
+      if(can('export'))html+='<button class="del-po-pay-btn" data-pid="'+p.id+'" data-poid="'+poId+'" style="margin-left:auto;padding:2px 7px;font-size:10px;border:1px solid #E24B4A;border-radius:5px;background:#FCEBEB;color:#A32D2D;cursor:pointer">Del</button>';
+      html+='</div>';
+    });
+  }
+  html+='</div>';
+
+  // Payment form (hidden)
+  html+='<div id="po-pay-form" style="display:none;background:#fff;border:1px solid #e0ddd8;border-radius:8px;padding:12px;margin-bottom:14px">';
+  html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">';
+  html+='<div><label style="font-size:11px;color:#888">Amount (EGP)</label><input type="number" id="po-pay-amt" placeholder="0" style="width:100%;padding:7px 10px;border:1px solid #ccc;border-radius:8px;font-size:13px"></div>';
+  html+='<div><label style="font-size:11px;color:#888">Method</label><select id="po-pay-meth" style="width:100%;padding:7px 10px;border:1px solid #ccc;border-radius:8px;font-size:13px"><option>Cash</option><option>Bank transfer</option><option>Cheque</option><option>Instapay</option></select></div>';
+  html+='</div>';
+  html+='<div style="margin-bottom:8px"><label style="font-size:11px;color:#888">Note</label><input id="po-pay-note" placeholder="Reference..." style="width:100%;padding:7px 10px;border:1px solid #ccc;border-radius:8px;font-size:13px"></div>';
+  html+='<div style="display:flex;gap:8px">';
+  html+='<button id="po-pay-save" style="padding:7px 14px;font-size:12px;border:1px solid #1D9E75;border-radius:8px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:600">Save payment</button>';
+  html+='<button style="padding:7px 14px;font-size:12px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer">Cancel</button>';
+  html+='</div></div>';
+
+  // Action buttons
   html+='<div style="display:flex;justify-content:space-between;align-items:center">';
-  html+='<div style="font-size:15px;font-weight:700">Total: '+f(po.total)+'</div>';
+  html+='<div style="font-size:13px;font-weight:700">PO Total: '+f(po.total)+'</div>';
   if(po.status==='pending'){
-    html+='<button id="md-btn-'+po.id+'" style="padding:9px 18px;font-size:13px;border:1px solid #639922;border-radius:8px;background:#EAF3DE;color:#3B6D11;cursor:pointer;font-weight:600">Mark as received - update inventory</button>';
+    html+='<button id="md-btn-'+po.id+'" style="padding:8px 16px;font-size:12px;border:1px solid #639922;border-radius:8px;background:#EAF3DE;color:#3B6D11;cursor:pointer;font-weight:600">Mark as received - update inventory</button>';
   }else{
     html+='<span style="color:#3B6D11;font-weight:600">Received - inventory updated</span>';
   }
   html+='</div></div>';
+
   overlay.innerHTML=html;
   document.body.appendChild(overlay);
+
+  // Wire up buttons after DOM insertion
+  // Wire delete payment buttons
+  overlay.querySelectorAll('.del-po-pay-btn').forEach(function(btn){
+    btn.onclick=function(){delPOPay(this.dataset.pid, this.dataset.poid);};
+  });
+  var closeBtn=document.getElementById('po-close-btn');
+  if(closeBtn){closeBtn.onclick=function(){document.querySelectorAll('.po-modal').forEach(function(e){e.remove();});};}
   var mdBtn=overlay.querySelector('[id^="md-btn-"]');
-  if(mdBtn){
-    var mdId=mdBtn.id.replace('md-btn-','');
-    mdBtn.onclick=function(){markDelivered(mdId);};
+  if(mdBtn){var mdId=mdBtn.id.replace('md-btn-','');mdBtn.onclick=function(){markDelivered(mdId);};}
+
+  var poPayBtn=document.getElementById('po-pay-btn');
+  if(poPayBtn){poPayBtn.onclick=function(){
+    var f2=document.getElementById('po-pay-form');
+    if(f2)f2.style.display=f2.style.display==='none'?'block':'none';
+  };}
+
+  // Wire cancel button for pay form
+  var poPayCancel=overlay.querySelector('#po-pay-form button:last-child');
+  if(poPayCancel){poPayCancel.onclick=function(){document.getElementById('po-pay-form').style.display='none';};}
+  var poPaySave=document.getElementById('po-pay-save');
+  if(poPaySave){poPaySave.onclick=function(){savePOPayment(poId,po.total);};}
+
+  var delPoBtn=document.getElementById('del-po-btn');
+  if(delPoBtn){delPoBtn.onclick=function(){deletePO(poId);};}
+}
+
+async function savePOPayment(poId,poTotal){
+  var amt=parseFloat(document.getElementById('po-pay-amt')?.value)||0;
+  if(!amt){toast('Enter amount',true);return;}
+  var method=document.getElementById('po-pay-meth')?.value||'Cash';
+  var note=document.getElementById('po-pay-note')?.value||'';
+  var{error}=await db.from('po_payments').insert({po_id:poId,amount:amt,method:method,note:note});
+  if(error){
+    // Table might not exist yet - show SQL to create it
+    if(error.message&&error.message.includes('po_payments')){
+      toast('Run SQL: create table po_payments (id uuid default gen_random_uuid() primary key, po_id uuid, amount numeric, method text, note text, created_at timestamptz default now());',true);
+    } else {
+      toast('Error: '+error.message,true);
+    }
+    return;
   }
+  toast('Payment saved!');
+  document.querySelectorAll('.po-modal').forEach(function(e){e.remove();});
+  openPODetail(poId);
+}
+
+async function delPOPay(payId,poId){
+  if(!confirm('Delete this payment?'))return;
+  await db.from('po_payments').delete().eq('id',payId);
+  document.querySelectorAll('.po-modal').forEach(function(e){e.remove();});
+  openPODetail(poId);
+}
+
+async function deletePO(poId){
+  if(!confirm('Delete this purchase order permanently? This cannot be undone.'))return;
+  await db.from('po_items').delete().eq('po_id',poId);
+  await db.from('po_payments').delete().eq('po_id',poId);
+  await db.from('purchase_orders').delete().eq('id',poId);
+  document.querySelectorAll('.po-modal').forEach(function(e){e.remove();});
+  toast('Purchase order deleted!');
+  loadPur();
 }
 
 
@@ -1880,7 +2007,7 @@ async function loadFinStats(){
   const grand=id=>prods.filter(p=>p.task_id===id).reduce((a,p)=>a+p.qty*p.price,0);
   const paid=id=>pays.filter(p=>p.task_id===id).reduce((a,p)=>a+p.amount,0);
   let rev=0,col=0,out=0;tasks.forEach(t=>{const g=grand(t.id),p=paid(t.id);rev+=g;col+=p;out+=Math.max(0,g-p);});
-  const exp=(tpo.data||[]).reduce((a,p)=>a+(p.total||0),0);
+  const exp=(tpo.data||[]).filter(p=>p.status==='received').reduce((a,p)=>a+(p.total||0),0);
   document.getElementById('fstats').innerHTML='<div class="sc"><div class="sl">Total revenue</div><div class="sv">'+f(rev)+'</div></div><div class="sc"><div class="sl">Collected</div><div class="sv" style="color:#3B6D11">'+f(col)+'</div></div><div class="sc"><div class="sl">Outstanding</div><div class="sv" style="color:#A32D2D">'+f(out)+'</div></div><div class="sc"><div class="sl">Net profit</div><div class="sv" style="color:#1D9E75">'+f(col-exp)+'</div></div>';
 }
 
