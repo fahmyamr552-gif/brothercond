@@ -1315,27 +1315,6 @@ async function savePay(){
   toast('Payment of '+f(amt)+' saved');
 }
 
-function onPS(){
-  const v=document.getElementById('pst').value;
-  document.getElementById('pex').style.display=(v==='downpayment'||v==='installments')?'block':'none';
-  document.getElementById('pel1').textContent=v==='installments'?'First installment (EGP)':'Down payment (EGP)';
-  if(CT){CT.pay_status=v;db.from('tasks').update({pay_status:v}).eq('id',CT.id);}
-}
-
-async function saveDue(){
-  const d=document.getElementById('pdd').value;
-  if(CT){CT.due_date=d;await db.from('tasks').update({due_date:d}).eq('id',CT.id);
-  if(d){document.getElementById('pdue').style.display='';document.getElementById('pduev').textContent=d;}}
-}
-
-function calcPR(){
-  if(!CT)return;
-  const amt=parseFloat(document.getElementById('pdn').value)||0;
-  const gr=CT.prods.reduce((a,p)=>a+p.qty*p.price,0);
-  const date=document.getElementById('pdd').value;
-  document.getElementById('prm').textContent=date?'Remaining '+f(Math.max(0,gr-amt))+' due on '+date:'';
-}
-
 async function saveComp(){
   const techName=document.getElementById('ctech-name')?.value||'';
   const{error}=await db.from('tasks').update({
@@ -1951,8 +1930,6 @@ async function saveUsr(){
   document.getElementById('auf').style.display='none';toast('User created!');loadUsr();
 }
 
-async function togUsr(id,active){await db.from('users').update({active}).eq('id',id);loadUsr();}
-
 // PO functions
 function openNewPO(){
   go('npo',null);ssid=null;
@@ -2011,20 +1988,6 @@ async function delProd(id){
   if(!confirm('Delete this product? This cannot be undone.'))return;
   const{error}=await db.from('inventory').delete().eq('id',id);
   if(error){toast('Error: '+error.message,true);return;}toast('Product deleted');loadInv();
-}
-
-async function deleteTask(){
-  if(!CT)return;
-  if(!confirm(t('taskdelconfirm')+' '+CT.task_num))return;
-  await db.from('payments').delete().eq('task_id',CT.id);
-  await db.from('task_products').delete().eq('task_id',CT.id);
-  await db.from('tasks').delete().eq('id',CT.id);
-  toast('Task deleted');go('tasks',document.getElementById('ni-tasks'));
-}
-
-function clearTaskFilters(){
-  ['tq','tft','tfb','tfd','ttd','tfs'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  loadTasks();
 }
 
 document.getElementById('ntpt').textContent=POL;
