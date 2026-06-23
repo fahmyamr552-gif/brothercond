@@ -1439,50 +1439,127 @@ async function deleteTask(){
 
 function doPrint(){
   if(!CT)return;
-  const printUseTax=CT.use_tax===false?false:true;
+  const useTax=CT.use_tax===false?false:true;
   const gr=CT.prods.reduce((a,p)=>a+p.qty*p.price,0);
-  const sub=printUseTax?gr/1.14:gr;const tax=printUseTax?gr-sub:0;
-  const pd=CT.pays.reduce((a,p)=>a+p.amount,0);const rem=Math.max(0,gr-pd);
+  const sub=useTax?gr/1.14:gr;
+  const tax=useTax?gr-sub:0;
+  const pd=CT.pays.reduce((a,p)=>a+p.amount,0);
+  const rem=Math.max(0,gr-pd);
   const cu=CT.cust||{};
-  const rows=CT.prods.map(p=>{const tot=p.qty*p.price;const bt=printUseTax?tot/1.14:tot;return`<tr><td style="padding:5px 8px;border-bottom:1px solid #ddd">${p.name}</td><td style="text-align:center;padding:5px 8px;border-bottom:1px solid #ddd">${p.qty}</td><td style="text-align:right;padding:5px 8px;border-bottom:1px solid #ddd">${f(p.price)}</td>${printUseTax?`<td style="text-align:right;padding:5px 8px;border-bottom:1px solid #ddd">${f(bt)}</td>`:''}<td style="text-align:right;padding:5px 8px;border-bottom:1px solid #ddd;font-weight:700">${f(tot)}</td></tr>`;}).join('');
-  const payRows=CT.pays.map(p=>`<tr><td style="padding:3px 8px">${p.method}</td><td style="padding:3px 8px">${p.note||''}</td><td style="text-align:right;padding:3px 8px;font-weight:700">${f(p.amount)}</td></tr>`).join('');
-  const psMap={paid:'Paid in full',unpaid:'Unpaid',downpayment:'Down payment - remainder due '+(CT.due_date||'—'),installments:'Installments - final due '+(CT.due_date||'—')};
-  const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>BrotherCond - ${CT.task_num}</title><style>body{font-family:Arial,sans-serif;font-size:12px;color:#111;margin:28px}table{width:100%;border-collapse:collapse}th{background:#f5f5f3;padding:7px 8px;text-align:left;border-bottom:1px solid #ccc;font-size:11px;font-weight:700}.ig{display:grid;grid-template-columns:1fr 1fr;gap:8px 24px;margin-bottom:16px}.il{font-size:10px;color:#888;margin-bottom:1px}.iv{font-weight:700;font-size:13px}</style></head><body>
-<div style="text-align:center;border-bottom:2px solid #111;padding-bottom:12px;margin-bottom:16px"><div style="font-size:22px;font-weight:700">BrotherCond</div><div style="font-size:11px;color:#666;margin-top:2px">Air Conditioning - Task Order</div></div>
-<div class="ig">
-<div><div class="il">Task #</div><div class="iv">${CT.task_num}</div></div>
-<div><div class="il">Date</div><div class="iv">${CT.date||'—'}</div></div>
-<div><div class="il">Customer</div><div class="iv">${cu.full_name||CT.customer_name||'—'}</div></div>
-<div><div class="il">Phone</div><div class="iv">${cu.phone||'—'}</div></div>
-<div><div class="il">Address</div><div class="iv">${cu.address||'—'}</div></div>
-${cu.id_number?`<div><div class="il">ID / Passport</div><div class="iv">${cu.id_number}</div></div>`:''}
-<div><div class="il">Branch</div><div class="iv">${CT.branch}</div></div>
-<div><div class="il">Salesperson</div><div class="iv">${CT.salesperson}</div></div>
-<div><div class="il">Service type</div><div class="iv">${CT.type}</div></div>
-<div><div class="il">Payment status</div><div class="iv">${psMap[CT.pay_status]||CT.pay_status}</div></div>
-</div>
-${CT.description?`<div style="margin-bottom:14px;padding:8px;background:#f8f8f6;border-radius:4px;font-size:11px;color:#555">${CT.description}</div>`:''}
-<table style="margin-bottom:14px"><thead><tr><th style="width:${printUseTax?'38':'46'}%">Product</th><th style="width:8%;text-align:center">Qty</th><th style="width:16%;text-align:right">Unit price</th>${printUseTax?'<th style="width:17%;text-align:right">Before tax</th>':''}<th style="text-align:right">${printUseTax?'Total (14%)':'Total'}</th></tr></thead><tbody>${rows}</tbody></table>
-<div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;font-size:12px;margin-bottom:16px">
-${printUseTax?`<div style="display:flex;gap:22px"><span style="color:#888">Subtotal (before tax)</span><span style="min-width:110px;text-align:right">${f(sub)}</span></div>
-<div style="display:flex;gap:22px"><span style="color:#888">Tax (14%)</span><span style="min-width:110px;text-align:right">${f(tax)}</span></div>`:''}
-<div style="display:flex;gap:22px;font-weight:700;border-top:1px solid #ccc;padding-top:5px"><span>Total</span><span style="min-width:110px;text-align:right;color:#1D9E75">${f(gr)}</span></div>
-</div>
-${payRows?`<div style="margin-bottom:14px"><div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;margin-bottom:6px">Payments received</div><table style="width:260px"><thead><tr><th>Method</th><th>Note</th><th style="text-align:right">Amount</th></tr></thead><tbody>${payRows}</tbody></table><div style="display:flex;gap:14px;margin-top:6px;font-size:12px"><span>Paid: <b>${f(pd)}</b></span><span style="color:${rem>0?'#c0392b':'#27ae60'}">Remaining: <b>${f(rem)}</b></span>${CT.due_date?`<span style="color:#854F0B">Due: <b>${CT.due_date}</b></span>`:''}</div></div>`:''}
-${CT.type==='sales'?`<div style="margin-top:16px;padding:10px;background:#f8f8f6;border-radius:4px;font-size:10px;color:#666;line-height:1.8;border:1px solid #ddd;white-space:pre-wrap;font-family:Arial">${POL}</div>`:''}
-${CT.completion_notes||CT.technician_name?`<div style="margin-top:16px;padding:12px;background:#f0faf5;border-radius:4px;border:1px solid #1D9E75">
-  <div style="font-size:11px;font-weight:700;color:#0F6E56;text-transform:uppercase;margin-bottom:8px">Completion Report</div>
-  ${CT.technician_name?`<div style="margin-bottom:5px;font-size:12px"><b>Technician:</b> ${CT.technician_name}</div>`:''}
-  ${CT.completion_time?`<div style="margin-bottom:5px;font-size:12px"><b>Completed at:</b> ${new Date(CT.completion_time).toLocaleString('en-GB')}</div>`:''}
-  ${CT.completion_notes?`<div style="margin-bottom:5px;font-size:12px"><b>What was done:</b><br>${CT.completion_notes}</div>`:''}
-  ${CT.technician_note?`<div style="margin-bottom:5px;font-size:12px"><b>Technician note:</b> ${CT.technician_note}</div>`:''}
-  ${CT.customer_confirmed?`<div style="font-size:12px;color:#3B6D11"><b>✓ Customer confirmed & satisfied</b></div>`:''}
-</div>`:''}
-<div style="margin-top:22px;border-top:1px solid #ccc;padding-top:8px;font-size:10px;color:#999;text-align:center">Thank you for choosing BrotherCond</div>
-<scr'+'ipt>window.onload=function(){window.print();setTimeout(window.close,800);}<\/scr'+'ipt></body></html>`;
-  const w=window.open('','_blank','width=820,height=950');
-  if(w){w.document.write(html);w.document.close();}else alert('Please allow popups for printing.');
+  const psMap={paid:'Paid in full',unpaid:'Unpaid',downpayment:'Down payment – remainder due '+(CT.due_date||'—'),installments:'Installments – final due '+(CT.due_date||'—')};
+
+  // Build product rows
+  let prodRows='';
+  CT.prods.forEach(p=>{
+    const tot=p.qty*p.price;
+    const bt=useTax?tot/1.14:tot;
+    prodRows+='<tr>';
+    prodRows+=`<td style="padding:5px 8px;border-bottom:1px solid #ddd">${p.name}</td>`;
+    prodRows+=`<td style="text-align:center;padding:5px 8px;border-bottom:1px solid #ddd">${p.qty}</td>`;
+    prodRows+=`<td style="text-align:right;padding:5px 8px;border-bottom:1px solid #ddd">${f(p.price)}</td>`;
+    if(useTax)prodRows+=`<td style="text-align:right;padding:5px 8px;border-bottom:1px solid #ddd">${f(bt)}</td>`;
+    prodRows+=`<td style="text-align:right;padding:5px 8px;border-bottom:1px solid #ddd;font-weight:700;color:#1D9E75">${f(tot)}</td>`;
+    prodRows+='</tr>';
+  });
+
+  // Build payment rows
+  let payRows='';
+  CT.pays.forEach(p=>{
+    payRows+=`<tr><td style="padding:3px 8px">${p.method}</td><td style="padding:3px 8px">${p.note||''}</td><td style="text-align:right;padding:3px 8px;font-weight:700">${f(p.amount)}</td></tr>`;
+  });
+
+  // Build completion section
+  let compSection='';
+  if(CT.completion_notes||CT.technician_name){
+    compSection='<div style="margin-top:16px;padding:12px;background:#f0faf5;border-radius:4px;border:1px solid #1D9E75">';
+    compSection+='<div style="font-size:11px;font-weight:700;color:#0F6E56;text-transform:uppercase;margin-bottom:8px">Completion Report</div>';
+    if(CT.technician_name)compSection+=`<div style="margin-bottom:5px;font-size:12px"><b>Technician:</b> ${CT.technician_name}</div>`;
+    if(CT.completion_time)compSection+=`<div style="margin-bottom:5px;font-size:12px"><b>Completed at:</b> ${new Date(CT.completion_time).toLocaleString('en-GB')}</div>`;
+    if(CT.completion_notes)compSection+=`<div style="margin-bottom:5px;font-size:12px"><b>What was done:</b><br>${CT.completion_notes}</div>`;
+    if(CT.technician_note)compSection+=`<div style="margin-bottom:5px;font-size:12px"><b>Technician note:</b> ${CT.technician_note}</div>`;
+    if(CT.customer_confirmed)compSection+='<div style="font-size:12px;color:#3B6D11"><b>&#10003; Customer confirmed &amp; satisfied</b></div>';
+    compSection+='</div>';
+  }
+
+  // Build policy section
+  let policySection='';
+  if(CT.type==='sales'){
+    policySection=`<div style="margin-top:16px;padding:10px;background:#f8f8f6;border-radius:4px;font-size:10px;color:#666;line-height:1.8;border:1px solid #ddd;white-space:pre-wrap;font-family:Arial">${POL}</div>`;
+  }
+
+  // Build payment history section
+  let paySection='';
+  if(payRows){
+    paySection='<div style="margin-bottom:14px">';
+    paySection+='<div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;margin-bottom:6px">Payments received</div>';
+    paySection+=`<table style="width:260px"><thead><tr><th style="padding:5px 8px;background:#f5f5f3">Method</th><th style="padding:5px 8px;background:#f5f5f3">Note</th><th style="text-align:right;padding:5px 8px;background:#f5f5f3">Amount</th></tr></thead><tbody>${payRows}</tbody></table>`;
+    paySection+=`<div style="display:flex;gap:14px;margin-top:6px;font-size:12px">`;
+    paySection+=`<span>Paid: <b>${f(pd)}</b></span>`;
+    paySection+=`<span style="color:${rem>0?'#c0392b':'#27ae60'}">Remaining: <b>${f(rem)}</b></span>`;
+    if(CT.due_date)paySection+=`<span style="color:#854F0B">Due: <b>${CT.due_date}</b></span>`;
+    paySection+='</div></div>';
+  }
+
+  // Build full HTML
+  let html='<!DOCTYPE html><html><head><meta charset="utf-8">';
+  html+=`<title>BrotherCond - ${CT.task_num}</title>`;
+  html+='<style>body{font-family:Arial,sans-serif;font-size:12px;color:#111;margin:28px}table{width:100%;border-collapse:collapse}th{text-align:left;padding:7px 8px;border-bottom:1px solid #ccc;background:#f5f5f3;font-size:11px;font-weight:700}.ig{display:grid;grid-template-columns:1fr 1fr;gap:8px 24px;margin-bottom:16px}.il{font-size:10px;color:#888;margin-bottom:1px}.iv{font-weight:700;font-size:13px}</style>';
+  html+='</head><body>';
+  html+='<div style="text-align:center;border-bottom:2px solid #111;padding-bottom:12px;margin-bottom:16px">';
+  html+='<div style="font-size:22px;font-weight:700">BrotherCond</div>';
+  html+='<div style="font-size:11px;color:#666;margin-top:2px">Air Conditioning – Task Order</div>';
+  html+='</div>';
+  html+='<div class="ig">';
+  html+=`<div><div class="il">Task #</div><div class="iv">${CT.task_num}</div></div>`;
+  html+=`<div><div class="il">Date</div><div class="iv">${CT.date||'—'}</div></div>`;
+  html+=`<div><div class="il">Customer</div><div class="iv">${cu.full_name||CT.customer_name||'—'}</div></div>`;
+  html+=`<div><div class="il">Phone</div><div class="iv">${cu.phone||'—'}</div></div>`;
+  html+=`<div><div class="il">Address</div><div class="iv">${cu.address||'—'}</div></div>`;
+  if(cu.id_number)html+=`<div><div class="il">ID / Passport</div><div class="iv">${cu.id_number}</div></div>`;
+  html+=`<div><div class="il">Branch</div><div class="iv">${CT.branch}</div></div>`;
+  html+=`<div><div class="il">Salesperson</div><div class="iv">${CT.salesperson}</div></div>`;
+  html+=`<div><div class="il">Service type</div><div class="iv" style="text-transform:capitalize">${CT.type}</div></div>`;
+  html+=`<div><div class="il">Payment status</div><div class="iv">${psMap[CT.pay_status]||CT.pay_status}</div></div>`;
+  if(CT.created_by)html+=`<div><div class="il">Created by</div><div class="iv">${CT.created_by}</div></div>`;
+  html+='</div>';
+  if(CT.description)html+=`<div style="margin-bottom:14px;padding:8px;background:#f8f8f6;border-radius:4px;font-size:11px;color:#555">${CT.description}</div>`;
+
+  // Products table
+  html+=`<table style="margin-bottom:14px"><thead><tr>`;
+  html+='<th style="width:38%">Product</th>';
+  html+='<th style="width:8%;text-align:center">Qty</th>';
+  html+='<th style="width:16%;text-align:right">Unit price</th>';
+  if(useTax)html+='<th style="width:17%;text-align:right">Before tax</th>';
+  html+=`<th style="text-align:right">${useTax?'Total (14%)':'Total'}</th>`;
+  html+='</tr></thead>';
+  html+=`<tbody>${prodRows}</tbody></table>`;
+
+  // Totals
+  html+='<div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;font-size:12px;margin-bottom:16px">';
+  if(useTax){
+    html+=`<div style="display:flex;gap:22px"><span style="color:#888">Subtotal (before tax)</span><span style="min-width:110px;text-align:right">${f(sub)}</span></div>`;
+    html+=`<div style="display:flex;gap:22px"><span style="color:#888">Tax (14%)</span><span style="min-width:110px;text-align:right">${f(tax)}</span></div>`;
+  }
+  html+=`<div style="display:flex;gap:22px;font-weight:700;border-top:1px solid #ccc;padding-top:5px"><span>Total</span><span style="min-width:110px;text-align:right;color:#1D9E75">${f(gr)}</span></div>`;
+  html+='</div>';
+
+  html+=paySection;
+  html+=policySection;
+  html+=compSection;
+  html+='<div style="margin-top:22px;border-top:1px solid #ccc;padding-top:8px;font-size:10px;color:#999;text-align:center">Thank you for choosing BrotherCond</div>';
+  html+='</body></html>';
+
+  const w=window.open('','_blank','width=820,height:950');
+  if(w){
+    w.document.write(html);
+    w.document.close();
+    setTimeout(()=>w.print(),600);
+  } else {
+    alert('Please allow popups to print.');
+  }
 }
+
+
 
 function openNT(){
   go('nt',null);scid=null;
@@ -1496,6 +1573,8 @@ function openNT(){
   document.getElementById('ntwn').style.display='none';
   document.getElementById('ntds').value='';
   document.getElementById('ntdate').value=new Date().toISOString().slice(0,10);
+  const taxToggle=document.getElementById('tax-toggle');
+  if(taxToggle)taxToggle.checked=true;
   addRow();
 }
 
@@ -1508,26 +1587,25 @@ async function cSearch(v){
   const{data}=await db.from('customers').select('id,full_name,phone,address').or(`full_name.ilike.%${v}%,phone.ilike.%${v}%`).limit(6);
   if(!data?.length){box.style.display='none';return;}
   box.style.display='block';box.innerHTML='';
-  data.forEach(c=>{const d=document.createElement('div');d.style.cssText='padding:8px 12px;cursor:pointer;border-bottom:1px solid #f0f0e8;font-size:13px';d.onmouseover=()=>d.style.background='#f5f5f0';d.onmouseout=()=>d.style.background='';d.innerHTML=`<div style="font-weight:700">${c.full_name}</div><div style="font-size:11px;color:#888">${c.phone||''} - ${c.address||''}</div>`;d.onclick=()=>{scid=c.id;document.getElementById('ncav').textContent=ini(c.full_name);document.getElementById('ncnm').textContent=c.full_name;document.getElementById('ncph').textContent=(c.phone||'')+(c.address?' - '+c.address:'');document.getElementById('sct').style.display='flex';document.getElementById('csg').style.display='none';document.getElementById('cqi').value='';};box.appendChild(d);});
+  data.forEach(c=>{
+    const d=document.createElement('div');
+    d.style.cssText='padding:8px 12px;cursor:pointer;border-bottom:1px solid #f0f0e8;font-size:13px';
+    d.onmouseover=()=>d.style.background='#f5f5f0';d.onmouseout=()=>d.style.background='';
+    d.innerHTML=`<div style="font-weight:700">${c.full_name}</div><div style="font-size:11px;color:#888">${c.phone||''} - ${c.address||''}</div>`;
+    d.onclick=()=>{
+      scid=c.id;
+      document.getElementById('ncav').textContent=ini(c.full_name);
+      document.getElementById('ncnm').textContent=c.full_name;
+      document.getElementById('ncph').textContent=(c.phone||'')+(c.address?' - '+c.address:'');
+      document.getElementById('sct').style.display='flex';
+      document.getElementById('csg').style.display='none';
+      document.getElementById('cqi').value='';
+    };
+    box.appendChild(d);
+  });
 }
 function clrC(){scid=null;document.getElementById('sct').style.display='none';}
 
-async function addRow(){
-  const type=document.getElementById('ntt').value;const isSales=type==='sales';const tbody=document.getElementById('ntb');
-  const tr=document.createElement('tr');
-  if(isSales){
-    if(!INV.length){const{data}=await db.from('inventory').select('*');INV=data||[];}
-    const opts=INV.map(p=>`<option value="${p.id}" data-price="${p.price}" data-qty="${p.qty}">${p.brand} ${p.model} ${p.hp} ${p.unit_type} ${p.cooling} ${p.ac_type||''} (stock: ${p.qty})</option>`).join('');
-    tr.innerHTML=`<td><select style="width:100%;font-size:12px;padding:4px" onchange="onPS2(this)">${opts}<option value="">Other</option></select></td><td><input type="number" value="1" min="1" style="width:100%;text-align:center" oninput="calcR(this);chkStk(this)"></td><td><input type="number" min="0" placeholder="0" style="width:100%" oninput="calcR(this)"></td><td><input readonly class="pt" style="width:100%;background:#f5f5f0"></td><td><input readonly class="tt2" style="width:100%;background:#f5f5f0;color:#1D9E75;font-weight:700"></td><td><button class="ib" onclick="this.closest('tr').remove();ntRec()" style="font-size:12px">X</button></td>`;
-    setTimeout(()=>{const s=tr.querySelector('select');if(s&&s.value){const o=s.selectedOptions[0];if(o?.dataset.price){tr.cells[2].querySelector('input').value=o.dataset.price;calcR(tr.cells[1].querySelector('input'));}}},0);
-  }else{
-    tr.innerHTML=`<td><select style="width:100%;font-size:12px;padding:4px"><option>Maintenance</option><option>Installation</option><option>Uninstall</option><option>Install & Uninstall</option></select></td><td><input type="number" value="1" min="1" style="width:100%;text-align:center" oninput="calcR(this)"></td><td><input type="number" min="0" placeholder="0" style="width:100%" oninput="calcR(this)"></td><td><input readonly class="pt" style="width:100%;background:#f5f5f0"></td><td><input readonly class="tt2" style="width:100%;background:#f5f5f0;color:#1D9E75;font-weight:700"></td><td><button class="ib" onclick="this.closest('tr').remove();ntRec()" style="font-size:12px">X</button></td>`;
-  }
-  tbody.appendChild(tr);
-}
-
-function onPS2(sel){const tr=sel.closest('tr');const o=sel.selectedOptions[0];if(o?.dataset.price){tr.cells[2].querySelector('input').value=o.dataset.price;calcR(tr.cells[1].querySelector('input'));chkStk(tr.cells[1].querySelector('input'));}}
-function chkStk(inp){const tr=inp.closest('tr');const sel=tr.cells[0].querySelector('select');if(!sel?.value)return;const o=sel.selectedOptions[0];if(!o?.dataset.qty)return;const av=parseInt(o.dataset.qty);const rq=parseInt(inp.value)||0;const w=document.getElementById('ntwn');if(rq>av){w.style.display='flex';document.getElementById('ntwm').textContent=`Warning: Only ${av} in stock. You can still proceed.`;}else w.style.display='none';}
 function recalcAllRows(){
   document.querySelectorAll('#ntb tr').forEach(tr=>{
     const inp=tr.cells[1]?.querySelector('input');
@@ -1537,9 +1615,10 @@ function recalcAllRows(){
 }
 
 function calcR(inp){
-  const tr=inp.closest('tr');
-  const q=parseFloat(tr.cells[1].querySelector('input').value)||0;
-  const p=parseFloat(tr.cells[2].querySelector('input').value)||0;
+  if(!inp||!inp.closest)return;
+  const tr=inp.closest('tr');if(!tr)return;
+  const q=parseFloat(tr.cells[1]?.querySelector('input')?.value)||0;
+  const p=parseFloat(tr.cells[2]?.querySelector('input')?.value)||0;
   const useTax=document.getElementById('tax-toggle')?.checked===true;
   const total=q*p;
   const beforeTax=useTax?(total/1.14):total;
@@ -1549,190 +1628,153 @@ function calcR(inp){
   if(ttEl)ttEl.value=total?Math.round(total):'';
   ntRec();
 }
+
 function ntRec(){
   let total=0;
   document.querySelectorAll('#ntb tr').forEach(tr=>{
-    total+=(parseFloat(tr.cells[1].querySelector('input').value)||0)*(parseFloat(tr.cells[2].querySelector('input').value)||0);
+    total+=(parseFloat(tr.cells[1]?.querySelector('input')?.value)||0)*(parseFloat(tr.cells[2]?.querySelector('input')?.value)||0);
   });
   const useTax=document.getElementById('tax-toggle')?.checked===true;
   const beforeTax=useTax?total/1.14:total;
   const tax=useTax?total-beforeTax:0;
-  // Show/hide before tax column and label
   const btCols=document.querySelectorAll('.pt');
-  const ttCols=document.querySelectorAll('.tt2');
+  btCols.forEach(el=>{if(el.closest('td'))el.closest('td').style.display=useTax?'':'none';});
   const thBefore=document.querySelector('th.th-before');
   const thTotal=document.querySelector('th.th-total');
-  btCols.forEach(el=>el.closest('td').style.display=useTax?'':'none');
   if(thBefore)thBefore.style.display=useTax?'':'none';
   if(thTotal)thTotal.textContent=useTax?'Total (14%)':'Total';
-  document.getElementById('nts').textContent=useTax?f(beforeTax):'';
-  document.getElementById('ntt2').textContent=useTax?f(tax):'';
-  document.getElementById('ntg').textContent=f(total);
-  // Show/hide subtotal and tax rows
-  const subRow=document.getElementById('nts')?.closest('.tr');
-  const taxRow=document.getElementById('ntt2')?.closest('.tr');
+  const nsEl=document.getElementById('nts');
+  const ntEl=document.getElementById('ntt2');
+  const ngEl=document.getElementById('ntg');
+  if(nsEl)nsEl.textContent=useTax?f(beforeTax):'';
+  if(ntEl)ntEl.textContent=useTax?f(tax):'';
+  if(ngEl)ngEl.textContent=f(total);
+  const subRow=nsEl?.closest('.tr');
+  const taxRow=ntEl?.closest('.tr');
   if(subRow)subRow.style.display=useTax?'':'none';
   if(taxRow)taxRow.style.display=useTax?'':'none';
 }
 
-async function saveTask(){
+async function addRow(){
+  const type=document.getElementById('ntt').value;
+  const isSales=type==='sales';
+  const tbody=document.getElementById('ntb');
+  const tr=document.createElement('tr');
   const useTax=document.getElementById('tax-toggle')?.checked!==false;
-  // Read rows FIRST before any navigation clears them
+  if(isSales){
+    if(!INV.length){const{data}=await db.from('inventory').select('*');INV=data||[];}
+    const opts=INV.map(p=>`<option value="${p.id}" data-price="${p.price}" data-qty="${p.qty}">${p.brand} ${p.model} ${p.hp} ${p.unit_type||''} ${p.cooling||''} ${p.ac_type||''} (stock: ${p.qty})</option>`).join('');
+    tr.innerHTML=`<td><select style="width:100%;font-size:12px;padding:4px" onchange="onPS2(this)">${opts}<option value="">Other</option></select></td>
+      <td><input type="number" value="1" min="1" style="width:100%;text-align:center" oninput="calcR(this);chkStk(this)"></td>
+      <td><input type="number" min="0" placeholder="0" style="width:100%" oninput="calcR(this)"></td>
+      <td style="${useTax?'':'display:none'}"><input readonly class="pt" style="width:100%;background:#f5f5f0"></td>
+      <td><input readonly class="tt2" style="width:100%;background:#f5f5f0;color:#1D9E75;font-weight:700"></td>
+      <td><button class="ib" onclick="this.closest('tr').remove();ntRec()" style="font-size:12px">X</button></td>`;
+    setTimeout(()=>{const s=tr.querySelector('select');if(s&&s.value){const o=s.selectedOptions[0];if(o?.dataset.price){tr.cells[2].querySelector('input').value=o.dataset.price;calcR(tr.cells[1].querySelector('input'));}}},0);
+  }else{
+    tr.innerHTML=`<td><select style="width:100%;font-size:12px;padding:4px"><option>Maintenance</option><option>Installation</option><option>Uninstall</option><option>Install & Uninstall</option></select></td>
+      <td><input type="number" value="1" min="1" style="width:100%;text-align:center" oninput="calcR(this)"></td>
+      <td><input type="number" min="0" placeholder="0" style="width:100%" oninput="calcR(this)"></td>
+      <td style="${useTax?'':'display:none'}"><input readonly class="pt" style="width:100%;background:#f5f5f0"></td>
+      <td><input readonly class="tt2" style="width:100%;background:#f5f5f0;color:#1D9E75;font-weight:700"></td>
+      <td><button class="ib" onclick="this.closest('tr').remove();ntRec()" style="font-size:12px">X</button></td>`;
+  }
+  tbody.appendChild(tr);
+}
+
+function onPS2(sel){const tr=sel.closest('tr');const o=sel.selectedOptions[0];if(o?.dataset.price){tr.cells[2].querySelector('input').value=o.dataset.price;calcR(tr.cells[1].querySelector('input'));chkStk(tr.cells[1].querySelector('input'));}}
+function chkStk(inp){if(!inp?.closest)return;const tr=inp.closest('tr');if(!tr)return;const sel=tr.cells[0].querySelector('select');if(!sel?.value)return;const o=sel.selectedOptions[0];if(!o?.dataset.qty)return;const av=parseInt(o.dataset.qty);const rq=parseInt(inp.value)||0;const w=document.getElementById('ntwn');if(rq>av){w.style.display='flex';document.getElementById('ntwm').textContent=`Warning: Only ${av} in stock.`;}else if(w)w.style.display='none';}
+
+async function saveTask(){
+  const useTax=document.getElementById('tax-toggle')?.checked===true;
   const taskRows=[];
   document.querySelectorAll('#ntb tr').forEach(tr=>{
-    const sel=tr.cells[0].querySelector('select');const q=parseInt(tr.cells[1].querySelector('input').value)||0;const p=parseFloat(tr.cells[2].querySelector('input').value)||0;
+    const sel=tr.cells[0].querySelector('select');
+    const q=parseInt(tr.cells[1]?.querySelector('input')?.value)||0;
+    const p=parseFloat(tr.cells[2]?.querySelector('input')?.value)||0;
     if(q>0){
       const optVal=sel?.value||'';
-      // Only treat as inventory ID if it looks like a UUID (contains hyphens)
       const pid=(optVal&&optVal.includes('-'))?optVal:null;
       const nm=sel?.selectedOptions[0]?.text?.split('(')[0]?.trim()||'Product';
       taskRows.push({name:nm,qty:q,price:p,pid:pid});
     }
   });
   let cid=scid;
-  let customerName=document.getElementById('ncnm').textContent||'';
+  let customerName=document.getElementById('ncnm')?.textContent||'';
   if(document.getElementById('ncc').checked){
-    const nm=document.getElementById('ncn').value.trim();
+    const nm=document.getElementById('ncn')?.value.trim();
     if(!nm){toast('Customer name required',true);return;}
-    const{data:nc,error}=await db.from('customers').insert({
-      full_name:nm,
-      phone:document.getElementById('ncp').value,
-      phone2:document.getElementById('ncp2').value,
-      address:document.getElementById('nca').value,
-      id_number:document.getElementById('nci').value
-    }).select().single();
+    const{data:nc,error}=await db.from('customers').insert({full_name:nm,phone:document.getElementById('ncp')?.value,phone2:document.getElementById('ncp2')?.value,address:document.getElementById('nca')?.value,id_number:document.getElementById('nci')?.value}).select().single();
     if(error){toast('Error: '+error.message,true);return;}
-    cid=nc.id;
-    customerName=nm; // use the typed name, not ncnm element
+    cid=nc.id;customerName=nm;
   }
-  if(!customerName||customerName==='—'){
-    // fallback: try to get name from selected customer display
-    customerName=document.getElementById('ncnm')?.textContent||'Unknown';
-  }
-  const today=document.getElementById('ntdate').value||new Date().toISOString().slice(0,10);
+  if(!customerName||customerName==='—')customerName=document.getElementById('ncnm')?.textContent||'Unknown';
+  const today=document.getElementById('ntdate')?.value||new Date().toISOString().slice(0,10);
   const tnum='#'+String(Date.now()).slice(-5);
-  const{data:task,error:te}=await db.from('tasks').insert({task_num:tnum,customer_id:cid,customer_name:customerName,type:document.getElementById('ntt').value,branch:document.getElementById('ntbr').value,salesperson:document.getElementById('ntsp').value,description:document.getElementById('ntds').value,date:today,status:'pending',pay_status:'unpaid',created_by:CU?.full_name||CU?.username||'—',use_tax:useTax}).select().single();
+  const{data:task,error:te}=await db.from('tasks').insert({
+    task_num:tnum,customer_id:cid,customer_name:customerName,
+    type:document.getElementById('ntt')?.value,
+    branch:document.getElementById('ntbr')?.value,
+    salesperson:document.getElementById('ntsp')?.value,
+    description:document.getElementById('ntds')?.value,
+    date:today,status:'pending',pay_status:'unpaid',
+    created_by:CU?.full_name||CU?.username||'—',
+    use_tax:useTax
+  }).select().single();
   if(te){toast('Error: '+te.message,true);return;}
   const rows=taskRows.map(r=>({task_id:task.id,name:r.name,qty:r.qty,price:r.price,inventory_id:r.pid||null}));
   taskRows.forEach(r=>{if(r.pid&&task.type==='sales'){const inv=INV.find(x=>x.id===r.pid);if(inv){db.from('inventory').update({qty:Math.max(0,inv.qty-r.qty),sold:(inv.sold||0)+r.qty}).eq('id',r.pid);inv.qty=Math.max(0,inv.qty-r.qty);}}});
-  if(rows.length){
-    const{error:re}=await db.from('task_products').insert(rows);
-    if(re){toast('Error saving products: '+re.message,true);console.error('task_products error:',re);return;}
-  }
+  if(rows.length){const{error:re}=await db.from('task_products').insert(rows);if(re){toast('Error saving products: '+re.message,true);return;}}
   toast('Task created!');go('tasks',document.getElementById('ni-tasks'));
 }
 
 async function loadInv(search,brand){
-  const body=document.getElementById('invb');body.innerHTML='<tr><td colspan="8" style="text-align:center;padding:16px;color:#888">Loading...</td></tr>';
+  const body=document.getElementById('invb');
+  body.innerHTML='<tr><td colspan="9" style="text-align:center;padding:16px;color:#888">Loading...</td></tr>';
   let q=db.from('inventory').select('*').order('brand');
   if(search)q=q.or(`brand.ilike.%${search}%,model.ilike.%${search}%`);
   if(brand)q=q.eq('brand',brand);
   const{data}=await q;INV=data||[];body.innerHTML='';
-  if(!data?.length){body.innerHTML='<tr><td colspan="8" style="text-align:center;padding:16px;color:#888">No products.</td></tr>';return;}
-  // Get incoming units from pending POs
+  if(!data?.length){body.innerHTML='<tr><td colspan="9" style="text-align:center;padding:16px;color:#888">No products.</td></tr>';return;}
   const{data:poItems}=await db.from('po_items').select('inventory_id,qty,purchase_orders!inner(status)').eq('purchase_orders.status','pending');
   const incomingMap={};
   (poItems||[]).forEach(pi=>{if(pi.inventory_id)incomingMap[pi.inventory_id]=(incomingMap[pi.inventory_id]||0)+pi.qty;});
-
-  data.forEach(p=>{const tr=document.createElement('tr');
+  data.forEach(p=>{
+    const tr=document.createElement('tr');
     const incoming=incomingMap[p.id]||0;
     const sb=p.qty===0?'<span class="bx r">Out of stock</span>':p.qty<=p.low_stock?'<span class="bx a">Low stock</span>':'<span class="bx g">In stock</span>';
     const incomingBadge=incoming>0?`<span class="bx b" style="font-size:10px;margin-left:3px">+${incoming} incoming</span>`:'';
     const delBtn=can('export')?`<div style="display:flex;gap:4px"><button onclick="editProd('${p.id}','${p.brand}','${p.model}','${p.hp}','${p.unit_type||''}','${p.cooling||''}','${p.ac_type||''}',${p.qty},${p.price},${p.low_stock})" style="padding:3px 8px;font-size:10px;border:1px solid #378ADD;border-radius:5px;background:#E6F1FB;color:#185FA5;cursor:pointer">Edit</button><button onclick="delProd('${p.id}')" style="padding:3px 8px;font-size:10px;border:1px solid #E24B4A;border-radius:5px;background:#FCEBEB;color:#A32D2D;cursor:pointer">Del</button></div>`:'—';
     tr.innerHTML=`<td style="font-weight:700">${p.brand} ${p.model}</td><td><span class="bx gr">${p.brand}</span></td><td>${p.hp}</td><td style="font-size:11px">${p.ac_type||'—'}</td><td style="font-weight:700;color:${p.qty===0?'#A32D2D':p.qty<=p.low_stock?'#854F0B':'#3B6D11'}">${p.qty}${incomingBadge}</td><td style="color:#888">${p.sold||0}</td><td>${f(p.price)}</td><td>${sb}</td><td>${delBtn}</td>`;
-    body.appendChild(tr);});
-  document.getElementById('iskus').textContent=data.length;document.getElementById('iunit').textContent=data.reduce((a,p)=>a+p.qty,0);document.getElementById('ilow').textContent=data.filter(p=>p.qty<=p.low_stock).length;
+    body.appendChild(tr);
+  });
+  document.getElementById('iskus').textContent=data.length;
+  document.getElementById('iunit').textContent=data.reduce((a,p)=>a+p.qty,0);
+  document.getElementById('ilow').textContent=data.filter(p=>p.qty<=p.low_stock).length;
 }
 
-function editProd(id,brand,model,hp,unit_type,cooling,ac_type,qty,price,low_stock){
-  const html=`
-    <div style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9000;display:flex;align-items:center;justify-content:center" id="edit-prod-modal" onclick="if(event.target===this)this.remove()">
-      <div style="background:#fff;border-radius:12px;padding:22px;width:420px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.2)">
-        <div style="font-size:15px;font-weight:700;margin-bottom:14px">Edit product</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
-          <div class="fg"><label>Brand</label><input id="ep-brand" value="${brand}"></div>
-          <div class="fg"><label>Model</label><input id="ep-model" value="${model}"></div>
-          <div class="fg"><label>HP</label><input id="ep-hp" value="${hp}"></div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
-          <div class="fg"><label>Unit type</label><input id="ep-unit" value="${unit_type}"></div>
-          <div class="fg"><label>Cooling</label><input id="ep-cool" value="${cooling}"></div>
-          <div class="fg"><label>AC type</label><input id="ep-actype" value="${ac_type}"></div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
-          <div class="fg"><label>Quantity</label><input type="number" id="ep-qty" value="${qty}" min="0"></div>
-          <div class="fg"><label>Price (EGP)</label><input type="number" id="ep-price" value="${price}"></div>
-          <div class="fg"><label>Low stock at</label><input type="number" id="ep-low" value="${low_stock}" min="0"></div>
-        </div>
-        <div style="display:flex;gap:8px;justify-content:flex-end">
-          <button class="btn bs" onclick="document.getElementById('edit-prod-modal').remove()">Cancel</button>
-          <button class="btn bs bp" onclick="saveEditProd('${id}')">&#10003; Save changes</button>
-        </div>
-      </div>
-    </div>`;
-  document.body.insertAdjacentHTML('beforeend',html);
-}
-
-async function saveEditProd(id){
-  const updates={
-    brand:document.getElementById('ep-brand').value.trim(),
-    model:document.getElementById('ep-model').value.trim(),
-    hp:document.getElementById('ep-hp').value.trim(),
-    unit_type:document.getElementById('ep-unit').value.trim(),
-    cooling:document.getElementById('ep-cool').value.trim(),
-    ac_type:document.getElementById('ep-actype').value.trim(),
-    qty:parseInt(document.getElementById('ep-qty').value)||0,
-    price:parseFloat(document.getElementById('ep-price').value)||0,
-    low_stock:parseInt(document.getElementById('ep-low').value)||2
-  };
-  const{error}=await db.from('inventory').update(updates).eq('id',id);
-  if(error){toast('Error: '+error.message,true);return;}
-  document.getElementById('edit-prod-modal').remove();
-  toast('Product updated!');loadInv();
-}
-
-async function delProd(id){
-  if(!confirm('Delete this product from inventory? This cannot be undone.'))return;
-  const{error}=await db.from('inventory').delete().eq('id',id);
-  if(error){toast('Error: '+error.message,true);return;}
-  toast('Product deleted');loadInv();
-}
-
-function updMdl(){/* no longer needed - free text fields */}
+function updMdl(){/* free text fields */}
 function bldN(){
-  const b=document.getElementById('npbr').value.trim();
-  const m=document.getElementById('npmd').value.trim();
-  const h=document.getElementById('nphp').value.trim();
-  const u=document.getElementById('nput').value.trim();
-  const c=document.getElementById('npco').value.trim();
-  const a=document.getElementById('npac').value.trim();
+  const b=document.getElementById('npbr')?.value.trim();
+  const m=document.getElementById('npmd')?.value.trim();
+  const h=document.getElementById('nphp')?.value.trim();
+  const u=document.getElementById('nput')?.value.trim();
+  const c=document.getElementById('npco')?.value.trim();
+  const a=document.getElementById('npac')?.value.trim();
   const parts=[b,m,h,u,c,a].filter(Boolean);
-  document.getElementById('npgn').textContent=parts.length>=3?parts.join(' '):'— fill brand, model and capacity —';
+  const el=document.getElementById('npgn');
+  if(el)el.textContent=parts.length>=3?parts.join(' '):'— fill brand, model and capacity —';
 }
 
 async function saveProd(){
-  const b=document.getElementById('npbr').value.trim();
-  const m=document.getElementById('npmd').value.trim();
-  const h=document.getElementById('nphp').value.trim();
+  const b=document.getElementById('npbr')?.value.trim();
+  const m=document.getElementById('npmd')?.value.trim();
+  const h=document.getElementById('nphp')?.value.trim();
   if(!b||!m||!h){toast('Fill brand, model and capacity',true);return;}
-  const{error}=await db.from('inventory').insert({
-    brand:b,model:m,hp:h,
-    unit_type:document.getElementById('nput').value.trim()||'Highwall',
-    cooling:document.getElementById('npco').value.trim()||'Cooling only',
-    ac_type:document.getElementById('npac').value.trim()||'Inverter',
-    qty:parseInt(document.getElementById('npqt').value)||0,
-    sold:0,
-    price:parseFloat(document.getElementById('nppr').value)||0,
-    low_stock:parseInt(document.getElementById('nplw').value)||2
-  });
+  const{error}=await db.from('inventory').insert({brand:b,model:m,hp:h,unit_type:document.getElementById('nput')?.value.trim()||'Highwall',cooling:document.getElementById('npco')?.value.trim()||'Cooling only',ac_type:document.getElementById('npac')?.value.trim()||'Inverter',qty:parseInt(document.getElementById('npqt')?.value)||0,sold:0,price:parseFloat(document.getElementById('nppr')?.value)||0,low_stock:parseInt(document.getElementById('nplw')?.value)||2});
   if(error){toast('Error: '+error.message,true);return;}
-  // Clear form
-  ['npbr','npmd','nphp','nput','npco','npac'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('npqt').value='1';
-  document.getElementById('nppr').value='';
-  document.getElementById('npgn').textContent='— fill fields above —';
-  toast('Product added!');
-  go('inv',document.getElementById('ni-inv'));
+  ['npbr','npmd','nphp','nput','npco','npac'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  toast('Product added!');go('inv',document.getElementById('ni-inv'));
 }
 
 async function loadPur(){
@@ -1743,57 +1785,19 @@ async function loadPur(){
   const body=document.getElementById('pob');body.innerHTML='';
   const sm={received:'g',pending:'a',cancelled:'r'};
   (data||[]).forEach(po=>{
-    const tr=document.createElement('tr');tr.className='hv';
-    tr.style.cursor='pointer';
+    const tr=document.createElement('tr');tr.className='hv';tr.style.cursor='pointer';
     tr.innerHTML=`<td style="font-weight:700">${po.po_num}</td><td>${supMap[po.supplier_id]||'—'}</td><td>${po.date||'—'}</td><td>${po.items||0} items</td><td style="font-weight:700">${f(po.total)}</td>
     <td><span class="bx ${sm[po.status]||'gr'}">${po.status.charAt(0).toUpperCase()+po.status.slice(1)}</span></td>
-    <td>${po.status==='pending'?`<button onclick="event.stopPropagation();markDelivered('${po.id}')" style="padding:4px 10px;font-size:11px;border:1px solid #639922;border-radius:6px;background:#EAF3DE;color:#3B6D11;cursor:pointer">Mark delivered</button>`:'<span style="color:#3B6D11;font-size:12px">✓ Received</span>'}</td>`;
+    <td>${po.status==='pending'?`<button onclick="event.stopPropagation();markDelivered('${po.id}')" style="padding:4px 10px;font-size:11px;border:1px solid #639922;border-radius:6px;background:#EAF3DE;color:#3B6D11;cursor:pointer">Mark delivered</button>`:'<span style="color:#3B6D11;font-size:12px">&#10003; Received</span>'}</td>`;
     tr.onclick=()=>openPODetail(po.id,supMap);
     body.appendChild(tr);
   });
-  if(!data?.length)body.innerHTML='<tr><td colspan="6" style="text-align:center;padding:16px;color:#888">'+t('nopos')+'</td></tr>';
-}
-
-function openNPO(){go('npo',null);ssid=null;document.getElementById('potb').innerHTML='';document.getElementById('potot').textContent='EGP 0';document.getElementById('sqi').value='';document.getElementById('ssg').style.display='none';document.getElementById('ssel').style.display='none';document.getElementById('nsc').checked=false;togS(false);}
-function togS(c){document.getElementById('nsf').style.display=c?'block':'none';document.getElementById('ssw').style.display=c?'none':'block';}
-
-async function sSearch(v){
-  const box=document.getElementById('ssg');if(v.length<2){box.style.display='none';return;}
-  const{data}=await db.from('suppliers').select('*').or(`name.ilike.%${v}%,phone.ilike.%${v}%`).limit(6);
-  if(!data?.length){box.style.display='none';return;}box.style.display='block';box.innerHTML='';
-  data.forEach(s=>{const d=document.createElement('div');d.style.cssText='padding:8px 12px;cursor:pointer;border-bottom:1px solid #f0f0e8;font-size:13px';d.onmouseover=()=>d.style.background='#f5f5f0';d.onmouseout=()=>d.style.background='';d.innerHTML=`<div style="font-weight:700">${s.name}</div><div style="font-size:11px;color:#888">${s.phone||''} - ${s.address||''}</div>`;d.onclick=()=>{ssid=s.id;document.getElementById('ssn').textContent=s.name;document.getElementById('ssi').textContent=(s.phone||'')+(s.address?' - '+s.address:'');document.getElementById('ssel').style.display='flex';document.getElementById('ssg').style.display='none';document.getElementById('sqi').value='';};box.appendChild(d);});
-}
-function clrS(){ssid=null;document.getElementById('ssel').style.display='none';}
-
-async function addPOR(){
-  if(!INV.length){const{data}=await db.from('inventory').select('*');INV=data||[];}
-  const opts=INV.map(p=>`<option value="${p.id}" data-stock="${p.qty}">${p.brand} ${p.model} ${p.hp} ${p.unit_type} ${p.ac_type||''}</option>`).join('');
-  const tr=document.createElement('tr');
-  tr.innerHTML=`<td><select style="width:100%;font-size:12px;padding:4px" onchange="showStk(this)">${opts}</select></td><td style="text-align:center"><span class="stk" style="font-size:12px;color:#888">—</span></td><td><input type="number" value="1" min="1" style="width:80px" oninput="calcPOT()"></td><td><input type="number" min="0" placeholder="0" style="width:100%" oninput="calcPOT()"></td><td><button class="ib" onclick="this.closest('tr').remove();calcPOT()" style="font-size:12px">X</button></td>`;
-  document.getElementById('potb').appendChild(tr);showStk(tr.querySelector('select'));
-}
-function showStk(sel){const tr=sel.closest('tr');const o=sel.selectedOptions[0];const sp=tr.querySelector('.stk');if(o?.dataset.stock!==undefined)sp.textContent=o.dataset.stock+' in stock';calcPOT();}
-function calcPOT(){let t=0;document.querySelectorAll('#potb tr').forEach(tr=>{const q=parseFloat(tr.cells[2].querySelector('input')?.value)||0;const c=parseFloat(tr.cells[3].querySelector('input')?.value)||0;t+=q*c;});document.getElementById('potot').textContent=f(t);}
-
-async function savePO(){
-  let sid=ssid;
-  if(document.getElementById('nsc').checked){
-    const nm=document.getElementById('nsn').value.trim();if(!nm){toast('Supplier name required',true);return;}
-    const{data:ns,error}=await db.from('suppliers').insert({name:nm,phone:document.getElementById('nsph').value,address:document.getElementById('nsad').value,tax_number:document.getElementById('nstx').value}).select().single();
-    if(error){toast('Error: '+error.message,true);return;}sid=ns.id;
-  }
-  let items=0,total=0;const poItems=[];
-  document.querySelectorAll('#potb tr').forEach(tr=>{const q=parseInt(tr.cells[2].querySelector('input')?.value)||0;const c=parseFloat(tr.cells[3].querySelector('input')?.value)||0;if(q>0){items++;total+=q*c;const sel=tr.cells[0].querySelector('select');if(sel?.value){poItems.push({inventory_id:sel.value,qty:q,unit_cost:c});const inv=INV.find(x=>x.id===sel.value);if(inv){db.from('inventory').update({qty:inv.qty+q}).eq('id',sel.value);inv.qty+=q;}}}});
-  const poNum='PO-'+String(Date.now()).slice(-5);
-  const{data:po,error:pe}=await db.from('purchase_orders').insert({po_num:poNum,supplier_id:sid,date:document.getElementById('pod').value||new Date().toISOString().slice(0,10),delivery_date:document.getElementById('podl').value||null,total,items,status:'pending',notes:document.getElementById('pon').value}).select().single();
-  if(pe){toast('Error: '+pe.message,true);return;}
-  if(poItems.length)await db.from('po_items').insert(poItems.map(x=>({...x,po_id:po.id})));
-  toast('Purchase order created!');go('pur',document.getElementById('ni-pur'));
+  if(!data?.length)body.innerHTML='<tr><td colspan="7" style="text-align:center;padding:16px;color:#888">No purchase orders yet.</td></tr>';
 }
 
 async function loadFinStats(){
-  const[tr,tp,tpy,tpo]=await Promise.all([db.from('tasks').select('id'),db.from('task_products').select('task_id,qty,price'),db.from('payments').select('task_id,amount'),db.from('purchase_orders').select('total')]);
-  const tasks=tr.data||[];const prods=tp.data||[];const pays=tpy.data||[];
+  const[tr2,tp2,tpy2,tpo]=await Promise.all([db.from('tasks').select('id'),db.from('task_products').select('task_id,qty,price'),db.from('payments').select('task_id,amount'),db.from('purchase_orders').select('total')]);
+  const tasks=tr2.data||[];const prods=tp2.data||[];const pays=tpy2.data||[];
   const grand=id=>prods.filter(p=>p.task_id===id).reduce((a,p)=>a+p.qty*p.price,0);
   const paid=id=>pays.filter(p=>p.task_id===id).reduce((a,p)=>a+p.amount,0);
   let rev=0,col=0,out=0;tasks.forEach(t=>{const g=grand(t.id),p=paid(t.id);rev+=g;col+=p;out+=Math.max(0,g-p);});
@@ -1804,15 +1808,12 @@ async function loadFinStats(){
 async function finTab(type,btn){
   document.querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));if(btn)btn.classList.add('on');
   const el=document.getElementById('fcont');el.innerHTML='<div style="padding:20px;text-align:center;color:#888">Loading...</div>';
-  // Load tasks, products and payments upfront for all tabs that need them
   const[tr2,tp2,tpy2]=await Promise.all([
     db.from('tasks').select('id,task_num,customer_name,type,branch,date,pay_status,due_date,status').order('created_at',{ascending:false}),
     db.from('task_products').select('task_id,qty,price'),
     db.from('payments').select('task_id,amount')
   ]);
-  const allTasks=tr2.data||[];
-  const prods=tp2.data||[];
-  const pays=tpy2.data||[];
+  const allTasks=tr2.data||[];const prods=tp2.data||[];const pays=tpy2.data||[];
   const grand=id=>prods.filter(p=>p.task_id===id).reduce((a,p)=>a+p.qty*p.price,0);
   const paid=id=>pays.filter(p=>p.task_id===id).reduce((a,p)=>a+p.amount,0);
   if(type==='expenses'){
@@ -1821,89 +1822,37 @@ async function finTab(type,btn){
     if(sids.length){const{data:sups}=await db.from('suppliers').select('id,name').in('id',sids);(sups||[]).forEach(s=>sm2[s.id]=s.name);}
     const rows=(data||[]).map(po=>`<tr><td style="font-weight:700">${po.po_num}</td><td>${sm2[po.supplier_id]||'—'}</td><td>${po.date||'—'}</td><td>${po.items} items</td><td style="font-weight:700">${f(po.total)}</td><td><span class="bx ${po.status==='received'?'g':'a'}">${po.status}</span></td></tr>`).join('');
     const total=(data||[]).reduce((a,p)=>a+(p.total||0),0);
-    el.innerHTML=`<div class="cd"><div class="sh">Purchase expenses</div><div class="tw"><table><thead><tr><th>PO #</th><th>Supplier</th><th>Date</th><th>Items</th><th>Total</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div><div class="tr" style="border-top:1px solid #e8e8e0"><span class="tl" style="font-weight:700">Total expenses</span><span class="tv" style="color:#A32D2D;font-weight:700">${f(total)}</span></div></div>`;return;
+    el.innerHTML=`<div class="cd"><div class="sh">Purchase expenses</div><div class="tw"><table><thead><tr><th>PO #</th><th>Supplier</th><th>Date</th><th>Items</th><th>Total</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div><div class="tr" style="border-top:1px solid #e8e8e0"><span class="tl" style="font-weight:700">Total expenses</span><span class="tv" style="color:#A32D2D;font-weight:700">${f(total)}</span></div></div>`;
+    return;
   }
-  const tasks=(type==='all'?allTasks:allTasks.filter(t=>t.type===type));
   if(type==='outstanding'){
-    const out=allTasks.filter(t=>(grand(t.id)-paid(t.id))!==0||grand(t.id)===0);
+    const out=allTasks.filter(t=>(grand(t.id)-paid(t.id))>0);
     const credits=allTasks.filter(t=>(grand(t.id)-paid(t.id))<0);
     let html='<div class="cd"><div class="sh">Outstanding balances</div>';
     if(!out.length){html+='<div style="font-size:12px;color:#3B6D11">No outstanding payments.</div>';}
-    else{
-      out.forEach(t=>{const g=grand(t.id),p=paid(t.id),r=Math.max(0,g-p);
-        html+=`<div style="padding:10px;background:#f9f9f6;border-radius:8px;margin-bottom:8px;border:1px solid #e0ddd8;cursor:pointer" onclick="openTask('${t.id}')">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
-            <div><b>${t.customer_name||'—'}</b> <span style="font-size:11px;color:#888">${t.task_num} - ${t.type} - ${t.date||'—'}</span></div>
-            <span style="font-weight:700;color:#A32D2D;font-size:14px">${f(r)}</span>
-          </div>
-          <div style="font-size:12px;color:#888;display:flex;gap:14px;flex-wrap:wrap">
-            <span>Total: <b style="color:#111">${f(g)}</b></span>
-            <span>Paid: <b style="color:#3B6D11">${f(p)}</b></span>
-            <span>Remaining: <b style="color:#A32D2D">${f(r)}</b></span>
-            ${t.due_date?`<span style="color:#854F0B">Due: <b>${t.due_date}</b></span>`:''}
-            <span class="bx ${t.pay_status==='paid'?'g':t.pay_status==='downpayment'?'a':'r'}">${t.pay_status||'—'}</span>
-          </div>
-        </div>`;
-      });
-      const tot=out.filter(t=>grand(t.id)-paid(t.id)>0).reduce((a,t)=>a+(grand(t.id)-paid(t.id)),0);
-      const totCredit=credits.reduce((a,t)=>a+Math.abs(grand(t.id)-paid(t.id)),0);
-      if(totCredit>0){
-        html+=`<div style="margin-top:12px;padding:10px;background:#E6F1FB;border-radius:8px;border:1px solid #378ADD">
-          <div style="font-weight:700;color:#185FA5;margin-bottom:4px">Customer credits (overpaid)</div>`;
-        credits.forEach(t=>{const credit=Math.abs(grand(t.id)-paid(t.id));html+=`<div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0"><span>${t.customer_name||'—'} · ${t.task_num}</span><span style="color:#185FA5;font-weight:700">${f(credit)} credit</span></div>`;});
-        html+=`<div style="border-top:1px solid #378ADD;margin-top:6px;padding-top:6px;display:flex;justify-content:space-between;font-size:12px;font-weight:700"><span>Total credits</span><span style="color:#185FA5">${f(totCredit)}</span></div></div>`;
-      }
-      html+=`<div class="tr" style="border-top:1px solid #e8e8e0"><span class="tl" style="font-weight:700">Total outstanding</span><span class="tv" style="color:#A32D2D;font-weight:700">${f(tot)}</span></div>`;
-    }
-    html+='</div>';el.innerHTML=html;return;
+    else{out.forEach(t=>{const g=grand(t.id),p=paid(t.id),r=g-p;html+=`<div style="padding:10px;background:#f9f9f6;border-radius:8px;margin-bottom:8px;border:1px solid #e0ddd8;cursor:pointer" onclick="openTask('${t.id}')"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px"><div><b>${t.customer_name||'—'}</b> <span style="font-size:11px;color:#888">${t.task_num} · ${t.type} · ${t.date||'—'}</span></div><span style="font-weight:700;color:#A32D2D;font-size:14px">${f(r)}</span></div><div style="font-size:12px;color:#888;display:flex;gap:14px;flex-wrap:wrap"><span>Total: <b style="color:#111">${f(g)}</b></span><span>Paid: <b style="color:#3B6D11">${f(p)}</b></span><span>Remaining: <b style="color:#A32D2D">${f(r)}</b></span>${t.due_date?`<span style="color:#854F0B">Due: <b>${t.due_date}</b></span>`:''}</div></div>`;});}
+    const tot=out.reduce((a,t)=>a+Math.max(0,grand(t.id)-paid(t.id)),0);
+    html+=`<div class="tr" style="border-top:1px solid #e8e8e0"><span class="tl" style="font-weight:700">Total outstanding</span><span class="tv" style="color:#A32D2D;font-weight:700">${f(tot)}</span></div></div>`;
+    el.innerHTML=html;return;
   }
+  const tasks=(type==='all'?allTasks:allTasks.filter(t=>t.type===type));
   const psMap={paid:'g',unpaid:'r',downpayment:'a',installments:'b'};
-  const rows=tasks.map(t=>{
-    const g=grand(t.id),p=paid(t.id);
-    const r=g-p;
-    let rDisplay;
-    if(g===0&&p>0){
-      rDisplay=`<span style="color:#185FA5;font-weight:700">Advance ${f(p)}</span>`;
-    } else if(r<0){
-      rDisplay=`<span style="color:#185FA5;font-weight:700">Credit ${f(Math.abs(r))}</span>`;
-    } else if(r===0&&g>0){
-      rDisplay=`<span style="color:#3B6D11;font-weight:700">EGP 0 ✓</span>`;
-    } else {
-      rDisplay=`<span style="color:${r>0?'#A32D2D':'#888'};font-weight:700">${f(r)}</span>`;
-    }
-    const pDisplay=p>0?`<span style="color:#3B6D11;font-weight:700">${f(p)}</span>`:`<span style="color:#888">EGP 0</span>`;
-    return`<tr class="hv" onclick="openTask('${t.id}')">
-      <td style="font-weight:700">${t.task_num}</td>
-      <td>${t.customer_name||'—'}</td>
-      <td style="text-transform:capitalize">${t.type}</td>
-      <td>${t.branch}</td>
-      <td>${t.date||'—'}</td>
-      <td style="font-weight:700">${f(g)}</td>
-      <td>${pDisplay}</td>
-      <td>${rDisplay}</td>
-      <td><span class="bx ${psMap[t.pay_status]||'gr'}">${t.pay_status||'—'}</span></td>
-    </tr>`;
-  }).join('');
+  const rows=tasks.map(t=>{const g=grand(t.id),p=paid(t.id),r=g-p;const rDisp=r<0?`<span style="color:#185FA5;font-weight:700">Credit ${f(Math.abs(r))}</span>`:r===0&&g>0?`<span style="color:#3B6D11;font-weight:700">EGP 0 ✓</span>`:`<span style="color:${r>0?'#A32D2D':'#888'};font-weight:700">${f(r)}</span>`;const pDisp=p>0?`<span style="color:#3B6D11;font-weight:700">${f(p)}</span>`:`<span style="color:#888">EGP 0</span>`;return`<tr class="hv" onclick="openTask('${t.id}')"><td style="font-weight:700">${t.task_num}</td><td>${t.customer_name||'—'}</td><td style="text-transform:capitalize">${t.type}</td><td>${t.branch}</td><td>${t.date||'—'}</td><td style="font-weight:700">${f(g)}</td><td>${pDisp}</td><td>${rDisp}</td><td><span class="bx ${psMap[t.pay_status]||'gr'}">${t.pay_status||'—'}</span></td></tr>`;}).join('');
   const tots=tasks.reduce((a,t)=>({g:a.g+grand(t.id),p:a.p+paid(t.id),r:a.r+Math.max(0,grand(t.id)-paid(t.id))}),{g:0,p:0,r:0});
   const tl={all:'All transactions',sales:'Sales',maintenance:'Maintenance',installation:'Installation',uninstall:'Uninstall'};
   el.innerHTML=`<div class="cd"><div class="sh">${tl[type]||type}</div><div class="tw"><table><thead><tr><th>Task #</th><th>Customer</th><th>Type</th><th>Branch</th><th>Date</th><th>Total</th><th>Paid</th><th>Remaining</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div><div class="tr" style="border-top:1px solid #e8e8e0"><span class="tl">Revenue</span><span class="tv">${f(tots.g)}</span></div><div class="tr" style="padding-top:0"><span class="tl">Collected</span><span class="tv" style="color:#3B6D11">${f(tots.p)}</span></div><div class="tr" style="padding-top:0"><span class="tl">Outstanding</span><span class="tv" style="color:#A32D2D">${f(tots.r)}</span></div></div>`;
 }
 
+async function loadCust(search){
+  const body=document.getElementById('custl');body.innerHTML='<div style="padding:20px;text-align:center;color:#888">Loading...</div>';
+  let q=db.from('customers').select('*').order('full_name');if(search)q=q.or(`full_name.ilike.%${search}%,phone.ilike.%${search}%`);
+  const{data}=await q;body.innerHTML='';
+  (data||[]).forEach(c=>{const d=document.createElement('div');d.className='lr';d.innerHTML=`<div class="av">${ini(c.full_name)}</div><div style="flex:1"><div style="font-weight:700">${c.full_name}</div><div style="font-size:11px;color:#888">${c.phone||'—'} - ${c.address||'—'}</div>${c.id_number?`<div style="font-size:11px;color:#888">ID: ${c.id_number}</div>`:''}</div><span style="color:#ccc">&rsaquo;</span>`;d.onclick=()=>openCD(c);body.appendChild(d);});
+  if(!data?.length)body.innerHTML='<div style="padding:20px;text-align:center;color:#888">No customers found.</div>';
+}
+
 function editCustomer(c){
-  document.getElementById('cdcard').innerHTML=`
-    <div class="r3" style="margin-bottom:10px">
-      <div class="fg"><label>Full name *</label><input id="ec-name" value="${c.full_name||''}" placeholder="Full name"></div>
-      <div class="fg"><label>Phone *</label><input id="ec-phone" value="${c.phone||''}" placeholder="010xxxxxxxx"></div>
-      <div class="fg"><label>Second phone</label><input id="ec-phone2" value="${c.phone2||''}"></div>
-    </div>
-    <div class="r2" style="margin-bottom:10px">
-      <div class="fg"><label>Address</label><input id="ec-addr" value="${c.address||''}" placeholder="Street, city"></div>
-      <div class="fg"><label>ID / Passport</label><input id="ec-id" value="${c.id_number||''}" placeholder="National ID"></div>
-    </div>
-    <div style="display:flex;gap:8px;justify-content:flex-end">
-      <button class="btn bs" onclick="openCD(${JSON.stringify(c).replace(/"/g,'&quot;')})">Cancel</button>
-      <button class="btn bs bp" onclick="saveEditCustomer('${c.id}')">&#10003; Save changes</button>
-    </div>`;
+  document.getElementById('cdcard').innerHTML=`<div class="r3" style="margin-bottom:10px"><div class="fg"><label>Full name *</label><input id="ec-name" value="${c.full_name||''}"></div><div class="fg"><label>Phone *</label><input id="ec-phone" value="${c.phone||''}"></div><div class="fg"><label>Second phone</label><input id="ec-phone2" value="${c.phone2||''}"></div></div><div class="r2" style="margin-bottom:10px"><div class="fg"><label>Address</label><input id="ec-addr" value="${c.address||''}"></div><div class="fg"><label>ID / Passport</label><input id="ec-id" value="${c.id_number||''}"></div></div><div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn bs" onclick="openCD(${JSON.stringify(c).replace(/"/g,'&quot;')})">Cancel</button><button class="btn bs bp" onclick="saveEditCustomer('${c.id}')">&#10003; Save</button></div>`;
 }
 
 async function saveEditCustomer(id){
@@ -1915,43 +1864,22 @@ async function saveEditCustomer(id){
   toast('Customer updated!');openCD(data);
 }
 
-async function loadCust(search){
-  const body=document.getElementById('custl');body.innerHTML='<div style="padding:20px;text-align:center;color:#888">Loading...</div>';
-  let q=db.from('customers').select('*').order('full_name');if(search)q=q.or(`full_name.ilike.%${search}%,phone.ilike.%${search}%`);
-  const{data}=await q;body.innerHTML='';
-  (data||[]).forEach(c=>{const d=document.createElement('div');d.className='lr';d.innerHTML=`<div class="av">${ini(c.full_name)}</div><div style="flex:1"><div style="font-weight:700">${c.full_name}</div><div style="font-size:11px;color:#888">${c.phone||'—'} - ${c.address||'—'}</div>${c.id_number?`<div style="font-size:11px;color:#888">ID: ${c.id_number}</div>`:''}</div><span style="color:#ccc">&rsaquo;</span>`;d.onclick=()=>openCD(c);body.appendChild(d);});
-  if(!data?.length)body.innerHTML='<div style="padding:20px;text-align:center;color:#888">'+t('nocust')+'</div>';
-}
-
 async function openCD(c){
   go('cd',null);document.getElementById('ptitle').textContent=c.full_name;document.getElementById('cdname').textContent=c.full_name;
-  document.getElementById('cdcard').innerHTML=`
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-      <div style="display:flex;align-items:center;gap:14px">
-        <div class="av" style="width:50px;height:50px;font-size:16px">${ini(c.full_name)}</div>
-        <div style="font-size:16px;font-weight:700">${c.full_name}</div>
-      </div>
-      ${can('export')?`<button class="btn bs bp" onclick="editCustomer(${JSON.stringify(c).replace(/"/g,'&quot;')})">&#9998; Edit</button>`:''}
-    </div>
-    <div class="r2">
-      <div class="fg"><label>Phone</label><div style="padding:4px 0;font-weight:700">${c.phone||'—'}</div></div>
-      <div class="fg"><label>Second phone</label><div style="padding:4px 0;font-weight:700">${c.phone2||'—'}</div></div>
-      <div class="fg"><label>Address</label><div style="padding:4px 0;font-weight:700">${c.address||'—'}</div></div>
-      <div class="fg"><label>ID / Passport</label><div style="padding:4px 0;font-weight:700">${c.id_number||'—'}</div></div>
-    </div>`;
+  document.getElementById('cdcard').innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px"><div style="display:flex;align-items:center;gap:14px"><div class="av" style="width:50px;height:50px;font-size:16px">${ini(c.full_name)}</div><div style="font-size:16px;font-weight:700">${c.full_name}</div></div>${can('export')?`<button class="btn bs bp" onclick="editCustomer(${JSON.stringify(c).replace(/"/g,'&quot;')})">&#9998; Edit</button>`:''}</div><div class="r2"><div class="fg"><label>Phone</label><div style="padding:4px 0;font-weight:700">${c.phone||'—'}</div></div><div class="fg"><label>Second phone</label><div style="padding:4px 0;font-weight:700">${c.phone2||'—'}</div></div><div class="fg"><label>Address</label><div style="padding:4px 0;font-weight:700">${c.address||'—'}</div></div><div class="fg"><label>ID / Passport</label><div style="padding:4px 0;font-weight:700">${c.id_number||'—'}</div></div></div>`;
   const{data:tasks}=await db.from('tasks').select('id,task_num,type,branch,salesperson,date,status').eq('customer_id',c.id).order('created_at',{ascending:false});
   const tp=await db.from('task_products').select('task_id,qty,price');const prods=tp.data||[];
   const grand=id=>prods.filter(p=>p.task_id===id).reduce((a,p)=>a+p.qty*p.price,0);
   const tl=document.getElementById('cdtasks');tl.innerHTML='';
   const sm={pending:'a',progress:'b',done:'g',cancel:'r'};
-  const sl=()=>({pending:t('pending'),progress:t('inprogress'),done:t('completed'),cancel:t('cancelled')});
-  (tasks||[]).forEach(t=>{const d=document.createElement('div');d.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid #f0f0e8;cursor:pointer';d.innerHTML=`<div><div style="font-weight:700">${t.task_num} - ${t.type}</div><div style="font-size:11px;color:#888">${t.branch} - ${t.salesperson} - ${t.date||'—'}</div></div><div style="text-align:right"><div style="font-weight:700">${f(grand(t.id))}</div><span class="bx ${sm[t.status]||'gr'}">${sl()[t.status]||t.status}</span></div>`;d.onclick=()=>openTask(t.id);tl.appendChild(d);});
+  const sl={pending:'Pending',progress:'In progress',done:'Completed',cancel:'Cancelled'};
+  (tasks||[]).forEach(t=>{const d=document.createElement('div');d.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid #f0f0e8;cursor:pointer';d.innerHTML=`<div><div style="font-weight:700">${t.task_num} - ${t.type}</div><div style="font-size:11px;color:#888">${t.branch} - ${t.salesperson} - ${t.date||'—'}</div></div><div style="text-align:right"><div style="font-weight:700">${f(grand(t.id))}</div><span class="bx ${sm[t.status]||'gr'}">${sl[t.status]||t.status}</span></div>`;d.onclick=()=>openTask(t.id);tl.appendChild(d);});
   if(!tasks?.length)tl.innerHTML='<div style="color:#888;font-size:12px;padding:10px 0">No tasks for this customer.</div>';
 }
 
 function openAC(){
   go('cd',null);document.getElementById('ptitle').textContent='New Customer';document.getElementById('cdname').textContent='New Customer';
-  document.getElementById('cdcard').innerHTML=`<div class="r3"><div class="fg"><label>Full name *</label><input id="acn" placeholder="Name"></div><div class="fg"><label>Phone *</label><input id="acp" placeholder="010xxxxxxxx"></div><div class="fg"><label>Second phone</label><input id="acp2"></div></div><div class="r2"><div class="fg"><label>Address</label><input id="aca" placeholder="Street, city"></div><div class="fg"><label>ID / Passport</label><input id="aci" placeholder="National ID or passport"></div></div><div style="display:flex;justify-content:flex-end;margin-top:8px"><button class="btn bp" onclick="saveAC()">&#10003; Save customer</button></div>`;
+  document.getElementById('cdcard').innerHTML=`<div class="r3"><div class="fg"><label>Full name *</label><input id="acn" placeholder="Name"></div><div class="fg"><label>Phone *</label><input id="acp" placeholder="010xxxxxxxx"></div><div class="fg"><label>Second phone</label><input id="acp2"></div></div><div class="r2"><div class="fg"><label>Address</label><input id="aca" placeholder="Street, city"></div><div class="fg"><label>ID / Passport</label><input id="aci"></div></div><div style="display:flex;justify-content:flex-end;margin-top:8px"><button class="btn bp" onclick="saveAC()">&#10003; Save customer</button></div>`;
   document.getElementById('cdtasks').innerHTML='';
 }
 async function saveAC(){
@@ -1965,7 +1893,9 @@ async function expCust(){
   if(!data?.length){toast('No customers',true);return;}
   const h=['Full Name','Phone','Second Phone','Address','ID / Passport','Created'];
   const rows=data.map(c=>[c.full_name,c.phone||'',c.phone2||'',c.address||'',c.id_number||'',c.created_at?.slice(0,10)||'']);
-  let csv=h.join(',')+'\n'+rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  let csv=h.join(',')+'
+'+rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('
+');
   const blob=new Blob([csv],{type:'text/csv'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='brothercond_customers.csv';a.click();URL.revokeObjectURL(url);toast('Exported!');
 }
 
@@ -1973,7 +1903,7 @@ async function loadSup(){
   const{data}=await db.from('suppliers').select('*').order('name');
   const el=document.getElementById('supl');el.innerHTML='';
   (data||[]).forEach(s=>{const d=document.createElement('div');d.className='lr';d.innerHTML=`<div class="av" style="background:#EEEDFE;color:#3C3489">${ini(s.name)}</div><div style="flex:1"><div style="font-weight:700">${s.name}</div><div style="font-size:11px;color:#888">${s.phone||'—'} - ${s.address||'—'}</div>${s.tax_number?`<div style="font-size:11px;color:#888">Tax: ${s.tax_number}</div>`:''}</div><span style="color:#ccc">&rsaquo;</span>`;d.onclick=()=>openSD(s);el.appendChild(d);});
-  if(!data?.length)el.innerHTML='<div style="padding:20px;text-align:center;color:#888">'+t('nosup')+'</div>';
+  if(!data?.length)el.innerHTML='<div style="padding:20px;text-align:center;color:#888">No suppliers yet.</div>';
 }
 
 async function openSD(s){
@@ -2003,23 +1933,128 @@ async function loadUsr(){
 }
 async function togUsr(id,active){await db.from('users').update({active}).eq('id',id);loadUsr();toast(active?'User activated':'User deactivated');}
 async function saveUsr(){
-  const u=document.getElementById('nuu').value.trim(),p=document.getElementById('nupw').value,n=document.getElementById('nunm').value.trim();
+  const u=document.getElementById('nuu')?.value.trim(),p=document.getElementById('nupw')?.value,n=document.getElementById('nunm')?.value.trim();
   if(!u||!p||!n){toast('Fill all fields',true);return;}if(p.length<6){toast('Password min 6 chars',true);return;}
-  const{error}=await db.from('users').insert({username:u,password:p,full_name:n,role:document.getElementById('nurol').value,branch:document.getElementById('nubr').value,active:true});
+  const{error}=await db.from('users').insert({username:u,password:p,full_name:n,role:document.getElementById('nurol')?.value,branch:document.getElementById('nubr')?.value,active:true});
   if(error){toast(error.message.includes('unique')?'Username already exists':error.message,true);return;}
   document.getElementById('auf').style.display='none';toast('User created!');loadUsr();
 }
 
-document.getElementById('ntpt').textContent=LANG==='ar'?POL_AR:POL;
+async function togUsr(id,active){await db.from('users').update({active}).eq('id',id);loadUsr();}
 
-// Auto-restore login on page load/refresh - show app immediately
+// PO functions
+function openNewPO(){
+  go('npo',null);ssid=null;
+  document.getElementById('potb').innerHTML='';
+  document.getElementById('potot').textContent='EGP 0';
+  document.getElementById('sqi').value='';
+  document.getElementById('ssg').style.display='none';
+  document.getElementById('ssel').style.display='none';
+  document.getElementById('nsc').checked=false;togS(false);
+}
+function togS(c){document.getElementById('nsf').style.display=c?'block':'none';document.getElementById('ssw').style.display=c?'none':'block';}
+async function sSearch(v){
+  const box=document.getElementById('ssg');if(v.length<2){box.style.display='none';return;}
+  const{data}=await db.from('suppliers').select('*').or(`name.ilike.%${v}%,phone.ilike.%${v}%`).limit(6);
+  if(!data?.length){box.style.display='none';return;}box.style.display='block';box.innerHTML='';
+  data.forEach(s=>{const d=document.createElement('div');d.style.cssText='padding:8px 12px;cursor:pointer;border-bottom:1px solid #f0f0e8;font-size:13px';d.onmouseover=()=>d.style.background='#f5f5f0';d.onmouseout=()=>d.style.background='';d.innerHTML=`<div style="font-weight:700">${s.name}</div><div style="font-size:11px;color:#888">${s.phone||''}</div>`;d.onclick=()=>{ssid=s.id;document.getElementById('ssn').textContent=s.name;document.getElementById('ssi').textContent=s.phone||'';document.getElementById('ssel').style.display='flex';document.getElementById('ssg').style.display='none';document.getElementById('sqi').value='';};box.appendChild(d);});
+}
+function clrS(){ssid=null;document.getElementById('ssel').style.display='none';}
+async function addPOR(){
+  if(!INV.length){const{data}=await db.from('inventory').select('*');INV=data||[];}
+  const opts=INV.map(p=>`<option value="${p.id}" data-stock="${p.qty}">${p.brand} ${p.model} ${p.hp} ${p.unit_type||''} ${p.ac_type||''}</option>`).join('');
+  const tr=document.createElement('tr');
+  tr.innerHTML=`<td><select style="width:100%;font-size:12px;padding:4px" onchange="showStk(this)">${opts}</select></td><td style="text-align:center"><span class="stk" style="font-size:12px;color:#888">—</span></td><td><input type="number" value="1" min="1" style="width:80px" oninput="calcPOT()"></td><td><input type="number" min="0" placeholder="0" style="width:100%" oninput="calcPOT()"></td><td><button class="ib" onclick="this.closest('tr').remove();calcPOT()" style="font-size:12px">X</button></td>`;
+  document.getElementById('potb').appendChild(tr);showStk(tr.querySelector('select'));
+}
+function showStk(sel){const tr=sel.closest('tr');const o=sel.selectedOptions[0];const sp=tr.querySelector('.stk');if(o?.dataset.stock!==undefined)sp.textContent=o.dataset.stock+' in stock';calcPOT();}
+function calcPOT(){let t=0;document.querySelectorAll('#potb tr').forEach(tr=>{const q=parseFloat(tr.cells[2]?.querySelector('input')?.value)||0;const c=parseFloat(tr.cells[3]?.querySelector('input')?.value)||0;t+=q*c;});document.getElementById('potot').textContent=f(t);}
+async function savePO(){
+  let sid=ssid;
+  if(document.getElementById('nsc').checked){
+    const nm=document.getElementById('nsn')?.value.trim();if(!nm){toast('Supplier name required',true);return;}
+    const{data:ns,error}=await db.from('suppliers').insert({name:nm,phone:document.getElementById('nsph')?.value,address:document.getElementById('nsad')?.value,tax_number:document.getElementById('nstx')?.value}).select().single();
+    if(error){toast('Error: '+error.message,true);return;}sid=ns.id;
+  }
+  let items=0,total=0;const poItems=[];
+  document.querySelectorAll('#potb tr').forEach(tr=>{const q=parseInt(tr.cells[2]?.querySelector('input')?.value)||0;const c=parseFloat(tr.cells[3]?.querySelector('input')?.value)||0;if(q>0){items++;total+=q*c;const sel=tr.cells[0].querySelector('select');if(sel?.value){poItems.push({inventory_id:sel.value,qty:q,unit_cost:c});}}});
+  const poNum='PO-'+String(Date.now()).slice(-5);
+  const{data:po,error:pe}=await db.from('purchase_orders').insert({po_num:poNum,supplier_id:sid,date:document.getElementById('pod')?.value||new Date().toISOString().slice(0,10),delivery_date:document.getElementById('podl')?.value||null,total,items,status:'pending',notes:document.getElementById('pon')?.value}).select().single();
+  if(pe){toast('Error: '+pe.message,true);return;}
+  if(poItems.length)await db.from('po_items').insert(poItems.map(x=>({...x,po_id:po.id})));
+  toast('Purchase order created!');go('pur',document.getElementById('ni-pur'));
+}
+
+// Edit product in inventory
+function editProd(id,brand,model,hp,unit_type,cooling,ac_type,qty,price,low_stock){
+  const html=`<div style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9000;display:flex;align-items:center;justify-content:center" id="edit-prod-modal" onclick="if(event.target===this)this.remove()"><div style="background:#fff;border-radius:12px;padding:22px;width:420px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.2)"><div style="font-size:15px;font-weight:700;margin-bottom:14px">Edit product</div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px"><div class="fg"><label>Brand</label><input id="ep-brand" value="${brand}"></div><div class="fg"><label>Model</label><input id="ep-model" value="${model}"></div><div class="fg"><label>HP</label><input id="ep-hp" value="${hp}"></div></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px"><div class="fg"><label>Unit type</label><input id="ep-unit" value="${unit_type}"></div><div class="fg"><label>Cooling</label><input id="ep-cool" value="${cooling}"></div><div class="fg"><label>AC type</label><input id="ep-actype" value="${ac_type}"></div></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px"><div class="fg"><label>Quantity</label><input type="number" id="ep-qty" value="${qty}" min="0"></div><div class="fg"><label>Price (EGP)</label><input type="number" id="ep-price" value="${price}"></div><div class="fg"><label>Low stock at</label><input type="number" id="ep-low" value="${low_stock}" min="0"></div></div><div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn bs" onclick="document.getElementById('edit-prod-modal').remove()">Cancel</button><button class="btn bs bp" onclick="saveEditProd('${id}')">&#10003; Save</button></div></div></div>`;
+  document.body.insertAdjacentHTML('beforeend',html);
+}
+async function saveEditProd(id){
+  const updates={brand:document.getElementById('ep-brand').value.trim(),model:document.getElementById('ep-model').value.trim(),hp:document.getElementById('ep-hp').value.trim(),unit_type:document.getElementById('ep-unit').value.trim(),cooling:document.getElementById('ep-cool').value.trim(),ac_type:document.getElementById('ep-actype').value.trim(),qty:parseInt(document.getElementById('ep-qty').value)||0,price:parseFloat(document.getElementById('ep-price').value)||0,low_stock:parseInt(document.getElementById('ep-low').value)||2};
+  const{error}=await db.from('inventory').update(updates).eq('id',id);
+  if(error){toast('Error: '+error.message,true);return;}
+  document.getElementById('edit-prod-modal').remove();toast('Product updated!');loadInv();
+}
+async function delProd(id){
+  if(!confirm('Delete this product? This cannot be undone.'))return;
+  const{error}=await db.from('inventory').delete().eq('id',id);
+  if(error){toast('Error: '+error.message,true);return;}toast('Product deleted');loadInv();
+}
+
+async function deleteTask(){
+  if(!CT)return;
+  if(!confirm(t('taskdelconfirm')+' '+CT.task_num))return;
+  await db.from('payments').delete().eq('task_id',CT.id);
+  await db.from('task_products').delete().eq('task_id',CT.id);
+  await db.from('tasks').delete().eq('id',CT.id);
+  toast('Task deleted');go('tasks',document.getElementById('ni-tasks'));
+}
+
+function clearTaskFilters(){
+  ['tq','tft','tfb','tfd','ttd','tfs'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  loadTasks();
+}
+
+document.getElementById('ntpt').textContent=POL;
+</script>
+</body>
+</html>
+<script>
+const POL_AR=`تسعير الأنابيب: 1.5-2.25 حصان 950 ج.م/م، 3 حصان 1150 ج.م/م، 4-5 حصان 950 ج.م/م. الوحدات المخفية: بدون أنابيب. الهاي وول: 3 م مشمولة. الشركة غير مسؤولة عن أعمال الخرسانة أو الصرف أو الأعمال الخاصة.
+
+الاستثناءات: نقطة تصريف التكثيف، توصيل الكهرباء للوحدة الخارجية، الأعمال المدنية.
+
+الشروط: الصلاحية يومان. توصيل مجاني داخل القاهرة. الدفع 100٪ عند الاتفاق.
+
+شكراً لاختياركم برذركوند.`;
+
+window.T={
+  en:{dashboard:'Dashboard',tasks:'Tasks',inventory:'Inventory',purchases:'Purchases',finance:'Finance',customers:'Customers',suppliers:'Suppliers',users:'Users',signout:'Sign out',signin:'Sign in',username:'Username',password:'Password',wrongpass:'Wrong username or password.',newtask:'New task',addproduct:'Add product',newpo:'New purchase order',addcustomer:'Add customer',addsupplier:'Add supplier',pending:'Pending',inprogress:'In progress',completed:'Completed',cancelled:'Cancelled',notasksfound:'No tasks found.',noproducts:'No products.',nopos:'No purchase orders.',nocust:'No customers found.',nosup:'No suppliers yet.',loadin:'Loading...',taskdelconfirm:'Delete this task?'},
+  ar:{dashboard:'الرئيسية',tasks:'المهام',inventory:'المخزون',purchases:'المشتريات',finance:'المالية',customers:'العملاء',suppliers:'الموردون',users:'المستخدمون',signout:'تسجيل الخروج',signin:'تسجيل الدخول',username:'اسم المستخدم',password:'كلمة المرور',wrongpass:'اسم المستخدم أو كلمة المرور غير صحيحة.',newtask:'مهمة جديدة',addproduct:'إضافة منتج',newpo:'أمر شراء جديد',addcustomer:'إضافة عميل',addsupplier:'إضافة مورد',pending:'معلقة',inprogress:'جارية',completed:'مكتملة',cancelled:'ملغاة',notasksfound:'لا توجد مهام.',noproducts:'لا توجد منتجات.',nopos:'لا توجد أوامر شراء.',nocust:'لا يوجد عملاء.',nosup:'لا يوجد موردون.',loadin:'جاري التحميل...',taskdelconfirm:'حذف هذه المهمة؟'}
+};
+
+let LANG='en';
+function setLang(l,btn){
+  LANG=l;
+  document.querySelectorAll('.lbtn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  const app=document.getElementById('app');
+  if(l==='ar'){app.classList.add('rtl');}else{app.classList.remove('rtl');}
+}
+
+function applyTranslations(){
+  document.querySelectorAll('[data-t]').forEach(el=>{const k=el.getAttribute('data-t');if(k)el.textContent=t(k);});
+  document.querySelectorAll('[data-t-ph]').forEach(el=>{const k=el.getAttribute('data-t-ph');if(k)el.placeholder=t(k);});
+}
+
+// Auto-restore login on page load/refresh
 (function restoreSession(){
   try{
     const saved=localStorage.getItem('bc_user');
     if(!saved)return;
     CU=JSON.parse(saved);
     if(!CU||!CU.id){localStorage.removeItem('bc_user');return;}
-    // Show app immediately without waiting for DB
     document.getElementById('ls').style.display='none';
     document.getElementById('app').classList.remove('h');
     document.getElementById('sname').textContent=CU.full_name;
@@ -2032,135 +2067,4 @@ document.getElementById('ntpt').textContent=LANG==='ar'?POL_AR:POL;
     try{localStorage.removeItem('bc_user');}catch(e2){}
   }
 })();
-</script>
-</body>
-</html>
-<script>
-const POL_AR=`تسعير الأنابيب: 1.5-2.25 حصان 950 ج.م/م، 3 حصان 1150 ج.م/م، 4-5 حصان 950 ج.م/م. الوحدات المخفية: بدون أنابيب. الهاي وول: 3 م مشمولة. الشركة غير مسؤولة عن أعمال الخرسانة أو الصرف أو الأعمال الخاصة.\n\nالاستثناءات: نقطة تصريف التكثيف، توصيل الكهرباء للوحدة الخارجية، الأعمال المدنية.\n\nالشروط: الصلاحية يومان. توصيل مجاني داخل القاهرة. الدفع 100٪ عند الاتفاق.\n\nشكراً لاختياركم برذركوند.`;
-
-window.T={
-  en:{
-    dashboard:'Dashboard',tasks:'Tasks',inventory:'Inventory',purchases:'Purchases',
-    finance:'Finance',customers:'Customers',suppliers:'Suppliers',users:'Users',
-    signout:'Sign out',signin:'Sign in',username:'Username',password:'Password',
-    wrongpass:'Wrong username or password.',
-    newtask:'New task',addproduct:'Add product',newpo:'New purchase order',
-    addcustomer:'Add customer',addsupplier:'Add supplier',
-    todaytasks:"Today's tasks",lowstock:'Low stock alerts',bystatus:'Tasks by status',
-    outstanding:'Outstanding payments',totalrev:'Total revenue',collected:'Collected',
-    expenses:'Expenses',netprofit:'Net profit',
-    pending:'Pending',inprogress:'In progress',completed:'Completed',cancelled:'Cancelled',
-    back:'Back',print:'Print',deletetask:'Delete task',
-    customer:'Customer',orderinfo:'Order info',products:'Products',policy:'Terms & offer policy',
-    completion:'Completion report',attachments:'Attachments',subtasks:'Sub-tasks',
-    payment:'Payment',unpaid:'Unpaid',downpayment:'Down payment',installments:'Installments',
-    paidfull:'Paid in full',addpayment:'Add payment',amount:'Amount (EGP)',method:'Method',
-    note:'Note',save:'Save',cancel:'Cancel',total:'Total',paid:'Paid',remaining:'Remaining',due:'Due',
-    branch:'Branch',salesperson:'Salesperson',type:'Type',description:'Description',
-    whatdone:'What was done',partsused:'Parts / materials used',addpart:'Add part',
-    comptime:'Completion time',technote:'Technician note',custconfirmed:'Customer confirmed & satisfied',
-    savecomp:'Save completion',upload:'Click to upload photos or documents',addsub:'Add',
-    newcustomer:'New customer',searchcustomer:'Search by name or phone...',
-    fullname:'Full name *',phone:'Phone *',phone2:'Second phone',address:'Address',
-    idpassport:'ID / Passport',orderinfosec:'Order info',
-    nasrcity:'Nasr City',madinaty:'Madinaty',rehab:'Rehab',headoffice:'Head Office',
-    salah:'Salah',alaa:'Alaa',ayman:'Ayman',amrashraf:'Amr Ashraf',
-    sales:'Sales order',maintenance:'Maintenance',installation:'Installation',uninstall:'Uninstall',
-    subtotal:'Subtotal',tax:'Tax (14%)',grandtotal:'Grand total',addrow:'Add row',
-    brand:'Brand',model:'Model',capacity:'Capacity (HP)',unittype:'Unit type',
-    cooling:'Cooling',actype:'AC type',inverter:'Inverter',onoff:'On/Off',
-    highwall:'Highwall',concealed:'Concealed',coolingonly:'Cooling only',coolingheating:'Cooling & Heating',
-    initqty:'Initial quantity',unitprice:'Unit price (EGP)',lowstockalert:'Low stock alert at',
-    generatedname:'Generated product name',addproductbtn:'Add product',
-    supplier:'Supplier',newsupplier:'New supplier',searchsupplier:'Search suppliers...',
-    date:'Date',delivery:'Expected delivery',notes:'Notes',productsorder:'Products to order',
-    currentstock:'Current stock',qtyorder:'Qty to order',unitcost:'Unit cost (EGP)',purchasetotal:'Purchase total',
-    confirmpo:'Confirm purchase order',
-    all:'All',exportexcel:'Export Excel',details:'Details',alltasks:'All tasks',
-    taxnum:'Tax number',name:'Name *',
-    role:'Role',newuser:'New user',createuser:'Create user',activate:'Activate',deactivate:'Deactivate',
-    admin:'Office admin',salesperson2:'Salesperson',technician:'Technician',active:'Active',inactive:'Inactive',
-    instock:'In stock',outofstock:'Out of stock',
-    taskdelconfirm:'Delete this task? This cannot be undone.',
-    savetask:'Save task',createtask:'Create task',
-    allwellstocked:'All products well stocked.',nooutstanding:'No outstanding payments.',notoday:'No tasks today.',
-    notasksfound:'No tasks found.',noproducts:'No products.',nopos:'No purchase orders yet.',nocust:'No customers found.',nosup:'No suppliers yet.',
-    loadin:'Loading...',
-    ponum:'PO #',sup2:'Supplier',items:'Items',status:'Status',tasknum:'Task #',
-    revenue:'Revenue',
-  },
-  ar:{
-    dashboard:'الرئيسية',tasks:'المهام',inventory:'المخزون',purchases:'المشتريات',
-    finance:'المالية',customers:'العملاء',suppliers:'الموردون',users:'المستخدمون',
-    signout:'تسجيل الخروج',signin:'تسجيل الدخول',username:'اسم المستخدم',password:'كلمة المرور',
-    wrongpass:'اسم المستخدم أو كلمة المرور غير صحيحة.',
-    newtask:'مهمة جديدة',addproduct:'إضافة منتج',newpo:'أمر شراء جديد',
-    addcustomer:'إضافة عميل',addsupplier:'إضافة مورد',
-    todaytasks:'مهام اليوم',lowstock:'تنبيهات نقص المخزون',bystatus:'المهام حسب الحالة',
-    outstanding:'المدفوعات المتأخرة',totalrev:'إجمالي الإيرادات',collected:'المحصّل',
-    expenses:'المصروفات',netprofit:'صافي الربح',
-    pending:'معلقة',inprogress:'جارية',completed:'مكتملة',cancelled:'ملغاة',
-    back:'رجوع',print:'طباعة',deletetask:'حذف المهمة',
-    customer:'العميل',orderinfo:'تفاصيل الطلب',products:'المنتجات',policy:'الشروط وسياسة العرض',
-    completion:'تقرير الإتمام',attachments:'المرفقات',subtasks:'مهام فرعية',
-    payment:'الدفع',unpaid:'غير مدفوع',downpayment:'دفعة مقدمة',installments:'أقساط',
-    paidfull:'مدفوع بالكامل',addpayment:'إضافة دفعة',amount:'المبلغ (ج.م)',method:'طريقة الدفع',
-    note:'ملاحظة',save:'حفظ',cancel:'إلغاء',total:'الإجمالي',paid:'المدفوع',remaining:'المتبقي',due:'تاريخ الاستحقاق',
-    branch:'الفرع',salesperson:'مندوب المبيعات',type:'النوع',description:'الوصف',
-    whatdone:'ما تم تنفيذه',partsused:'القطع والمواد المستخدمة',addpart:'إضافة قطعة',
-    comptime:'وقت الإتمام',technote:'ملاحظة الفني',custconfirmed:'العميل راضٍ وأقر بالاستلام',
-    savecomp:'حفظ تقرير الإتمام',upload:'اضغط لرفع صور أو مستندات',addsub:'إضافة',
-    newcustomer:'عميل جديد',searchcustomer:'ابحث بالاسم أو الهاتف...',
-    fullname:'الاسم الكامل *',phone:'الهاتف *',phone2:'هاتف ثانٍ',address:'العنوان',
-    idpassport:'رقم الهوية / جواز السفر',orderinfosec:'معلومات الطلب',
-    nasrcity:'مدينة نصر',madinaty:'مدينتي',rehab:'الرحاب',headoffice:'المقر الرئيسي',
-    salah:'صلاح',alaa:'علاء',ayman:'أيمن',amrashraf:'عمرو أشرف',
-    sales:'طلب بيع',maintenance:'صيانة',installation:'تركيب',uninstall:'فك',
-    subtotal:'المجموع الفرعي',tax:'الضريبة (14%)',grandtotal:'الإجمالي الكلي',addrow:'إضافة صف',
-    brand:'الماركة',model:'الموديل',capacity:'السعة (حصان)',unittype:'نوع الوحدة',
-    cooling:'التبريد',actype:'نوع التكييف',inverter:'إنفيرتر',onoff:'عادي',
-    highwall:'هاي وول',concealed:'مخفي',coolingonly:'تبريد فقط',coolingheating:'تبريد وتسخين',
-    initqty:'الكمية الأولية',unitprice:'سعر الوحدة (ج.م)',lowstockalert:'تنبيه نقص المخزون عند',
-    generatedname:'اسم المنتج (تلقائي)',addproductbtn:'إضافة المنتج',
-    supplier:'المورد',newsupplier:'مورد جديد',searchsupplier:'ابحث عن مورد...',
-    date:'التاريخ',delivery:'تاريخ التسليم المتوقع',notes:'ملاحظات',productsorder:'المنتجات المطلوبة',
-    currentstock:'المخزون الحالي',qtyorder:'الكمية المطلوبة',unitcost:'تكلفة الوحدة (ج.م)',purchasetotal:'إجمالي الشراء',
-    confirmpo:'تأكيد أمر الشراء',
-    all:'الكل',exportexcel:'تصدير Excel',details:'التفاصيل',alltasks:'جميع المهام',
-    taxnum:'الرقم الضريبي',name:'الاسم *',
-    role:'الدور',newuser:'مستخدم جديد',createuser:'إنشاء مستخدم',activate:'تفعيل',deactivate:'إلغاء تفعيل',
-    admin:'مدير مكتب',salesperson2:'مندوب مبيعات',technician:'فني',active:'نشط',inactive:'غير نشط',
-    instock:'متوفر',outofstock:'غير متوفر',
-    taskdelconfirm:'حذف هذه المهمة؟ لا يمكن التراجع.',
-    savetask:'حفظ المهمة',createtask:'إنشاء المهمة',
-    allwellstocked:'جميع المنتجات متوفرة.',nooutstanding:'لا توجد مدفوعات متأخرة.',notoday:'لا توجد مهام اليوم.',
-    notasksfound:'لا توجد مهام.',noproducts:'لا توجد منتجات.',nopos:'لا توجد أوامر شراء.',nocust:'لا يوجد عملاء.',nosup:'لا يوجد موردون.',
-    loadin:'جاري التحميل...',
-    ponum:'رقم الأمر',sup2:'المورد',items:'العناصر',status:'الحالة',tasknum:'رقم المهمة',
-    revenue:'الإيرادات',
-  }
-};
-
-// LANG and t() defined above
-
-function setLang(l,btn){
-  LANG=l;
-  document.querySelectorAll('.lbtn').forEach(b=>b.classList.remove('on'));
-  btn.classList.add('on');
-  const app=document.getElementById('app');
-  if(l==='ar'){app.classList.add('rtl');}else{app.classList.remove('rtl');}
-  applyTranslations();
-}
-
-function applyTranslations(){
-  document.querySelectorAll('[data-t]').forEach(el=>{
-    const k=el.getAttribute('data-t');
-    if(k)el.textContent=t(k);
-  });
-  document.querySelectorAll('[data-t-ph]').forEach(el=>{
-    const k=el.getAttribute('data-t-ph');
-    if(k)el.placeholder=t(k);
-  });
-  document.getElementById('ptitle').textContent=t(document.getElementById('ptitle').dataset.key||'dashboard');
-}
 </script>
