@@ -1991,35 +1991,63 @@ async function delPOPay(payId,poId){
 }
 
 async function deletePO(poId){
-  if(!confirm('Delete this purchase order permanently? This cannot be undone.'))return;
+  if(!confirm('Delete this PO? If it was received, inventory will be restored.'))return;
+  // Check if PO was received - if so restore inventory
+  var{data:po}=await db.from('purchase_orders').select('status').eq('id',poId).single();
+  if(po&&po.status==='received'){
+    var{data:items}=await db.from('po_items').select('*').eq('po_id',poId);
+    for(var i=0;i<(items||[]).length;i++){
+      var item=items[i];
+      if(item.inventory_id&&item.qty>0){
+        var{data:inv}=await db.from('inventory').select('qty,sold').eq('id',item.inventory_id).single();
+        if(inv){
+          await db.from('inventory').update({
+            qty:(inv.qty||0)+item.qty,
+            sold:Math.max(0,(inv.sold||0)-0)
+          }).eq('id',item.inventory_id);
+        }
+      }
+    }
+  }
   await db.from('po_items').delete().eq('po_id',poId);
   await db.from('po_payments').delete().eq('po_id',poId);
   await db.from('purchase_orders').delete().eq('id',poId);
   document.querySelectorAll('.po-modal').forEach(function(e){e.remove();});
-  toast('Purchase order deleted!');
+  toast('Purchase order deleted and inventory restored!');
   loadPur();
 }
 
 
 async function loadFinStats(){
-  const[tr2,tp2,tpy2,tpo]=await Promise.all([db.from('tasks').select('id'),db.from('task_products').select('task_id,qty,price'),db.from('payments').select('task_id,amount'),db.from('purchase_orders').select('total')]);
-  const tasks=tr2.data||[];const prods=tp2.data||[];const pays=tpy2.data||[];
-  const grand=id=>prods.filter(p=>p.task_id===id).reduce((a,p)=>a+p.qty*p.price,0);
-  const paid=id=>pays.filter(p=>p.task_id===id).reduce((a,p)=>a+p.amount,0);
-  let rev=0,col=0,out=0;tasks.forEach(t=>{const g=grand(t.id),p=paid(t.id);rev+=g;col+=p;out+=Math.max(0,g-p);});
-  const exp=(tpo.data||[]).filter(p=>p.status==='received').reduce((a,p)=>a+(p.total||0),0);
-  document.getElementById('fstats').innerHTML='<div class="sc"><div class="sl">Total revenue</div><div class="sv">'+f(rev)+'</div></div><div class="sc"><div class="sl">Collected</div><div class="sv" style="color:#3B6D11">'+f(col)+'</div></div><div class="sc"><div class="sl">Outstanding</div><div class="sv" style="color:#A32D2D">'+f(out)+'</div></div><div class="sc"><div class="sl">Net profit</div><div class="sv" style="color:#1D9E75">'+f(col-exp)+'</div></div>';
+  try{
+    var r1=await db.from('tasks').select('id');
+    var r2=await db.from('task_products').select('task_id,qty,price');
+    var r3=await db.from('payments').select('task_id,amount');
+    var r4=await db.from('purchase_orders').select('total,status');
+    var tasks=r1.data||[];var prods=r2.data||[];var pays=r3.data||[];
+    if(r1.error)console.error('tasks error:',r1.error);
+    if(r2.error)console.error('prods error:',r2.error);
+    if(r3.error)console.error('pays error:',r3.error);
+    var grand=function(id){return prods.filter(function(p){return p.task_id===id;}).reduce(function(a,p){return a+p.qty*p.price;},0);};
+    var paidFn=function(id){return pays.filter(function(p){return p.task_id===id;}).reduce(function(a,p){return a+p.amount;},0);};
+    var rev=0,col=0,out=0;
+    tasks.forEach(function(t){var g=grand(t.id),p=paidFn(t.id);rev+=g;col+=p;out+=Math.max(0,g-p);});
+    var exp=(r4.data||[]).filter(function(p){return p.status==='received';}).reduce(function(a,p){return a+(p.total||0);},0);
+    var el=document.getElementById('fstats');
+    if(el)el.innerHTML='<div class="sc"><div class="sl">Total revenue</div><div class="sv">'+f(rev)+'</div></div><div class="sc"><div class="sl">Collected</div><div class="sv" style="color:#3B6D11">'+f(col)+'</div></div><div class="sc"><div class="sl">Outstanding</div><div class="sv" style="color:#A32D2D">'+f(out)+'</div></div><div class="sc"><div class="sl">Net profit</div><div class="sv" style="color:#1D9E75">'+f(col-exp)+'</div></div>';
+  }catch(e){console.error('loadFinStats error:',e);}
 }
 
 async function finTab(type,btn){
   document.querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));if(btn)btn.classList.add('on');
   const el=document.getElementById('fcont');el.innerHTML='<div style="padding:20px;text-align:center;color:#888">Loading...</div>';
-  const[tr2,tp2,tpy2]=await Promise.all([
-    db.from('tasks').select('id,task_num,customer_name,type,branch,date,pay_status,due_date,status').order('created_at',{ascending:false}),
-    db.from('task_products').select('task_id,qty,price'),
-    db.from('payments').select('task_id,amount')
-  ]);
-  const allTasks=tr2.data||[];const prods=tp2.data||[];const pays=tpy2.data||[];
+  var fa=await db.from('tasks').select('id,task_num,customer_name,type,branch,date,pay_status,due_date,status').order('created_at',{ascending:false});
+  var fb=await db.from('task_products').select('task_id,qty,price');
+  var fc=await db.from('payments').select('task_id,amount');
+  if(fa.error)console.error('finTab tasks error:',fa.error.message);
+  if(fb.error)console.error('finTab prods error:',fb.error.message);
+  if(fc.error)console.error('finTab pays error:',fc.error.message);
+  var allTasks=fa.data||[];var prods=fb.data||[];var pays=fc.data||[];
   const grand=id=>prods.filter(p=>p.task_id===id).reduce((a,p)=>a+p.qty*p.price,0);
   const paid=id=>pays.filter(p=>p.task_id===id).reduce((a,p)=>a+p.amount,0);
   if(type==='expenses'){
