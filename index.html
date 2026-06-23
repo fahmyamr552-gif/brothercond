@@ -854,7 +854,7 @@ async function loadTasks(){
       d.onmouseover=()=>d.style.background='#f9f9f6';d.onmouseout=()=>d.style.background='';
       const psColor={paid:'#3B6D11',unpaid:'#A32D2D',downpayment:'#854F0B',installments:'#185FA5'};
       const psLabel={paid:'Paid',unpaid:'Unpaid',downpayment:'Deposit',installments:'Installments'};
-      d.innerHTML=('<span style="font-size:11px;font-weight:700;color:#888">'+(tk.task_num)+'</span>')+'<div> <div style="font-weight:700">\'+(tk.customer_name||\'-\')+</div> <div style="font-size:11px;color:#888">\'+(tk.type)+ . \'+(tk.salesperson)+ . \'+(tk.date||\'-\')+</div> </div> <span style="font-size:11px;color:#888">\'+(tk.branch)+</span> <div> <div style="font-size:12px;font-weight:700">\'+(f(grand(tk.id)))+</div> <div style="font-size:10px;color:\'+(psColor[tk.pay_status]||\'#888\')+;font-weight:600">\'+(psLabel[tk.pay_status]||\'-\')+</div> </div> <span class="bx \'+(sm[tk.status]||\'gr\')+">\'+(sl()[tk.status]||tk.status)+</span>\';\'';
+      d.innerHTML='<span style="font-size:11px;font-weight:700;color:#888">'+tk.task_num+'</span><div><div style="font-weight:700">'+(tk.customer_name||'-')+'</div><div style="font-size:11px;color:#888">'+tk.type+' . '+tk.salesperson+' . '+(tk.date||'-')+'</div></div><span style="font-size:11px;color:#888">'+tk.branch+'</span><div><div style="font-size:12px;font-weight:700">'+f(grand(tk.id))+'</div><div style="font-size:10px;color:'+(psColor[tk.pay_status]||'#888')+';font-weight:600">'+(psLabel[tk.pay_status]||'-')+'</div></div><span class="bx '+(sm[tk.status]||'gr')+'">'+(sl()[tk.status]||tk.status)+'</span>';
       d.onclick=()=>openTask(tk.id);body.appendChild(d);
     });
   }catch(e){document.getElementById('tlist').innerHTML=('<div style="padding:20px;color:#A32D2D">Error: '+(e.message)+'</div>');}
@@ -961,7 +961,7 @@ async function openTask(id){
         const bt=taskUseTax?total/1.14:total;
         sub+=total;
         const r=document.createElement('tr');
-        r.innerHTML=('<td>'+(p.name)+'</td><td>'+(p.qty)+'</td><td>'+(f(p.price))+'</td><td style="'+(taskUseTax?'':'display:none')+'">'+(f(bt))+'</td><td style="color:#1D9E75;font-weight:700">'+(f(total))+'</td>');
+        r.innerHTML='<td>'+(p.name)+'</td><td>'+p.qty+'</td><td>'+f(p.price)+'</td><td style="'+(taskUseTax?'':'display:none')+'">'+f(bt)+'</td><td style="color:#1D9E75;font-weight:700">'+f(total)+'</td>';
         tbody.appendChild(r);
       });
       if(taskUseTax){
@@ -1224,7 +1224,7 @@ function openPayModal(){
   document.getElementById('pm-confirm-box').style.display='none';
   // Info line
   var remDisplay=rem<0?('<b style="color:#185FA5">Credit: '+f(Math.abs(rem))+'</b>'):rem===0?('<b style="color:#3B6D11">Fully paid v</b>'):('<b style="color:#A32D2D">Remaining: '+f(rem)+'</b>');
-  document.getElementById('pm-task-info').innerHTML=('<b>'+(CT.task_num)+'</b> . '+(CT.customer_name||'-')+'<br>Order total: <b>'+(f(gr))+'</b> . Paid so far: <b style="color:#3B6D11">'+(f(pd))+'</b> . '+(remDisplay));
+  document.getElementById('pm-task-info').innerHTML='<b>'+CT.task_num+'</b> . '+(CT.customer_name||'-')+'<br>Order total: <b>'+f(gr)+'</b> . Paid: <b style="color:#3B6D11">'+f(pd)+'</b> . '+remDisplay;
   // Quick buttons
   const qEl=document.getElementById('pm-quick');qEl.innerHTML='';
   const amounts=[{l:'Full remaining',v:rem},{l:'Half',v:Math.ceil(rem/2)}];
@@ -1727,7 +1727,7 @@ async function loadInv(search,brand){
     const sb=p.qty===0?'<span class="bx r">Out of stock</span>':p.qty<=p.low_stock?'<span class="bx a">Low stock</span>':'<span class="bx g">In stock</span>';
     const incomingBadge=incoming>0?('<span class="bx b" style="font-size:10px;margin-left:3px">+'+(incoming)+' incoming</span>'):'';
     const delBtn=can('export')?('<div style="display:flex;gap:4px"><button onclick="editProd(\''+(p.id)+'\',\''+(p.brand)+'\',\''+(p.model)+'\',\''+(p.hp)+'\',\''+(p.unit_type||'')+'\',\''+(p.cooling||'')+'\',\''+(p.ac_type||'')+'\','+(p.qty)+','+(p.price)+','+(p.low_stock)+')" style="padding:3px 8px;font-size:10px;border:1px solid #378ADD;border-radius:5px;background:#E6F1FB;color:#185FA5;cursor:pointer">Edit</button><button onclick="delProd(\''+(p.id)+'\')" style="padding:3px 8px;font-size:10px;border:1px solid #E24B4A;border-radius:5px;background:#FCEBEB;color:#A32D2D;cursor:pointer">Del</button></div>'):'-';
-    tr.innerHTML=('<td style="font-weight:700">'+(p.brand)+' '+(p.model)+'</td><td><span class="bx gr">'+(p.brand)+'</span></td><td>'+(p.hp)+'</td><td style="font-size:11px">'+(p.ac_type||'-')+'</td><td style="font-weight:700;color:'+(p.qty===0?'#A32D2D':p.qty<=p.low_stock?'#854F0B':'#3B6D11')+'">'+(p.qty)+(incomingBadge)+'</td><td style="color:#888">'+(p.sold||0)+'</td><td>'+(f(p.price))+'</td><td>'+(sb)+'</td><td>'+(delBtn)+'</td>');
+    tr.innerHTML='<td style="font-weight:700">'+p.brand+' '+p.model+'</td><td><span class="bx gr">'+p.brand+'</span></td><td>'+p.hp+'</td><td style="font-size:11px">'+(p.ac_type||'-')+'</td><td style="font-weight:700;color:'+(p.qty===0?'#A32D2D':p.qty<=p.low_stock?'#854F0B':'#3B6D11')+'">'+p.qty+incomingBadge+'</td><td style="color:#888">'+(p.sold||0)+'</td><td>'+f(p.price)+'</td><td>'+sb+'</td><td>'+delBtn+'</td>';
     body.appendChild(tr);
   });
   document.getElementById('iskus').textContent=data.length;
@@ -1768,7 +1768,7 @@ async function loadPur(){
   const sm={received:'g',pending:'a',cancelled:'r'};
   (data||[]).forEach(po=>{
     const tr=document.createElement('tr');tr.className='hv';tr.style.cursor='pointer';
-    tr.innerHTML=('<td style="font-weight:700">'+(po.po_num)+'</td><td>'+(supMap[po.supplier_id]||'-')+'</td><td>'+(po.date||'-')+'</td><td>'+(po.items||0)+' items</td><td style="font-weight:700">'+(f(po.total))+'</td>')+'<td><span class="bx \'+(sm[po.status]||\'gr\')+">\'+(po.status.charAt(0).toUpperCase()+po.status.slice(1))+</span></td>';
+    tr.innerHTML='<td style="font-weight:700">'+po.po_num+'</td><td>'+(supMap[po.supplier_id]||'-')+'</td><td>'+(po.date||'-')+'</td><td>'+(po.items||0)+' items</td><td style="font-weight:700">'+f(po.total)+'</td><td><span class="bx '+(sm[po.status]||'gr')+'">'+po.status+'</span></td><td>'+poBtn+'</td>';
     var poBtn=po.status==='pending'?('<button onclick="event.stopPropagation();markDelivered(\''+po.id+'\')">Mark delivered</button>'):'<span style="color:#3B6D11">v Received</span>';
     tr.innerHTML='<td style="font-weight:700">'+po.po_num+'</td><td>'+(supMap[po.supplier_id]||'-')+'</td><td>'+(po.date||'-')+'</td><td>'+(po.items||0)+' items</td><td style="font-weight:700">'+f(po.total)+'</td><td><span class="bx '+(sm[po.status]||'gr')+'">'+po.status+'</span></td><td>'+poBtn+'</td>';
     tr.onclick=()=>openPODetail(po.id,supMap);
