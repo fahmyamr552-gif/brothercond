@@ -1103,9 +1103,11 @@ function addEpRow(){
 
 
 async function saveEditProds(){
-  if(!CT)return;
+  if(!CT){toast('No task selected',true);return;}
+  var tbody=document.getElementById('ep-tbody');
+  if(!tbody){toast('Cannot find product table',true);return;}
   const rows=[];
-  document.querySelectorAll('#ep-tbody tr').forEach(tr=>{
+  tbody.querySelectorAll('tr').forEach(tr=>{
     const i=tr.id.replace('epr-','');
     const name=document.getElementById('epn-'+i)?.value.trim();
     const qty=parseInt(document.getElementById('epq-'+i)?.value)||0;
@@ -1119,7 +1121,7 @@ async function saveEditProds(){
   const{error:ie}=await db.from('task_products').insert(rows);
   if(ie){toast('Error: '+ie.message,true);return;}
   // Reload task
-  document.getElementById('edit-prods-modal').remove();
+  document.querySelectorAll('.ep-modal').forEach(function(e){e.remove();});
   toast('Products updated!');
   openTask(CT.id);
 }
