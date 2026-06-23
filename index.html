@@ -324,7 +324,10 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
       <div class="fg"><label>Description</label><div id="dds" style="padding:4px 0;color:#666;line-height:1.5"></div></div>
     </div>
     <div class="cd">
-      <div class="sh">Products</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div class="sh" style="margin-bottom:0">Products</div>
+        <button id="edit-prods-btn" class="btn bs" onclick="openEditProds()" style="font-size:11px;padding:4px 10px">&#9998; Edit products</button>
+      </div>
       <div class="tw"><table><thead><tr><th style="width:38%">Product</th><th style="width:8%">Qty</th><th style="width:16%">Unit price</th><th style="width:17%">Before tax</th><th style="width:17%">Total (14%)</th></tr></thead><tbody id="pvb"></tbody></table></div>
       <div class="tr"><span class="tl">Subtotal</span><span class="tv" id="vsub">EGP 0</span></div>
       <div class="tr" style="padding-top:0"><span class="tl">Tax (14%)</span><span class="tv" id="vtax">EGP 0</span></div>
@@ -977,7 +980,7 @@ async function openTask(id){
       }
       // Show edit products button if not locked
       const editProdBtn=S('edit-prods-btn');
-      if(editProdBtn)editProdBtn.style.display=isLocked?'none':'';
+      if(editProdBtn)editProdBtn.style.display=isLocked?'none':'inline-flex';
     }
     if(S('plc'))S('plc').style.display=CT.type==='sales'?'block':'none';
     if(S('plt'))S('plt').textContent=LANG==='ar'?POL_AR:POL;
@@ -1011,44 +1014,52 @@ async function openTask(id){
 
 function openEditProds(){
   if(!CT)return;
+  // Remove any existing modal
+  const existing=document.getElementById('edit-prods-modal');
+  if(existing)existing.remove();
+
   const taskUseTax=CT.use_tax===false?false:true;
-  const existingRows=CT.prods.map((p,i)=>`
-    <tr id="epr-${i}">
-      <td><input value="${p.name}" id="epn-${i}" style="width:100%;font-size:12px;padding:4px"></td>
-      <td><input type="number" value="${p.qty}" id="epq-${i}" min="1" style="width:100%;text-align:center" oninput="epCalc(${i})"></td>
-      <td><input type="number" value="${p.price}" id="epp-${i}" min="0" style="width:100%" oninput="epCalc(${i})"></td>
-      <td id="epbt-${i}" style="${taskUseTax?'':'display:none'}">${taskUseTax?Math.round(p.qty*p.price/1.14):''}</td>
-      <td id="ept-${i}" style="color:#1D9E75;font-weight:700">${Math.round(p.qty*p.price)}</td>
-      <td><button onclick="document.getElementById('epr-${i}').remove()" style="padding:2px 7px;border:1px solid #E24B4A;border-radius:5px;background:#FCEBEB;color:#A32D2D;cursor:pointer;font-size:11px">Del</button></td>
-    </tr>`).join('');
-  const html=`<div id="edit-prods-modal" onclick="if(event.target===this)this.remove()" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9000;display:flex;align-items:center;justify-content:center">
-    <div style="background:#fff;border-radius:14px;padding:24px;width:640px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.2)">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <div style="font-size:15px;font-weight:700">Edit products — ${CT.task_num}</div>
-        <button onclick="document.getElementById('edit-prods-modal').remove()" style="border:none;background:none;font-size:22px;cursor:pointer;color:#888">&times;</button>
-      </div>
-      <div style="overflow-x:auto;border:1px solid #e0ddd8;border-radius:8px;margin-bottom:10px">
-        <table style="width:100%;border-collapse:collapse;font-size:12px">
-          <thead><tr style="background:#f9f9f6">
-            <th style="padding:7px 8px;text-align:left;width:35%">Product</th>
-            <th style="padding:7px 8px;text-align:center;width:8%">Qty</th>
-            <th style="padding:7px 8px;text-align:right;width:15%">Price (EGP)</th>
-            ${taskUseTax?'<th style="padding:7px 8px;text-align:right;width:15%">Before tax</th>':''}
-            <th style="padding:7px 8px;text-align:right;width:15%">Total</th>
-            <th style="width:8%"></th>
-          </tr></thead>
-          <tbody id="ep-tbody">${existingRows}</tbody>
-        </table>
-      </div>
-      <button onclick="addEpRow()" style="padding:5px 12px;font-size:12px;border:1px solid #1D9E75;border-radius:7px;background:#f0faf5;color:#1D9E75;cursor:pointer;margin-bottom:14px">+ Add row</button>
-      <div style="display:flex;gap:8px;justify-content:flex-end">
-        <button onclick="document.getElementById('edit-prods-modal').remove()" style="padding:7px 14px;font-size:12px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer">Cancel</button>
-        <button onclick="saveEditProds()" style="padding:7px 14px;font-size:12px;border:1px solid #1D9E75;border-radius:8px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:600">✓ Save changes</button>
-      </div>
-    </div>
-  </div>`;
+
+  // Build modal HTML using string concat (no nested template literals)
+  let html='<div id="edit-prods-modal" onclick="if(event.target===this)this.remove()" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9000;display:flex;align-items:center;justify-content:center">';
+  html+='<div style="background:#fff;border-radius:14px;padding:24px;width:640px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.2)">';
+  html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">';
+  html+='<div style="font-size:15px;font-weight:700">Edit products &mdash; '+CT.task_num+'</div>';
+  html+='<button onclick="document.getElementById('edit-prods-modal').remove()" style="border:none;background:none;font-size:24px;cursor:pointer;color:#888">&times;</button>';
+  html+='</div>';
+  html+='<div style="overflow-x:auto;border:1px solid #e0ddd8;border-radius:8px;margin-bottom:10px">';
+  html+='<table style="width:100%;border-collapse:collapse;font-size:12px">';
+  html+='<thead><tr style="background:#f9f9f6">';
+  html+='<th style="padding:7px 8px;text-align:left;width:38%">Product name</th>';
+  html+='<th style="padding:7px 8px;text-align:center;width:8%">Qty</th>';
+  html+='<th style="padding:7px 8px;text-align:right;width:18%">Price (EGP)</th>';
+  if(taskUseTax)html+='<th style="padding:7px 8px;text-align:right;width:16%">Before tax</th>';
+  html+='<th style="padding:7px 8px;text-align:right;width:14%">Total</th>';
+  html+='<th style="width:6%"></th>';
+  html+='</tr></thead>';
+  html+='<tbody id="ep-tbody">';
+  CT.prods.forEach((p,i)=>{
+    const tot=Math.round(p.qty*p.price);
+    const bt=taskUseTax?Math.round(p.qty*p.price/1.14):'';
+    html+='<tr id="epr-'+i+'">';
+    html+='<td><input value="'+p.name.replace(/"/g,'&quot;')+'" id="epn-'+i+'" style="width:100%;font-size:12px;padding:4px;border:1px solid #ccc;border-radius:4px"></td>';
+    html+='<td><input type="number" value="'+p.qty+'" id="epq-'+i+'" min="1" style="width:100%;text-align:center;border:1px solid #ccc;border-radius:4px" oninput="epCalc('+i+')"></td>';
+    html+='<td><input type="number" value="'+p.price+'" id="epp-'+i+'" min="0" style="width:100%;border:1px solid #ccc;border-radius:4px" oninput="epCalc('+i+')"></td>';
+    if(taskUseTax)html+='<td id="epbt-'+i+'" style="text-align:right;padding:0 6px;color:#888">'+bt+'</td>';
+    html+='<td id="ept-'+i+'" style="text-align:right;padding:0 6px;color:#1D9E75;font-weight:700">'+tot+'</td>';
+    html+='<td><button onclick="document.getElementById('epr-'+i+'').remove()" style="padding:2px 8px;font-size:11px;border:1px solid #E24B4A;border-radius:5px;background:#FCEBEB;color:#A32D2D;cursor:pointer">Del</button></td>';
+    html+='</tr>';
+  });
+  html+='</tbody></table></div>';
+  html+='<button onclick="addEpRow()" style="padding:6px 14px;font-size:12px;border:1px solid #1D9E75;border-radius:7px;background:#f0faf5;color:#1D9E75;cursor:pointer;margin-bottom:14px;font-weight:600">+ Add row</button>';
+  html+='<div style="display:flex;gap:8px;justify-content:flex-end">';
+  html+='<button onclick="document.getElementById('edit-prods-modal').remove()" style="padding:8px 16px;font-size:12px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer">Cancel</button>';
+  html+='<button onclick="saveEditProds()" style="padding:8px 16px;font-size:12px;border:1px solid #1D9E75;border-radius:8px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:600">&#10003; Save changes</button>';
+  html+='</div></div></div>';
+
   document.body.insertAdjacentHTML('beforeend',html);
 }
+
 
 function epCalc(i){
   const q=parseFloat(document.getElementById('epq-'+i)?.value)||0;
