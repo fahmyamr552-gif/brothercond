@@ -318,6 +318,8 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
         <div class="fg"><label>Salesperson</label><div id="dsp" style="padding:4px 0;font-weight:600"></div></div>
         <div class="fg"><label>Type</label><div id="dty" style="padding:4px 0;font-weight:600;text-transform:capitalize"></div></div>
         <div class="fg"><label>Task date</label><div id="ddate" style="padding:4px 0;font-weight:600"></div></div>
+        <div class="fg"><label>Created by</label><div id="dcreated" style="padding:4px 0;font-weight:600"></div></div>
+        <div class="fg"><label>Tax</label><div id="dtax" style="padding:4px 0;font-weight:600"></div></div>
       </div>
       <div class="fg"><label>Description</label><div id="dds" style="padding:4px 0;color:#666;line-height:1.5"></div></div>
     </div>
@@ -338,9 +340,10 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
       <div id="ptsl"></div>
       <button class="btn bs" onclick="addPart()" style="margin:5px 0 12px">+ Add part</button>
       <div class="dv"></div>
-      <div class="r2">
+      <div class="r3">
+        <div class="fg"><label>Technician name</label><input id="ctech-name" placeholder="Technician full name"></div>
         <div class="fg"><label>Completion time</label><input type="datetime-local" id="cdt"></div>
-        <div class="fg"><label>Technician note</label><input id="ctn" placeholder="Confirmed by..."></div>
+        <div class="fg"><label>Technician note</label><input id="ctn" placeholder="Any notes..."></div>
       </div>
       <div style="display:flex;align-items:center;gap:6px;margin-top:8px">
         <input type="checkbox" id="cok" style="width:auto">
@@ -446,7 +449,13 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     <div class="fg"><label>Description</label><textarea id="ntds" placeholder="Special instructions..."></textarea></div>
   </div>
   <div class="cd">
-    <div class="sh">Products</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div class="sh" style="margin-bottom:0">Products</div>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#666;cursor:pointer;background:#f5f5f0;padding:5px 10px;border-radius:8px;border:1px solid #e0ddd8">
+        <input type="checkbox" id="tax-toggle" checked onchange="ntRec()" style="width:auto">
+        Include 14% tax
+      </label>
+    </div>
     <div id="ntwn" class="wn" style="display:none">&#9888; <span id="ntwm"></span></div>
     <div class="tw">
       <table style="table-layout:fixed">
@@ -523,7 +532,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
 <div class="pg" id="pg-pur">
   <div class="cd" style="padding:0;overflow:hidden;margin-bottom:10px">
     <table style="table-layout:fixed;width:100%">
-      <thead><tr><th style="width:65px">PO #</th><th>Supplier</th><th style="width:100px">Date</th><th style="width:70px">Items</th><th style="width:110px">Total</th><th style="width:100px">Status</th></tr></thead>
+      <thead><tr><th style="width:65px">PO #</th><th>Supplier</th><th style="width:100px">Date</th><th style="width:70px">Items</th><th style="width:110px">Total</th><th style="width:90px">Status</th><th style="width:130px">Action</th></tr></thead>
       <tbody id="pob"><tr><td colspan="6" style="text-align:center;padding:20px;color:#888">Loading...</td></tr></tbody>
     </table>
   </div>
@@ -875,6 +884,9 @@ async function openTask(id){
     }
     go('td',null);
     const S=(id)=>document.getElementById(id);
+    const isLocked2=CT.pay_status==='paid'&&!['owner','admin'].includes(CU?.role);
+    const recBtn=document.getElementById('rec-pay-btn');
+    if(recBtn)recBtn.style.display=isLocked2?'none':'';
     const set=(id,val)=>{const e=S(id);if(e)e.textContent=val;};
     const setV=(id,val)=>{const e=S(id);if(e)e.value=val;};
     const setD=(id,val)=>{const e=S(id);if(e)e.style.display=val;};
@@ -883,21 +895,41 @@ async function openTask(id){
     set('tdtitle',CT.task_num+' - '+(CT.customer_name||'—'));
     // Status buttons
     const ss=S('sbtns');
+    // Task lock: if paid and user is not owner/admin, lock editing
+    const isLocked=CT.pay_status==='paid'&&!['owner','admin'].includes(CU?.role);
+    if(isLocked){
+      // Show lock banner
+      const lockBanner=document.createElement('div');
+      lockBanner.style.cssText='background:#EAF3DE;border:1px solid #639922;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:#3B6D11;display:flex;align-items:center;gap:6px';
+      lockBanner.innerHTML='&#128274; <b>Task locked</b> — Payment confirmed. Only admin or owner can edit.';
+      const tdPg=document.getElementById('pg-td');
+      const firstCard=tdPg?.querySelector('.cd');
+      if(firstCard)firstCard.parentNode.insertBefore(lockBanner,firstCard);
+    }
     if(ss){
       ss.innerHTML='';
-      [{k:'pending',l:'Pending',c:'p'},{k:'progress',l:'In progress',c:'bl'},{k:'done',l:'Completed',c:'gn'},{k:'cancel',l:'Cancelled',c:'rd'}].forEach(s=>{
-        const b=document.createElement('button');
-        b.className='ss'+(CT.status===s.k?' '+s.c:'');
-        b.textContent=s.l;
-        b.onclick=async()=>{
-          await db.from('tasks').update({status:s.k}).eq('id',CT.id);
-          CT.status=s.k;
-          ss.querySelectorAll('.ss').forEach(x=>x.className='ss');
-          b.className='ss '+s.c;
-          toast('Status updated');
-        };
-        ss.appendChild(b);
-      });
+      if(!isLocked){
+        [{k:'pending',l:'Pending',c:'p'},{k:'progress',l:'In progress',c:'bl'},{k:'done',l:'Completed',c:'gn'},{k:'cancel',l:'Cancelled',c:'rd'}].forEach(s=>{
+          const b=document.createElement('button');
+          b.className='ss'+(CT.status===s.k?' '+s.c:'');
+          b.textContent=s.l;
+          b.onclick=async()=>{
+            await db.from('tasks').update({status:s.k}).eq('id',CT.id);
+            CT.status=s.k;
+            ss.querySelectorAll('.ss').forEach(x=>x.className='ss');
+            b.className='ss '+s.c;
+            toast('Status updated');
+          };
+          ss.appendChild(b);
+        });
+      } else {
+        const sl={pending:'Pending',progress:'In progress',done:'Completed',cancel:'Cancelled'};
+        const sm={pending:'a',progress:'b',done:'g',cancel:'r'};
+        const badge=document.createElement('span');
+        badge.className='bx '+(sm[CT.status]||'gr');
+        badge.textContent=sl[CT.status]||CT.status;
+        ss.appendChild(badge);
+      }
     }
     // Customer card
     const cu=CT.cust;
@@ -905,7 +937,10 @@ async function openTask(id){
     if(tcc)tcc.innerHTML=cu?`<div style="display:flex;align-items:center;gap:10px;padding:10px;background:#f5f5f0;border-radius:8px;border:1px solid #e0ddd8"><div class="av">${ini(cu.full_name)}</div><div><div style="font-weight:700">${cu.full_name}</div><div style="font-size:11px;color:#888">${cu.phone||''} - ${cu.address||''}</div>${cu.id_number?`<div style="font-size:11px;color:#888">ID: ${cu.id_number}</div>`:''}</div></div>`:'<div style="color:#888">—</div>';
     // Order info
     set('dbr',CT.branch);set('dsp',CT.salesperson);set('dty',CT.type);
-    set('ddate',CT.date||'—');set('dds',CT.description||'—');
+    set('ddate',CT.date||'—');
+    set('dds',CT.description||'—');
+    set('dcreated',CT.created_by||'—');
+    set('dtax',CT.use_tax===false?'No tax (0%)':'14% tax included');
     // Products table
     const tbody=S('pvb');
     if(tbody){
@@ -926,6 +961,12 @@ async function openTask(id){
     }
     if(S('plc'))S('plc').style.display=CT.type==='sales'?'block':'none';
     if(S('plt'))S('plt').textContent=LANG==='ar'?POL_AR:POL;
+    // Pre-fill completion fields if already saved
+    if(S('cdn'))S('cdn').value=CT.completion_notes||'';
+    if(S('cdt'))S('cdt').value=CT.completion_time||'';
+    if(S('ctn'))S('ctn').value=CT.technician_note||'';
+    if(S('ctech-name'))S('ctech-name').value=CT.technician_name||'';
+    if(S('cok'))S('cok').checked=CT.customer_confirmed||false;
     // Payment status
     setV('pst',CT.pay_status||'unpaid');
     if(CT.due_date){
@@ -1177,8 +1218,20 @@ function calcPR(){
 }
 
 async function saveComp(){
-  const{error}=await db.from('tasks').update({completion_notes:document.getElementById('cdn').value,completion_time:document.getElementById('cdt').value,technician_note:document.getElementById('ctn').value,customer_confirmed:document.getElementById('cok').checked}).eq('id',CT.id);
-  if(error){toast('Error: '+error.message,true);return;}toast('Completion saved');
+  const techName=document.getElementById('ctech-name')?.value||'';
+  const{error}=await db.from('tasks').update({
+    completion_notes:document.getElementById('cdn').value,
+    completion_time:document.getElementById('cdt').value,
+    technician_name:techName,
+    technician_note:document.getElementById('ctn').value,
+    customer_confirmed:document.getElementById('cok').checked
+  }).eq('id',CT.id);
+  if(error){toast('Error: '+error.message,true);return;}
+  CT.technician_name=techName;
+  CT.completion_notes=document.getElementById('cdn').value;
+  CT.completion_time=document.getElementById('cdt').value;
+  CT.customer_confirmed=document.getElementById('cok').checked;
+  toast('Completion report saved');
 }
 
 function addPart(){const l=document.getElementById('ptsl');const d=document.createElement('div');d.style.cssText='display:grid;grid-template-columns:1fr 55px 80px 28px;gap:5px;margin-bottom:5px';d.innerHTML=`<input placeholder="Part name"><input type="number" placeholder="Qty" min="1"><input type="number" placeholder="Cost (EGP)"><button class="ib" onclick="this.closest('div').remove()">X</button>`;l.appendChild(d);}
@@ -1308,6 +1361,14 @@ ${CT.description?`<div style="margin-bottom:14px;padding:8px;background:#f8f8f6;
 </div>
 ${payRows?`<div style="margin-bottom:14px"><div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;margin-bottom:6px">Payments received</div><table style="width:260px"><thead><tr><th>Method</th><th>Note</th><th style="text-align:right">Amount</th></tr></thead><tbody>${payRows}</tbody></table><div style="display:flex;gap:14px;margin-top:6px;font-size:12px"><span>Paid: <b>${f(pd)}</b></span><span style="color:${rem>0?'#c0392b':'#27ae60'}">Remaining: <b>${f(rem)}</b></span>${CT.due_date?`<span style="color:#854F0B">Due: <b>${CT.due_date}</b></span>`:''}</div></div>`:''}
 ${CT.type==='sales'?`<div style="margin-top:16px;padding:10px;background:#f8f8f6;border-radius:4px;font-size:10px;color:#666;line-height:1.8;border:1px solid #ddd;white-space:pre-wrap;font-family:Arial">${POL}</div>`:''}
+${CT.completion_notes||CT.technician_name?`<div style="margin-top:16px;padding:12px;background:#f0faf5;border-radius:4px;border:1px solid #1D9E75">
+  <div style="font-size:11px;font-weight:700;color:#0F6E56;text-transform:uppercase;margin-bottom:8px">Completion Report</div>
+  ${CT.technician_name?`<div style="margin-bottom:5px;font-size:12px"><b>Technician:</b> ${CT.technician_name}</div>`:''}
+  ${CT.completion_time?`<div style="margin-bottom:5px;font-size:12px"><b>Completed at:</b> ${new Date(CT.completion_time).toLocaleString('en-GB')}</div>`:''}
+  ${CT.completion_notes?`<div style="margin-bottom:5px;font-size:12px"><b>What was done:</b><br>${CT.completion_notes}</div>`:''}
+  ${CT.technician_note?`<div style="margin-bottom:5px;font-size:12px"><b>Technician note:</b> ${CT.technician_note}</div>`:''}
+  ${CT.customer_confirmed?`<div style="font-size:12px;color:#3B6D11"><b>✓ Customer confirmed & satisfied</b></div>`:''}
+</div>`:''}
 <div style="margin-top:22px;border-top:1px solid #ccc;padding-top:8px;font-size:10px;color:#999;text-align:center">Thank you for choosing BrotherCond</div>
 <scr'+'ipt>window.onload=function(){window.print();setTimeout(window.close,800);}<\/scr'+'ipt></body></html>`;
   const w=window.open('','_blank','width=820,height=950');
@@ -1358,10 +1419,34 @@ async function addRow(){
 
 function onPS2(sel){const tr=sel.closest('tr');const o=sel.selectedOptions[0];if(o?.dataset.price){tr.cells[2].querySelector('input').value=o.dataset.price;calcR(tr.cells[1].querySelector('input'));chkStk(tr.cells[1].querySelector('input'));}}
 function chkStk(inp){const tr=inp.closest('tr');const sel=tr.cells[0].querySelector('select');if(!sel?.value)return;const o=sel.selectedOptions[0];if(!o?.dataset.qty)return;const av=parseInt(o.dataset.qty);const rq=parseInt(inp.value)||0;const w=document.getElementById('ntwn');if(rq>av){w.style.display='flex';document.getElementById('ntwm').textContent=`Warning: Only ${av} in stock. You can still proceed.`;}else w.style.display='none';}
-function calcR(inp){const tr=inp.closest('tr');const q=parseFloat(tr.cells[1].querySelector('input').value)||0;const p=parseFloat(tr.cells[2].querySelector('input').value)||0;const total=q*p;const beforeTax=total/1.14;tr.querySelector('.pt').value=total?Math.round(beforeTax):'';tr.querySelector('.tt2').value=total?Math.round(total):'';ntRec();}
-function ntRec(){let total=0;document.querySelectorAll('#ntb tr').forEach(tr=>{total+=(parseFloat(tr.cells[1].querySelector('input').value)||0)*(parseFloat(tr.cells[2].querySelector('input').value)||0);});const beforeTax=total/1.14;const tax=total-beforeTax;document.getElementById('nts').textContent=f(beforeTax);document.getElementById('ntt2').textContent=f(tax);document.getElementById('ntg').textContent=f(total);}
+function calcR(inp){
+  const tr=inp.closest('tr');
+  const q=parseFloat(tr.cells[1].querySelector('input').value)||0;
+  const p=parseFloat(tr.cells[2].querySelector('input').value)||0;
+  const useTax=document.getElementById('tax-toggle')?.checked!==false;
+  const total=q*p;
+  const beforeTax=useTax?total/1.14:total;
+  tr.querySelector('.pt').value=total?Math.round(beforeTax):'';
+  tr.querySelector('.tt2').value=total?Math.round(total):'';
+  ntRec();
+}
+function ntRec(){
+  let total=0;
+  document.querySelectorAll('#ntb tr').forEach(tr=>{
+    total+=(parseFloat(tr.cells[1].querySelector('input').value)||0)*(parseFloat(tr.cells[2].querySelector('input').value)||0);
+  });
+  const useTax=document.getElementById('tax-toggle')?.checked!==false;
+  const beforeTax=useTax?total/1.14:total;
+  const tax=useTax?total-beforeTax:0;
+  document.getElementById('nts').textContent=f(beforeTax);
+  document.getElementById('ntt2').textContent=f(tax);
+  document.getElementById('ntg').textContent=f(total);
+  // Update column header
+  const th=document.querySelector('#ntb')?.closest('table')?.querySelector('th:last-of-type');
+}
 
 async function saveTask(){
+  const useTax=document.getElementById('tax-toggle')?.checked!==false;
   // Read rows FIRST before any navigation clears them
   const taskRows=[];
   document.querySelectorAll('#ntb tr').forEach(tr=>{
@@ -1396,7 +1481,7 @@ async function saveTask(){
   }
   const today=document.getElementById('ntdate').value||new Date().toISOString().slice(0,10);
   const tnum='#'+String(Date.now()).slice(-5);
-  const{data:task,error:te}=await db.from('tasks').insert({task_num:tnum,customer_id:cid,customer_name:customerName,type:document.getElementById('ntt').value,branch:document.getElementById('ntbr').value,salesperson:document.getElementById('ntsp').value,description:document.getElementById('ntds').value,date:today,status:'pending',pay_status:'unpaid'}).select().single();
+  const{data:task,error:te}=await db.from('tasks').insert({task_num:tnum,customer_id:cid,customer_name:customerName,type:document.getElementById('ntt').value,branch:document.getElementById('ntbr').value,salesperson:document.getElementById('ntsp').value,description:document.getElementById('ntds').value,date:today,status:'pending',pay_status:'unpaid',created_by:CU?.full_name||CU?.username||'—',use_tax:useTax}).select().single();
   if(te){toast('Error: '+te.message,true);return;}
   const rows=taskRows.map(r=>({task_id:task.id,name:r.name,qty:r.qty,price:r.price,inventory_id:r.pid||null}));
   taskRows.forEach(r=>{if(r.pid&&task.type==='sales'){const inv=INV.find(x=>x.id===r.pid);if(inv){db.from('inventory').update({qty:Math.max(0,inv.qty-r.qty),sold:(inv.sold||0)+r.qty}).eq('id',r.pid);inv.qty=Math.max(0,inv.qty-r.qty);}}});
@@ -1414,10 +1499,17 @@ async function loadInv(search,brand){
   if(brand)q=q.eq('brand',brand);
   const{data}=await q;INV=data||[];body.innerHTML='';
   if(!data?.length){body.innerHTML='<tr><td colspan="8" style="text-align:center;padding:16px;color:#888">No products.</td></tr>';return;}
+  // Get incoming units from pending POs
+  const{data:poItems}=await db.from('po_items').select('inventory_id,qty,purchase_orders!inner(status)').eq('purchase_orders.status','pending');
+  const incomingMap={};
+  (poItems||[]).forEach(pi=>{if(pi.inventory_id)incomingMap[pi.inventory_id]=(incomingMap[pi.inventory_id]||0)+pi.qty;});
+
   data.forEach(p=>{const tr=document.createElement('tr');
+    const incoming=incomingMap[p.id]||0;
     const sb=p.qty===0?'<span class="bx r">Out of stock</span>':p.qty<=p.low_stock?'<span class="bx a">Low stock</span>':'<span class="bx g">In stock</span>';
+    const incomingBadge=incoming>0?`<span class="bx b" style="font-size:10px;margin-left:3px">+${incoming} incoming</span>`:'';
     const delBtn=can('export')?`<div style="display:flex;gap:4px"><button onclick="editProd('${p.id}','${p.brand}','${p.model}','${p.hp}','${p.unit_type||''}','${p.cooling||''}','${p.ac_type||''}',${p.qty},${p.price},${p.low_stock})" style="padding:3px 8px;font-size:10px;border:1px solid #378ADD;border-radius:5px;background:#E6F1FB;color:#185FA5;cursor:pointer">Edit</button><button onclick="delProd('${p.id}')" style="padding:3px 8px;font-size:10px;border:1px solid #E24B4A;border-radius:5px;background:#FCEBEB;color:#A32D2D;cursor:pointer">Del</button></div>`:'—';
-    tr.innerHTML=`<td style="font-weight:700">${p.brand} ${p.model}</td><td><span class="bx gr">${p.brand}</span></td><td>${p.hp}</td><td style="font-size:11px">${p.ac_type||'—'}</td><td style="font-weight:700;color:${p.qty===0?'#A32D2D':p.qty<=p.low_stock?'#854F0B':'#3B6D11'}">${p.qty}</td><td style="color:#888">${p.sold||0}</td><td>${f(p.price)}</td><td>${sb}</td><td>${delBtn}</td>`;
+    tr.innerHTML=`<td style="font-weight:700">${p.brand} ${p.model}</td><td><span class="bx gr">${p.brand}</span></td><td>${p.hp}</td><td style="font-size:11px">${p.ac_type||'—'}</td><td style="font-weight:700;color:${p.qty===0?'#A32D2D':p.qty<=p.low_stock?'#854F0B':'#3B6D11'}">${p.qty}${incomingBadge}</td><td style="color:#888">${p.sold||0}</td><td>${f(p.price)}</td><td>${sb}</td><td>${delBtn}</td>`;
     body.appendChild(tr);});
   document.getElementById('iskus').textContent=data.length;document.getElementById('iunit').textContent=data.reduce((a,p)=>a+p.qty,0);document.getElementById('ilow').textContent=data.filter(p=>p.qty<=p.low_stock).length;
 }
@@ -1520,7 +1612,15 @@ async function loadPur(){
   if(sids.length){const{data:sups}=await db.from('suppliers').select('id,name').in('id',sids);(sups||[]).forEach(s=>supMap[s.id]=s.name);}
   const body=document.getElementById('pob');body.innerHTML='';
   const sm={received:'g',pending:'a',cancelled:'r'};
-  (data||[]).forEach(po=>{const tr=document.createElement('tr');tr.innerHTML=`<td style="font-weight:700">${po.po_num}</td><td>${supMap[po.supplier_id]||'—'}</td><td>${po.date||'—'}</td><td>${po.items||0} items</td><td style="font-weight:700">${f(po.total)}</td><td><span class="bx ${sm[po.status]||'gr'}">${po.status}</span></td>`;body.appendChild(tr);});
+  (data||[]).forEach(po=>{
+    const tr=document.createElement('tr');tr.className='hv';
+    tr.style.cursor='pointer';
+    tr.innerHTML=`<td style="font-weight:700">${po.po_num}</td><td>${supMap[po.supplier_id]||'—'}</td><td>${po.date||'—'}</td><td>${po.items||0} items</td><td style="font-weight:700">${f(po.total)}</td>
+    <td><span class="bx ${sm[po.status]||'gr'}">${po.status.charAt(0).toUpperCase()+po.status.slice(1)}</span></td>
+    <td>${po.status==='pending'?`<button onclick="event.stopPropagation();markDelivered('${po.id}')" style="padding:4px 10px;font-size:11px;border:1px solid #639922;border-radius:6px;background:#EAF3DE;color:#3B6D11;cursor:pointer">Mark delivered</button>`:'<span style="color:#3B6D11;font-size:12px">✓ Received</span>'}</td>`;
+    tr.onclick=()=>openPODetail(po.id,supMap);
+    body.appendChild(tr);
+  });
   if(!data?.length)body.innerHTML='<tr><td colspan="6" style="text-align:center;padding:16px;color:#888">'+t('nopos')+'</td></tr>';
 }
 
