@@ -1203,9 +1203,11 @@ function renderPays(){
       const icon=methIcon[p.method]||'[Pay]';
       const d=document.createElement('div');
       d.style.cssText='display:flex;align-items:center;gap:10px;padding:8px 10px;background:#f9f9f6;border:1px solid #e8e8e0;border-radius:8px;margin-bottom:5px;font-size:12px';
-      d.innerHTML=('<span style="font-size:20px">'+(icon)+'</span>')+'<div style="flex:1"> <div style="font-weight:700;font-size:13px">\'+(f(p.amount))+</div> <div style="color:#888;font-size:11px">\'+(p.method)+\'+(p.note?\' . \'+p.note:\'\')+</div> </div> <div style="text-align:right"> <div style="font-size:11px;color:#888">\'+(p.created_at?new Date(p.created_at).toLocaleDateString(\'en-GB\',{day:\'2-digit\',month:\'short\',year:\'numeric\')+):\'\'}</div>';
-          ${can('export')?('<button onclick="deletePay(\''+(p.id)+'\')" style="margin-top:3px;padding:2px 7px;font-size:10px;border:1px solid #E24B4A;border-radius:5px;background:#FCEBEB;color:#A32D2D;cursor:pointer">Delete</button>'):''}+'</div>\';\'';
-      box.appendChild(d);
+      d.style.cssText='display:flex;align-items:center;gap:10px;padding:8px 10px;background:#f9f9f6;border:1px solid #e8e8e0;border-radius:8px;margin-bottom:5px;font-size:12px';
+      var delBtnHtml=can('export')?'<button onclick="deletePay(\''+p.id+'\')">Delete</button>':'';
+      d.innerHTML='<span style="font-size:20px">'+icon+'</span><div style="flex:1"><div style="font-weight:700;font-size:13px">'+f(p.amount)+'</div><div style="color:#888;font-size:11px">'+p.method+(p.note?' . '+p.note:'')+'</div></div><div style="text-align:right"><div style="font-size:11px;color:#888">'+(p.created_at?new Date(p.created_at).toLocaleDateString('en-GB'):'')+'</div>'+delBtnHtml+'</div>';
+
+
     });
   }
 }
@@ -1406,9 +1408,9 @@ async function loadSubTasks(){
     const gr=(st.task_products||[]).reduce((a,p)=>a+p.qty*p.price,0);
     const d=document.createElement('div');
     d.style.cssText='display:flex;align-items:center;gap:10px;padding:10px;background:#f9f9f6;border:1px solid #e0ddd8;border-radius:8px;margin-bottom:7px;cursor:pointer';
-    d.innerHTML='<div style="flex:1"> <div style="font-weight:700">\'+(st.task_num)+ . \'+(st.type)+</div> <div style="font-size:11px;color:#888;margin-top:2px">\'+(st.date||\'-\')+ . \'+(st.salesperson)+ . \'+(st.description||\'-\')+</div>';
-        ${gr>0?('<div style="font-size:12px;color:#1D9E75;font-weight:700;margin-top:3px">'+(f(gr))+'</div>'):''}+'</div> <span class="bx \'+(sm[st.status]||\'gr\')+">\'+(sl[st.status]||st.status)+</span> <span style="font-size:18px;color:#ccc">></span>\';\'';
-    d.onclick=()=>openTask(st.id);
+    d.innerHTML='<div style="flex:1"><div style="font-weight:700">'+st.task_num+' . '+st.type+'</div><div style="font-size:11px;color:#888;margin-top:2px">'+(st.date||'-')+' . '+st.salesperson+' . '+(st.description||'-')+'</div>'+(gr>0?'<div style="font-size:12px;color:#1D9E75;font-weight:700;margin-top:3px">'+f(gr)+'</div>':'')+'</div><span class="bx '+(sm[st.status]||'gr')+'">'+(sl[st.status]||st.status)+'</span><span style="font-size:18px;color:#ccc">&gt;</span>';
+
+
     list.appendChild(d);
   });
 }
@@ -1876,9 +1878,9 @@ async function expCust(){
   if(!data?.length){toast('No customers',true);return;}
   const h=['Full Name','Phone','Second Phone','Address','ID / Passport','Created'];
   const rows=data.map(c=>[c.full_name,c.phone||'',c.phone2||'',c.address||'',c.id_number||'',c.created_at?.slice(0,10)||'']);
-  let csv=h.join(',')+'
-'+rows.map(r=>r.map(v=>('"'+(String(v).replace(/"/g,'""'))+'"')).join(',')).join('
-');
+  var csv=h.join(',')+String.fromCharCode(10)+rows.map(function(r){return r.map(function(v){return '"'+String(v).replace(/"/g,'""')+'"';}).join(',');}).join(String.fromCharCode(10));
+
+
   const blob=new Blob([csv],{type:'text/csv'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='brothercond_customers.csv';a.click();URL.revokeObjectURL(url);toast('Exported!');
 }
 
@@ -2001,7 +2003,7 @@ window.T={
   ar:{dashboard:'الرئيسية',tasks:'المهام',inventory:'المخزون',purchases:'المشتريات',finance:'المالية',customers:'العملاء',suppliers:'الموردون',users:'المستخدمون',signout:'تسجيل الخروج',signin:'تسجيل الدخول',username:'اسم المستخدم',password:'كلمة المرور',wrongpass:'اسم المستخدم أو كلمة المرور غير صحيحة.',newtask:'مهمة جديدة',addproduct:'إضافة منتج',newpo:'أمر شراء جديد',addcustomer:'إضافة عميل',addsupplier:'إضافة مورد',pending:'معلقة',inprogress:'جارية',completed:'مكتملة',cancelled:'ملغاة',notasksfound:'لا توجد مهام.',noproducts:'لا توجد منتجات.',nopos:'لا توجد أوامر شراء.',nocust:'لا يوجد عملاء.',nosup:'لا يوجد موردون.',loadin:'جاري التحميل...',taskdelconfirm:'حذف هذه المهمة؟'}
 };
 
-let LANG='en';
+LANG='en';
 function setLang(l,btn){
   LANG=l;
   document.querySelectorAll('.lbtn').forEach(b=>b.classList.remove('on'));
