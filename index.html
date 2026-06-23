@@ -1023,8 +1023,8 @@ async function openTask(id){
 
 function openEditProds(){
   if(!CT)return;
-  // Remove any existing modal
-  const existing=document.getElementById('edit-prods-modal');
+  var MID='edit-prods-modal';
+  const existing=document.getElementById(MID);
   if(existing)existing.remove();
 
   const taskUseTax=CT.use_tax===false?false:true;
@@ -1034,7 +1034,7 @@ function openEditProds(){
   html+='<div style="background:#fff;border-radius:14px;padding:24px;width:640px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.2)">';
   html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">';
   html+='<div style="font-size:15px;font-weight:700">Edit products — '+CT.task_num+'</div>';
-  html+='<button onclick="document.getElementById('edit-prods-modal').remove()" style="border:none;background:none;font-size:24px;cursor:pointer;color:#888">×</button>';
+  html+='<button onclick="document.getElementById("+MID+").remove()" style="border:none;background:none;font-size:24px;cursor:pointer;color:#888">×</button>';
   html+='</div>';
   html+='<div style="overflow-x:auto;border:1px solid #e0ddd8;border-radius:8px;margin-bottom:10px">';
   html+='<table style="width:100%;border-collapse:collapse;font-size:12px">';
@@ -1056,13 +1056,13 @@ function openEditProds(){
     html+='<td><input type="number" value="'+p.price+'" id="epp-'+i+'" min="0" style="width:100%;border:1px solid #ccc;border-radius:4px" oninput="epCalc('+i+')"></td>';
     if(taskUseTax)html+='<td id="epbt-'+i+'" style="text-align:right;padding:0 6px;color:#888">'+bt+'</td>';
     html+='<td id="ept-'+i+'" style="text-align:right;padding:0 6px;color:#1D9E75;font-weight:700">'+tot+'</td>';
-    html+='<td><button onclick="document.getElementById('epr-'+i+'').remove()" style="padding:2px 8px;font-size:11px;border:1px solid #E24B4A;border-radius:5px;background:#FCEBEB;color:#A32D2D;cursor:pointer">Del</button></td>';
+    html+='<td><button onclick="document.getElementById("epr-"+i).remove()" style="padding:2px 8px;font-size:11px;border:1px solid #E24B4A;border-radius:5px;background:#FCEBEB;color:#A32D2D;cursor:pointer">Del</button></td>';
     html+='</tr>';
   });
   html+='</tbody></table></div>';
   html+='<button onclick="addEpRow()" style="padding:6px 14px;font-size:12px;border:1px solid #1D9E75;border-radius:7px;background:#f0faf5;color:#1D9E75;cursor:pointer;margin-bottom:14px;font-weight:600">+ Add row</button>';
   html+='<div style="display:flex;gap:8px;justify-content:flex-end">';
-  html+='<button onclick="document.getElementById('edit-prods-modal').remove()" style="padding:8px 16px;font-size:12px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer">Cancel</button>';
+  html+='<button onclick="document.getElementById("+MID+").remove()" style="padding:8px 16px;font-size:12px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer">Cancel</button>';
   html+='<button onclick="saveEditProds()" style="padding:8px 16px;font-size:12px;border:1px solid #1D9E75;border-radius:8px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:600">&#10003; Save changes</button>';
   html+='</div></div></div>';
 
