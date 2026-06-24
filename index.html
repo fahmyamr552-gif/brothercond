@@ -2083,6 +2083,10 @@ async function openPODetail(poId){
   if(closeBtn){closeBtn.onclick=function(){document.querySelectorAll('.po-modal').forEach(function(e){e.remove();});};}
   var mdBtn=overlay.querySelector('[id^="md-btn-"]');
   if(mdBtn){var mdId=mdBtn.id.replace('md-btn-','');mdBtn.onclick=function(){markDelivered(mdId);};}
+  var retBtn=overlay.querySelector('[id^="ret-btn-"]');
+  if(retBtn){var retId=retBtn.id.replace('ret-btn-','');retBtn.onclick=function(){returnProducts(retId);};}
+  var mdBtn=overlay.querySelector('[id^="md-btn-"]');
+  if(mdBtn){var mdId=mdBtn.id.replace('md-btn-','');mdBtn.onclick=function(){markDelivered(mdId);};}
 
   var poPayBtn=document.getElementById('po-pay-btn');
   if(poPayBtn){poPayBtn.onclick=function(){
