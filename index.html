@@ -313,7 +313,10 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
   <div id="ti-info">
     <div class="cd"><div class="sh" data-t="customer">Customer</div><div id="tcc"></div></div>
     <div class="cd">
-      <div class="sh" data-t="orderinfo">Order info</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div class="sh" data-t="orderinfo" style="margin-bottom:0">Order info</div>
+        <button id="edit-order-btn" onclick="openEditOrderInfo()" style="font-size:11px;padding:4px 12px;border:1px solid #1D9E75;border-radius:6px;background:#EAF3DE;color:#1D9E75;cursor:pointer;font-weight:600">&#9998; Edit</button>
+      </div>
       <div class="r3">
         <div class="fg"><label data-t="branch">Branch</label><div id="dbr" style="padding:4px 0;font-weight:600"></div></div>
         <div class="fg"><label data-t="salesperson">Salesperson</label><div id="dsp" style="padding:4px 0;font-weight:600"></div></div>
@@ -866,6 +869,75 @@ function clearTaskFilters(){
   ['tq','tft','tfb','tfd','ttd','tfs'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   loadTasks();
 }
+
+function openEditOrderInfo(){
+  if(!CT)return;
+  var isOwnerOrAdmin=CU&&(CU.role==='owner'||CU.role==='admin');
+  // Build modal
+  document.querySelectorAll('.edit-order-modal').forEach(function(e){e.remove();});
+  var overlay=document.createElement('div');
+  overlay.className='edit-order-modal';
+  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.45);z-index:9000;display:flex;align-items:center;justify-content:center';
+  overlay.onclick=function(e){if(e.target===overlay)overlay.remove();};
+  var BRANCHES=['Nasr City','Madinaty','Rehab','Head Office'];
+  var SPS=['Salah','Alaa','Ayman','Amr Ashraf'];
+  var TYPES=['sales','maintenance','installation','uninstall'];
+  var brOpts=BRANCHES.map(function(b){return '<option value="'+b+'"'+(CT.branch===b?' selected':'')+'>'+b+'</option>';}).join('');
+  var spOpts=SPS.map(function(s){return '<option value="'+s+'"'+(CT.salesperson===s?' selected':'')+'>'+s+'</option>';}).join('');
+  var tyOpts=TYPES.map(function(tp){return '<option value="'+tp+'"'+(CT.type===tp?' selected':'')+'>'+tp.charAt(0).toUpperCase()+tp.slice(1)+'</option>';}).join('');
+  var html='<div style="background:#fff;border-radius:14px;padding:24px;width:480px;max-width:95vw;box-shadow:0 10px 40px rgba(0,0,0,.25)">';
+  html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">';
+  html+='<div style="font-size:15px;font-weight:700">Edit order info</div>';
+  html+='<button id="eoi-close" style="border:none;background:none;font-size:22px;cursor:pointer;color:#888">&#10005;</button>';
+  html+='</div>';
+  html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">';
+  html+='<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">Branch</label><select id="eoi-br" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px">'+brOpts+'</select></div>';
+  html+='<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">Salesperson</label><select id="eoi-sp" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px">'+spOpts+'</select></div>';
+  html+='<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">Type</label><select id="eoi-ty" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px">'+tyOpts+'</select></div>';
+  html+='<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">Task date</label><input type="date" id="eoi-dt" value="'+(CT.date||'')+'" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div>';
+  html+='</div>';
+  html+='<div style="margin-bottom:12px"><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">Description</label><textarea id="eoi-ds" rows="3" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px;resize:vertical;box-sizing:border-box">'+(CT.description||'')+'</textarea></div>';
+  if(isOwnerOrAdmin){
+    html+='<div style="margin-bottom:16px"><label style="font-size:11px;color:#888;display:block;margin-bottom:4px">Tax</label>';
+    html+='<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="eoi-tax"'+(CT.use_tax!==false?' checked':'')+' style="width:auto"> Include 14% tax</label></div>';
+  }
+  html+='<div style="display:flex;gap:8px;justify-content:flex-end">';
+  html+='<button id="eoi-cancel" style="padding:8px 18px;font-size:12px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer">Cancel</button>';
+  html+='<button id="eoi-save" style="padding:8px 18px;font-size:12px;border:1px solid #1D9E75;border-radius:8px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:600">Save changes</button>';
+  html+='</div></div>';
+  overlay.innerHTML=html;
+  document.body.appendChild(overlay);
+  document.getElementById('eoi-close').onclick=function(){overlay.remove();};
+  document.getElementById('eoi-cancel').onclick=function(){overlay.remove();};
+  document.getElementById('eoi-save').onclick=async function(){
+    var btn=document.getElementById('eoi-save');
+    btn.disabled=true;btn.textContent='Saving...';
+    var updates={
+      branch:document.getElementById('eoi-br').value,
+      salesperson:document.getElementById('eoi-sp').value,
+      type:document.getElementById('eoi-ty').value,
+      date:document.getElementById('eoi-dt').value,
+      description:document.getElementById('eoi-ds').value
+    };
+    var taxEl=document.getElementById('eoi-tax');
+    if(taxEl)updates.use_tax=taxEl.checked;
+    var{error}=await db.from('tasks').update(updates).eq('id',CT.id);
+    if(error){toast('Error: '+error.message,true);btn.disabled=false;btn.textContent='Save changes';return;}
+    // Update CT and refresh display
+    Object.assign(CT,updates);
+    if(taxEl)CT.use_tax=taxEl.checked;
+    var set=function(id,v){var el=document.getElementById(id);if(el)el.textContent=v;};
+    set('dbr',CT.branch);
+    set('dsp',CT.salesperson);
+    set('dty',CT.type);
+    set('ddate',CT.date||'-');
+    set('dds',CT.description||'-');
+    set('dtax',CT.use_tax===false?t('tax')+': 0%':t('tax')+': 14% VAT');
+    overlay.remove();
+    toast('Order info updated');
+  };
+}
+
 
 async function openTask(id){
   try{
