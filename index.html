@@ -2137,43 +2137,8 @@ async function finTab(type,btn){
     return;
   }
   var tasks=(type==='all'?allTasks:allTasks.filter(function(t){return t.type===type;}));
-function t(k){
-  const T2=window.T||{};
-  return(T2[LANG]&&T2[LANG][k])||( T2.en&&T2.en[k])||k;
-}
-const SU='https://biziptdqzxxedupuyoff.supabase.co';
-const SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpemlwdGRxenh4ZWR1cHV5b2ZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxMjQzNTksImV4cCI6MjA5NzcwMDM1OX0.wBN6UwNvQjDvWhxNgRmsqHxaOEW-mW-TXVA0GbrzrvA';
-const db=supabase.createClient(SU,SK);
 
-const POL=`1. Notes:
 
-* Additional Pipe Length Pricing:
-  - For 1.5, 2.25 HP units: 950 L.E. per meter, including electrical cables and insulation.
-  - For 3 HP units: 1,150 L.E. per meter, including electrical cables and insulation.
-  - For 4, 5 HP units: 950 L.E. per meter, including electrical cables and insulation.
-  - Concealed Units: These units do not include any pipe lengths, unlike the high wall units, which come with a standard 3 meters of pipe included. Additional piping will be charged separately.
-
-* The company is not responsible for:
-  - Concrete openings or water drainage work.
-  - Special installation works for concealed units (such as sheet metal, grills, etc.).
-
-2. Offer Exclusions:
-The following items and services are not covered by this offer:
-
-  A. Condensate Point Installation: Installation of the condensate drainage point beside the indoor unit is not included.
-  B. Electrical Power Connection for the Outdoor Unit: The connection for the outdoor unit, including the Cut/OFF circuit breaker, is excluded from this offer.
-  C. Civil Works: Any civil works, such as drilling, modifications, or structural adjustments, are not included.
-
-3. Terms & Conditions:
-
-* Validity: These prices are valid for two days from the date of the quotation.
-* Delivery: Free delivery within any area in Cairo.
-* Payment: 100% payment is required upon agreement.
-
-We hope our offer meets your requirements. Thank you for choosing BrotherCond - where quality and service meet your comfort needs.
-Thanks & Best Regards,`
-const MDL={Carrier:['Xcool Inverter','X-Power Gold','Optimax Edge','Flair Plus'],Midea:['Blanc Inverter','Aurora','Xtreme Save Plus','Mission'],Sharp:['J-Tech Inverter','X-Inverter','AH-AP Series','UV Protect'],Trane:['XR15','4MXW8','TWE Series','XR14'],Haier:['Pearl Plus','Arctic Super Match','Titan Inverter','FLEXIS Plus'],Fresh:['Siwa Inverter','Smart Inverter','Cool Series','Marvel']};
-const ROLES={owner:{l:'Owner',c:'pu',can:['dash','tasks','inv','pur','fin','cust','sup','usr','print','export']},admin:{l:'Office admin',c:'b',can:['dash','tasks','inv','pur','fin','cust','sup','print']},salesperson:{l:'Salesperson',c:'te',can:['dash','tasks','cust']},technician:{l:'Technician',c:'gr',can:['tasks']}};
 
 let CU=null,CT=null,scid=null,ssid=null,INV=[],PFO=false;
 const f=n=>'EGP '+Math.round(n||0).toLocaleString();
