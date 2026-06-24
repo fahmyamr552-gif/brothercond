@@ -1214,16 +1214,29 @@ function renderPays(){
     const hdr=document.createElement('div');
     hdr.style.cssText='font-size:10px;font-weight:700;color:#888;text-transform:uppercase;margin-bottom:7px;margin-top:4px';
     hdr.textContent=t('paymenthistory');box.appendChild(hdr);
-    CT.pays.forEach((p,i)=>{
-      const methIcon={Cash:'[Cash]','Visa':'[Card]','Visa / Card':'[Card]',Instapay:'[Instapay]','Bank transfer':'[Bank]',Cheque:'[Cheque]'};
-      const icon=methIcon[p.method]||'[Pay]';
-      const d=document.createElement('div');
-      d.style.cssText='display:flex;align-items:center;gap:10px;padding:8px 10px;background:#f9f9f6;border:1px solid #e8e8e0;border-radius:8px;margin-bottom:5px;font-size:12px';
-      d.style.cssText='display:flex;align-items:center;gap:10px;padding:8px 10px;background:#f9f9f6;border:1px solid #e8e8e0;border-radius:8px;margin-bottom:5px;font-size:12px';
-      var delBtnHtml=can('export')?'<button onclick="deletePay(\''+p.id+'\')">Delete</button>':'';
-      d.innerHTML='<span style="font-size:20px">'+icon+'</span><div style="flex:1"><div style="font-weight:700;font-size:13px">'+f(p.amount)+'</div><div style="color:#888;font-size:11px">'+p.method+(p.note?' . '+p.note:'')+'</div></div><div style="text-align:right"><div style="font-size:11px;color:#888">'+(p.created_at?new Date(p.created_at).toLocaleDateString('en-GB'):'')+'</div>'+delBtnHtml+'</div>';
-
-
+    CT.pays.forEach(function(p,i){
+      var methIcon={Cash:'💵','Visa':'💳','Visa / Card':'💳',Instapay:'📲','Bank transfer':'🏦',Cheque:'📋'};
+      var methColor={Cash:'#3B6D11','Visa':'#185FA5','Visa / Card':'#185FA5',Instapay:'#6B3FA0','Bank transfer':'#854F0B',Cheque:'#555'};
+      var icon=methIcon[p.method]||'💰';
+      var color=methColor[p.method]||'#333';
+      var dateStr=p.created_at?new Date(p.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):'';
+      var timeStr=p.created_at?new Date(p.created_at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'';
+      var isOwner=CU&&CU.role==='owner';
+      var d=document.createElement('div');
+      d.style.cssText='display:flex;align-items:center;gap:12px;padding:12px 14px;background:#f9f9f6;border:1px solid #e8e8e0;border-radius:10px;margin-bottom:6px';
+      var delBtn=isOwner?('<button onclick="deletePay(\''+p.id+'\')" style="background:none;border:1px solid #E24B4A;color:#A32D2D;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-weight:600">Delete</button>'):'';
+      d.innerHTML='<div style="width:40px;height:40px;border-radius:10px;background:#fff;border:1px solid #e8e8e0;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">'+icon+'</div>'
+        +'<div style="flex:1;min-width:0">'
+          +'<div style="font-weight:700;font-size:14px;color:#111">'+f(p.amount)+'</div>'
+          +'<div style="font-size:12px;color:'+color+';font-weight:600;margin-top:1px">'+p.method+'</div>'
+          +(p.note?'<div style="font-size:11px;color:#888;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+p.note+'</div>':'')
+        +'</div>'
+        +'<div style="text-align:right;flex-shrink:0">'
+          +'<div style="font-size:11px;color:#888">'+dateStr+'</div>'
+          +'<div style="font-size:11px;color:#aaa;margin-top:1px">'+timeStr+'</div>'
+          +(isOwner?'<div style="margin-top:6px">'+delBtn+'</div>':'')
+        +'</div>';
+      box.appendChild(d);
     });
   }
 }
