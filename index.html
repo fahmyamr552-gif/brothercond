@@ -1792,13 +1792,10 @@ async function saveTask(){
   }
   if(!customerName||customerName==='-')customerName=document.getElementById('ncnm')?.textContent||'Unknown';
   const today=document.getElementById('ntdate')?.value||new Date().toISOString().slice(0,10);
-  const tnum=(async function(){
-    var{data:lastTask}=await db.from('tasks').select('task_num').order('created_at',{ascending:false}).limit(1);
-    var last=lastTask&&lastTask.length?lastTask[0].task_num:'#00000';
-    var lastNum=parseInt((last||'#00000').replace('#',''))||0;
-    return '#'+String(lastNum+1).padStart(5,'0');
-  })();
-  tnum=await tnum;
+  var{data:lastTask}=await db.from('tasks').select('task_num').order('created_at',{ascending:false}).limit(1);
+  var lastTNum=lastTask&&lastTask.length?lastTask[0].task_num:'#00000';
+  var lastNum=parseInt((lastTNum||'#00000').replace(/[^0-9]/g,''))||0;
+  var tnum='#'+String(lastNum+1).padStart(5,'0');
   const{data:task,error:te}=await db.from('tasks').insert({
     task_num:tnum,customer_id:cid,customer_name:customerName,
     type:document.getElementById('ntt')?.value,
