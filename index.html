@@ -773,7 +773,7 @@ function go(pg,el){
   document.getElementById('ptitle').textContent=titles[pg]||pg;
   const ta=document.getElementById('tact');ta.innerHTML='';
   const btnKeys={tasks:'newtask',inv:'addproduct',pur:'newpo',cust:'addcustomer',sup:'addsupplier'};
-  const btnFns={tasks:()=>openNT(),inv:()=>go('np',null),pur:()=>openNewPO(),cust:()=>openAC(),sup:()=>openAS()};
+  const btnFns={tasks:function(){openNT();},inv:function(){go('np',null);},pur:function(){openNewPO();},cust:function(){openAC();},sup:function(){openAS();}};
   if(btnKeys[pg]){const b=document.createElement('button');b.className='btn bs bp';b.textContent='+ '+t(btnKeys[pg]);b._tkey=btnKeys[pg];b.onclick=btnFns[pg];ta.appendChild(b);}
   if(pg==='dash')loadDash();
   if(pg==='tasks')loadTasks();
@@ -1637,6 +1637,37 @@ function doPrint(){
   }else{
     alert('Please allow popups to print.');
   }
+}
+
+
+function openNT(){
+  go('nt',null);
+  scid=null;
+  document.getElementById('ntb').innerHTML='';
+  document.getElementById('ntpt').textContent=LANG==='ar'?POL_AR:POL;
+  document.getElementById('ntpc').style.display='block';
+  document.getElementById('ncc').checked=false;
+  togNC(false);
+  document.getElementById('sct').style.display='none';
+  document.getElementById('cqi').value='';
+  document.getElementById('csg').style.display='none';
+  document.getElementById('ntwn').style.display='none';
+  document.getElementById('ntds').value='';
+  document.getElementById('ntdate').value=new Date().toISOString().slice(0,10);
+  var taxToggle=document.getElementById('tax-toggle');
+  if(taxToggle)taxToggle.checked=true;
+  addRow();
+}
+
+function onTC(v){
+  document.getElementById('ntpc').style.display=v==='sales'?'block':'none';
+  document.getElementById('ntb').innerHTML='';
+  addRow();
+}
+
+function togNC(c){
+  document.getElementById('ncf').style.display=c?'block':'none';
+  document.getElementById('ecw').style.display=c?'none':'block';
 }
 
 
