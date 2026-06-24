@@ -161,11 +161,11 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
   <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
     <input placeholder="Search by customer or task #..." style="flex:1;min-width:140px" id="tq" oninput="loadTasks()">
     <select style="width:130px" id="tft" onchange="loadTasks()">
-      <option value="">All types</option>
+      <option value="" data-t="alltypes">All types</option>
       <option>sales</option><option>maintenance</option><option>installation</option><option>uninstall</option>
     </select>
     <select style="width:120px" id="tfb" onchange="loadTasks()">
-      <option value="">All branches</option>
+      <option value="" data-t="allbranches">All branches</option>
       <option>Nasr City</option><option>Madinaty</option><option>Rehab</option><option>Head Office</option>
     </select>
   </div>
@@ -179,21 +179,21 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
       <input type="date" id="ttd" onchange="loadTasks()" style="width:140px;font-size:12px;padding:5px 8px">
     </div>
     <select style="width:120px;font-size:12px;padding:5px 8px" id="tfs" onchange="loadTasks()">
-      <option value="">All statuses</option>
+      <option value="" data-t="allstatuses">All statuses</option>
       <option value="pending">Pending</option>
       <option value="progress">In progress</option>
       <option value="done">Completed</option>
       <option value="cancel">Cancelled</option>
     </select>
-    <button class="btn bs" onclick="clearTaskFilters()" style="font-size:11px;padding:4px 10px">Clear filters</button>
+    <button class="btn bs" onclick="clearTaskFilters()" style="font-size:11px;padding:4px 10px" data-t="clearfilters">Clear filters</button>
   </div>
   <div class="cd" style="padding:0;overflow:hidden">
     <div style="display:grid;grid-template-columns:60px 1fr 95px 110px 90px;gap:8px;padding:8px 14px;background:#f9f9f6;border-bottom:1px solid #e0ddd8">
-      <span style="font-size:10px;font-weight:700;color:#888">TASK #</span>
+      <span style="font-size:10px;font-weight:700;color:#888" data-t="tasknum">TASK #</span>
       <span style="font-size:10px;font-weight:700;color:#888">CUSTOMER / DATE</span>
-      <span style="font-size:10px;font-weight:700;color:#888">BRANCH</span>
+      <span style="font-size:10px;font-weight:700;color:#888" data-t="branch">BRANCH</span>
       <span style="font-size:10px;font-weight:700;color:#888">TOTAL / PAY</span>
-      <span style="font-size:10px;font-weight:700;color:#888">STATUS</span>
+      <span style="font-size:10px;font-weight:700;color:#888" data-t="status">STATUS</span>
     </div>
     <div id="tlist"><div style="padding:20px;text-align:center;color:#888">Loading...</div></div>
   </div>
@@ -202,10 +202,10 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
 <!-- TASK DETAIL -->
 <div class="pg" id="pg-td">
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
-    <button class="btn bs" onclick="go('tasks',document.getElementById('ni-tasks'))">&larr; Back</button>
+    <button class="btn bs" onclick="go('tasks',document.getElementById('ni-tasks'))">&#8592; <span data-t="back">Back</span></button>
     <span style="font-size:15px;font-weight:700" id="tdtitle">Task</span>
     <div id="sbtns" style="display:flex;gap:5px;flex-wrap:wrap;margin-left:auto"></div>
-    <button class="btn bs" onclick="doPrint()">&#128438; Print</button>
+    <button class="btn bs" onclick="doPrint()">&#128438; <span data-t="print">Print</span></button>
     <button class="btn bs bk" id="delbtn" style="display:none" onclick="deleteTask()">&#128465; Delete task</button>
   </div>
   <!-- PAYMENT SECTION -->
@@ -218,15 +218,15 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     <!-- Amounts -->
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px" id="pay-amounts">
       <div style="background:#f9f9f6;border-radius:8px;padding:10px;text-align:center">
-        <div style="font-size:10px;color:#888;text-transform:uppercase;font-weight:700;margin-bottom:3px">Order total</div>
+        <div style="font-size:10px;color:#888;text-transform:uppercase;font-weight:700;margin-bottom:3px" data-t="ordertotal">Order total</div>
         <div style="font-size:16px;font-weight:700" id="ptot">EGP 0</div>
       </div>
       <div style="background:#EAF3DE;border-radius:8px;padding:10px;text-align:center">
-        <div style="font-size:10px;color:#3B6D11;text-transform:uppercase;font-weight:700;margin-bottom:3px">Paid</div>
+        <div style="font-size:10px;color:#3B6D11;text-transform:uppercase;font-weight:700;margin-bottom:3px" data-t="paid">Paid</div>
         <div style="font-size:16px;font-weight:700;color:#3B6D11" id="ppd">EGP 0</div>
       </div>
       <div style="border-radius:8px;padding:10px;text-align:center;background:#FCEBEB" id="rem-box">
-        <div style="font-size:10px;text-transform:uppercase;font-weight:700;margin-bottom:3px;color:#A32D2D" id="rem-label">Remaining</div>
+        <div style="font-size:10px;text-transform:uppercase;font-weight:700;margin-bottom:3px;color:#A32D2D" id="rem-label" data-t="remaining">Remaining</div>
         <div style="font-size:16px;font-weight:700;color:#A32D2D" id="prm2">EGP 0</div>
       </div>
     </div>
@@ -239,10 +239,10 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
       <div style="display:flex;align-items:center;gap:6px;font-size:12px">
         <span style="color:#888">Status:</span>
         <select id="pst" onchange="onPS()" style="font-size:12px;padding:3px 8px;border:1px solid #ccc;border-radius:6px;background:#f9f9f6">
-          <option value="unpaid">Unpaid</option>
-          <option value="downpayment">Down payment</option>
-          <option value="installments">Installments</option>
-          <option value="paid">Paid in full</option>
+          <option value="unpaid" data-t="unpaid">Unpaid</option>
+          <option value="downpayment" data-t="downpayment">Down payment</option>
+          <option value="installments" data-t="installments">Installments</option>
+          <option value="paid" data-t="paidinfull">Paid in full</option>
         </select>
       </div>
     </div>
@@ -262,13 +262,13 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
   <div id="pay-modal" onclick="if(event.target===this)closePayModal()" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9000;align-items:center;justify-content:center">
     <div style="background:#fff;border-radius:14px;padding:24px;width:400px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.25)">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
-        <div style="font-size:16px;font-weight:700">Record payment</div>
+        <div style="font-size:16px;font-weight:700" data-t="recordpayment">Record payment</div>
         <button onclick="closePayModal()" style="border:none;background:none;font-size:22px;cursor:pointer;color:#888;line-height:1">&times;</button>
       </div>
       <div id="pm-task-info" style="font-size:12px;color:#888;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid #f0f0e8"></div>
       <!-- Quick amount buttons -->
       <div style="margin-bottom:14px">
-        <div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;margin-bottom:7px">Quick amount</div>
+        <div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;margin-bottom:7px" data-t="quickamount">Quick amount</div>
         <div id="pm-quick" style="display:flex;gap:6px;flex-wrap:wrap"></div>
       </div>
       <!-- Amount + Method -->
@@ -305,10 +305,10 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
   </div>
 
     <div class="tabs">
-    <button class="tab on" onclick="dtab('info',this)">Order info</button>
-    <button class="tab" onclick="dtab('comp',this)">Completion</button>
-    <button class="tab" onclick="dtab('att',this)">Attachments</button>
-    <button class="tab" onclick="dtab('sub',this)">Sub-tasks</button>
+    <button class="tab on" onclick="dtab('info',this)" data-t="orderinfo">Order info</button>
+    <button class="tab" onclick="dtab('comp',this)" data-t="completion">Completion</button>
+    <button class="tab" onclick="dtab('att',this)" data-t="attachments">Attachments</button>
+    <button class="tab" onclick="dtab('sub',this)" data-t="subtasks">Sub-tasks</button>
   </div>
   <div id="ti-info">
     <div class="cd"><div class="sh" data-t="customer">Customer</div><div id="tcc"></div></div>
@@ -334,27 +334,27 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
       <div class="tr" style="padding-top:0"><span class="tl">Tax (14%)</span><span class="tv" id="vtax">EGP 0</span></div>
       <div class="tr" style="border-top:1px solid #e8e8e0"><span class="tl" style="font-weight:700">Grand total</span><span class="tv" style="color:#1D9E75;font-weight:700" id="vgr">EGP 0</span></div>
     </div>
-    <div class="cd" id="plc" style="display:none"><div class="sh">Terms & offer policy</div><div style="font-size:11px;color:#666;line-height:1.7" id="plt" style="white-space:pre-wrap"></div></div>
+    <div class="cd" id="plc" style="display:none"><div class="sh" data-t="termsandpolicy">Terms & offer policy</div><div style="font-size:11px;color:#666;line-height:1.7" id="plt" style="white-space:pre-wrap"></div></div>
   </div>
   <div id="ti-comp" style="display:none">
     <div class="cd">
-      <div class="sh">Completion report</div>
-      <div class="fg" style="margin-bottom:10px"><label>What was done</label><textarea id="cdn" placeholder="Describe what the technician completed..."></textarea></div>
-      <div class="sh">Parts used</div>
+      <div class="sh" data-t="completionreport">Completion report</div>
+      <div class="fg" style="margin-bottom:10px"><label data-t="whatwasdone">What was done</label><textarea id="cdn" placeholder="Describe what the technician completed..."></textarea></div>
+      <div class="sh" data-t="partsused">Parts used</div>
       <div id="ptsl"></div>
-      <button class="btn bs" onclick="addPart()" style="margin:5px 0 12px">+ Add part</button>
+      <button class="btn bs" onclick="addPart()" style="margin:5px 0 12px" data-t="addpart">+ Add part</button>
       <div class="dv"></div>
       <div class="r3">
-        <div class="fg"><label>Technician name</label><input id="ctech-name" placeholder="Technician full name"></div>
-        <div class="fg"><label>Completion time</label><input type="datetime-local" id="cdt"></div>
-        <div class="fg"><label>Technician note</label><input id="ctn" placeholder="Any notes..."></div>
+        <div class="fg"><label data-t="technicianname">Technician name</label><input id="ctech-name" placeholder="Technician full name"></div>
+        <div class="fg"><label data-t="completiontime">Completion time</label><input type="datetime-local" id="cdt"></div>
+        <div class="fg"><label data-t="techniciannote">Technician note</label><input id="ctn" placeholder="Any notes..."></div>
       </div>
       <div style="display:flex;align-items:center;gap:6px;margin-top:8px">
         <input type="checkbox" id="cok" style="width:auto">
-        <label for="cok" style="font-size:13px;cursor:pointer;color:#111">Customer confirmed & satisfied</label>
+        <label for="cok" style="font-size:13px;cursor:pointer;color:#111" data-t="customerconfirmed">Customer confirmed & satisfied</label>
       </div>
       <div style="display:flex;justify-content:flex-end;margin-top:10px">
-        <button class="btn bp" onclick="saveComp()">&#10003; Save completion</button>
+        <button class="btn bp" onclick="saveComp()">&#10003; <span data-t="save">Save completion</span></button>
       </div>
     </div>
   </div>
@@ -371,25 +371,25 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
       <div class="sh">Sub-tasks
         <button class="btn bs bp" style="margin-left:8px" onclick="openSubForm()">+ New sub-task</button>
       </div>
-      <div style="font-size:12px;color:#888;margin-bottom:10px">Sub-tasks are follow-up visits linked to this order (e.g. missing part, return visit)</div>
+      <div style="font-size:12px;color:#888;margin-bottom:10px">Sub-tasks are follow-up visits linked to this order</div>
       <div id="subl"></div>
     </div>
     <!-- Sub-task form -->
     <div id="sub-form" style="display:none" class="cd" >
-      <div class="sh">New sub-task</div>
+      <div class="sh" data-t="subtasks">New sub-task</div>
       <div class="r2">
         <div class="fg"><label>Type</label>
           <select id="sub-type">
-            <option>Maintenance</option><option>Installation</option><option>Uninstall</option>
-            <option>Spare part</option><option>Return visit</option><option>Other</option>
+            <option data-t="maintenance">Maintenance</option><option data-t="installation">Installation</option><option data-t="uninstall">Uninstall</option>
+            <option data-t="sparepart">Spare part</option><option data-t="returnvisit">Return visit</option><option data-t="other">Other</option>
           </select>
         </div>
-        <div class="fg"><label>Date</label><input type="date" id="sub-date"></div>
+        <div class="fg"><label data-t="date">Date</label><input type="date" id="sub-date"></div>
       </div>
       <div class="r2">
         <div class="fg"><label>Assigned technician</label>
           <select id="sub-tech">
-            <option>Mohamed Ali</option><option>Omar Samir</option><option>Hassan Mahmoud</option><option>Other</option>
+            <option>Mohamed Ali</option><option>Omar Samir</option><option>Hassan Mahmoud</option><option data-t="other">Other</option>
           </select>
         </div>
         <div class="fg"><label>Price (EGP)</label><input type="number" id="sub-price" placeholder="0"></div>
@@ -399,7 +399,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end">
         <button class="btn bs" onclick="document.getElementById('sub-form').style.display='none'">Cancel</button>
-        <button class="btn bs bp" onclick="saveSubTask()">&#10003; Create sub-task</button>
+        <button class="btn bs bp" onclick="saveSubTask()">&#10003; <span data-t="createsub">Create sub-task</span></button>
       </div>
     </div>
   </div>
@@ -409,18 +409,18 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
 <div class="pg" id="pg-nt">
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
     <button class="btn bs" onclick="go('tasks',document.getElementById('ni-tasks'))">&larr;</button>
-    <span style="font-size:15px;font-weight:700">New task</span>
+    <span style="font-size:15px;font-weight:700" data-t="newtask">New task</span>
     <select id="ntt" onchange="onTC(this.value)" style="width:150px;margin-left:auto">
-      <option value="sales">Sales order</option>
-      <option value="maintenance">Maintenance</option>
-      <option value="installation">Installation</option>
-      <option value="uninstall">Uninstall</option>
+      <option value="sales" data-t="salesorder">Sales order</option>
+      <option value="maintenance" data-t="maintenance">Maintenance</option>
+      <option value="installation" data-t="installation">Installation</option>
+      <option value="uninstall" data-t="uninstall">Uninstall</option>
     </select>
   </div>
   <div class="cd">
-    <div class="sh">Customer</div>
+    <div class="sh" data-t="customer">Customer</div>
     <label style="display:flex;align-items:center;gap:6px;margin-bottom:8px;font-size:12px;color:#888;cursor:pointer">
-      <input type="checkbox" id="ncc" onchange="togNC(this.checked)" style="width:auto"> New customer
+      <input type="checkbox" id="ncc" onchange="togNC(this.checked)" style="width:auto"> <span data-t="addcustomer">New customer</span>
     </label>
     <div id="ecw">
       <input placeholder="Search by name or phone..." oninput="cSearch(this.value)" id="cqi" style="margin-bottom:7px">
@@ -433,13 +433,13 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     </div>
     <div id="ncf" style="display:none">
       <div class="r3">
-        <div class="fg"><label>Full name *</label><input id="ncn" placeholder="Name"></div>
+        <div class="fg"><label data-t="fullname">Full name</label><input id="ncn" placeholder="Name"></div>
         <div class="fg"><label>Phone *</label><input id="ncp" placeholder="010xxxxxxxx"></div>
-        <div class="fg"><label>Second phone</label><input id="ncp2"></div>
+        <div class="fg"><label data-t="secondphone">Second phone</label><input id="ncp2"></div>
       </div>
       <div class="r2">
-        <div class="fg"><label>Address</label><input id="nca" placeholder="Street, district, city"></div>
-        <div class="fg"><label>ID / Passport</label><input id="nci" placeholder="National ID or passport"></div>
+        <div class="fg"><label data-t="address">Address</label><input id="nca" placeholder="Street, district, city"></div>
+        <div class="fg"><label data-t="idpassport">ID / Passport</label><input id="nci" placeholder="National ID or passport"></div>
       </div>
     </div>
   </div>
@@ -448,7 +448,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     <div class="r3">
       <div class="fg"><label>Branch</label><select id="ntbr"><option>Nasr City</option><option>Madinaty</option><option>Rehab</option><option>Head Office</option></select></div>
       <div class="fg"><label>Salesperson</label><select id="ntsp"><option>Salah</option><option>Alaa</option><option>Ayman</option><option>Amr Ashraf</option></select></div>
-      <div class="fg"><label>Task date</label><input type="date" id="ntdate"></div>
+      <div class="fg"><label data-t="taskdate">Task date</label><input type="date" id="ntdate"></div>
     </div>
     <div class="fg"><label>Description</label><textarea id="ntds" placeholder="Special instructions..."></textarea></div>
   </div>
@@ -467,24 +467,24 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
         <tbody id="ntb"></tbody>
       </table>
     </div>
-    <button class="btn bs" onclick="addRow()" style="margin-bottom:10px">+ Add row</button>
+    <button class="btn bs" onclick="addRow()" style="margin-bottom:10px" data-t="addrow">+ Add row</button>
     <div class="tr"><span class="tl">Subtotal</span><span class="tv" id="nts">EGP 0</span></div>
     <div class="tr" style="padding-top:0"><span class="tl">Tax (14%)</span><span class="tv" id="ntt2">EGP 0</span></div>
     <div class="tr" style="border-top:1px solid #e8e8e0"><span class="tl" style="font-weight:700">Grand total</span><span class="tv" style="font-weight:700;color:#1D9E75" id="ntg">EGP 0</span></div>
   </div>
-  <div class="cd" id="ntpc"><div class="sh">Terms & offer policy</div><div style="font-size:11px;color:#666;line-height:1.7" id="ntpt" style="white-space:pre-wrap"></div></div>
+  <div class="cd" id="ntpc"><div class="sh" data-t="termsandpolicy">Terms & offer policy</div><div style="font-size:11px;color:#666;line-height:1.7" id="ntpt" style="white-space:pre-wrap"></div></div>
   <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px">
-    <button class="btn" onclick="go('tasks',document.getElementById('ni-tasks'))">Cancel</button>
-    <button class="btn bp" onclick="saveTask()">&#10003; Create task</button>
+    <button class="btn" onclick="go('tasks',document.getElementById('ni-tasks'))" data-t="cancel">Cancel</button>
+    <button class="btn bp" onclick="saveTask()">&#10003; <span data-t="createtask">Create task</span></button>
   </div>
 </div>
 
 <!-- INVENTORY -->
 <div class="pg" id="pg-inv">
   <div class="r3" style="margin-bottom:14px">
-    <div class="sc"><div class="sl">Total SKUs</div><div class="sv" id="iskus">—</div></div>
-    <div class="sc"><div class="sl">Units in stock</div><div class="sv" id="iunit">—</div></div>
-    <div class="sc"><div class="sl" style="color:#A32D2D">Low stock</div><div class="sv" style="color:#A32D2D" id="ilow">—</div></div>
+    <div class="sc"><div class="sl" data-t="totalskus">Total SKUs</div><div class="sv" id="iskus">—</div></div>
+    <div class="sc"><div class="sl" data-t="unitsinstock">Units in stock</div><div class="sv" id="iunit">—</div></div>
+    <div class="sc"><div class="sl" data-t="lowstockalerts">Low stock</div><div class="sv" style="color:#A32D2D" id="ilow">—</div></div>
   </div>
   <div style="display:flex;gap:8px;margin-bottom:12px">
     <input placeholder="Search products..." style="flex:1" oninput="loadInv(this.value)">
@@ -492,7 +492,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
   </div>
   <div class="cd" style="padding:0;overflow:hidden">
     <table style="table-layout:fixed;width:100%">
-      <thead><tr><th style="width:24%">Product</th><th style="width:8%">Brand</th><th style="width:8%">HP</th><th style="width:9%">AC Type</th><th style="width:8%">Stock</th><th style="width:7%">Sold</th><th style="width:13%">Price</th><th style="width:13%">Status</th><th style="width:10%">Action</th></tr></thead>
+      <thead><tr><th style="width:24%" data-t="products">Product</th><th style="width:8%" data-t="brand">Brand</th><th style="width:8%" data-t="capacity">HP</th><th style="width:9%" data-t="actype">AC Type</th><th style="width:8%" data-t="stock">Stock</th><th style="width:7%" data-t="sold">Sold</th><th style="width:13%" data-t="unitprice">Price</th><th style="width:13%" data-t="status">Status</th><th style="width:10%">Action</th></tr></thead>
       <tbody id="invb"></tbody>
     </table>
   </div>
@@ -501,34 +501,34 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
 <!-- NEW PRODUCT -->
 <div class="pg" id="pg-np">
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-    <button class="btn bs" onclick="go('inv',document.getElementById('ni-inv'))">&larr;</button>
-    <span style="font-size:15px;font-weight:700">Add new product</span>
+    <button class="btn bs" onclick="go('inv',document.getElementById('ni-inv'))">&#8592;</button>
+    <span style="font-size:15px;font-weight:700" data-t="addnewproduct">Add new product</span>
   </div>
   <div class="cd">
-    <div class="sh">AC unit details — type everything manually</div>
+    <div class="sh" data-t="addnewproduct">Add new product</div>
     <div class="r3">
-      <div class="fg"><label>Brand *</label><input id="npbr" placeholder="e.g. Carrier" oninput="bldN()"></div>
-      <div class="fg"><label>Model *</label><input id="npmd" placeholder="e.g. Xcool Pro" oninput="bldN()"></div>
-      <div class="fg"><label>Capacity (HP) *</label><input id="nphp" placeholder="e.g. 1.5 HP" oninput="bldN()"></div>
+      <div class="fg"><label data-t="brand">Brand</label><input id="npbr" placeholder="e.g. Carrier" oninput="bldN()"></div>
+      <div class="fg"><label data-t="model">Model</label><input id="npmd" placeholder="e.g. Xcool Pro" oninput="bldN()"></div>
+      <div class="fg"><label data-t="capacity">Capacity (HP)</label><input id="nphp" placeholder="e.g. 1.5 HP" oninput="bldN()"></div>
     </div>
     <div class="r3">
-      <div class="fg"><label>Unit type</label><input id="nput" placeholder="e.g. Highwall" oninput="bldN()"></div>
-      <div class="fg"><label>Cooling</label><input id="npco" placeholder="e.g. Cooling only" oninput="bldN()"></div>
-      <div class="fg"><label>AC type</label><input id="npac" placeholder="e.g. Inverter" oninput="bldN()"></div>
+      <div class="fg"><label data-t="unittype">Unit type</label><input id="nput" placeholder="e.g. Highwall" oninput="bldN()"></div>
+      <div class="fg"><label data-t="cooling">Cooling</label><input id="npco" placeholder="e.g. Cooling only" oninput="bldN()"></div>
+      <div class="fg"><label data-t="actype">AC type</label><input id="npac" placeholder="e.g. Inverter" oninput="bldN()"></div>
     </div>
-    <div class="fg" style="margin-bottom:12px"><label>Generated product name (auto)</label>
+    <div class="fg" style="margin-bottom:12px"><label data-t="generatedname">Generated product name (auto)</label>
       <div id="npgn" style="padding:9px;background:#f5f5f0;border:1px solid #ccc;border-radius:8px;font-weight:700;color:#1D9E75;min-height:36px">— fill fields above —</div>
     </div>
     <div class="dv"></div>
     <div class="r3">
-      <div class="fg"><label>Initial quantity</label><input type="number" id="npqt" value="1" min="0"></div>
-      <div class="fg"><label>Unit price (EGP)</label><input type="number" id="nppr" placeholder="0"></div>
-      <div class="fg"><label>Low stock alert at</label><input type="number" id="nplw" value="2" min="0"></div>
+      <div class="fg"><label data-t="initialqty">Initial quantity</label><input type="number" id="npqt" value="1" min="0"></div>
+      <div class="fg"><label data-t="unitprice">Unit price (EGP)</label><input type="number" id="nppr" placeholder="0"></div>
+      <div class="fg"><label data-t="lowstockalert">Low stock alert at</label><input type="number" id="nplw" value="2" min="0"></div>
     </div>
   </div>
   <div style="display:flex;justify-content:flex-end;gap:8px">
-    <button class="btn" onclick="go('inv',document.getElementById('ni-inv'))">Cancel</button>
-    <button class="btn bp" onclick="saveProd()">&#10003; Add product</button>
+    <button class="btn" onclick="go('inv',document.getElementById('ni-inv'))" data-t="cancel">Cancel</button>
+    <button class="btn bp" onclick="saveProd()">&#10003; <span data-t="addproduct">Add product</span></button>
   </div>
 </div>
 
@@ -536,7 +536,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
 <div class="pg" id="pg-pur">
   <div class="cd" style="padding:0;overflow:hidden;margin-bottom:10px">
     <table style="table-layout:fixed;width:100%">
-      <thead><tr><th style="width:65px">PO #</th><th>Supplier</th><th style="width:100px">Date</th><th style="width:70px">Items</th><th style="width:110px">Total</th><th style="width:90px">Status</th><th style="width:130px">Action</th></tr></thead>
+      <thead><tr><th style="width:65px">PO #</th><th data-t="supplier">Supplier</th><th style="width:100px" data-t="date">Date</th><th style="width:70px" data-t="items">Items</th><th style="width:110px" data-t="total">Total</th><th style="width:90px" data-t="status">Status</th><th style="width:130px">Action</th></tr></thead>
       <tbody id="pob"><tr><td colspan="6" style="text-align:center;padding:20px;color:#888">Loading...</td></tr></tbody>
     </table>
   </div>
@@ -545,12 +545,12 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
 <!-- NEW PURCHASE -->
 <div class="pg" id="pg-npo">
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-    <button class="btn bs" onclick="go('pur',document.getElementById('ni-pur'))">&larr;</button>
-    <span style="font-size:15px;font-weight:700">New purchase order</span>
+    <button class="btn bs" onclick="go('pur',document.getElementById('ni-pur'))">&#8592;</button>
+    <span style="font-size:15px;font-weight:700" data-t="newpo">New purchase order</span>
   </div>
   <div class="cd">
-    <div class="sh">Supplier</div>
-    <label style="display:flex;align-items:center;gap:6px;margin-bottom:8px;font-size:12px;color:#888;cursor:pointer"><input type="checkbox" id="nsc" onchange="togS(this.checked)" style="width:auto"> New supplier</label>
+    <div class="sh" data-t="supplier">Supplier</div>
+    <label style="display:flex;align-items:center;gap:6px;margin-bottom:8px;font-size:12px;color:#888;cursor:pointer"><input type="checkbox" id="nsc" onchange="togS(this.checked)" style="width:auto"> <span data-t="addsupplier">New supplier</span></label>
     <div id="ssw">
       <input placeholder="Search suppliers..." oninput="sSearch(this.value)" id="sqi" style="margin-bottom:7px">
       <div id="ssg" style="display:none;background:#fff;border:1px solid #ccc;border-radius:8px;overflow:hidden;margin-bottom:7px"></div>
@@ -563,33 +563,33 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     <div id="nsf" style="display:none">
       <div class="r2">
         <div class="fg"><label>Name *</label><input id="nsn" placeholder="Company name"></div>
-        <div class="fg"><label>Phone</label><input id="nsph"></div>
+        <div class="fg"><label data-t="phone">Phone</label><input id="nsph"></div>
       </div>
       <div class="r2">
-        <div class="fg"><label>Address</label><input id="nsad"></div>
-        <div class="fg"><label>Tax number</label><input id="nstx" placeholder="Tax registration no."></div>
+        <div class="fg"><label data-t="address">Address</label><input id="nsad"></div>
+        <div class="fg"><label data-t="taxnumber">Tax number</label><input id="nstx" placeholder="Tax registration no."></div>
       </div>
     </div>
     <div class="r2" style="margin-top:10px">
-      <div class="fg"><label>Date</label><input type="date" id="pod"></div>
-      <div class="fg"><label>Expected delivery</label><input type="date" id="podl"></div>
+      <div class="fg"><label data-t="date">Date</label><input type="date" id="pod"></div>
+      <div class="fg"><label data-t="deliverydate">Expected delivery</label><input type="date" id="podl"></div>
     </div>
-    <div class="fg"><label>Notes</label><input id="pon" placeholder="Reference number..."></div>
+    <div class="fg"><label data-t="notes">Notes</label><input id="pon" placeholder="Reference number..."></div>
   </div>
   <div class="cd">
-    <div class="sh">Products to order</div>
+    <div class="sh" data-t="productstoorder">Products to order</div>
     <div class="tw">
       <table style="table-layout:fixed">
         <thead><tr><th style="width:42%">Product</th><th style="width:17%">Current stock</th><th style="width:17%">Qty to order</th><th style="width:19%">Unit cost (EGP)</th><th style="width:5%"></th></tr></thead>
         <tbody id="potb"></tbody>
       </table>
     </div>
-    <button class="btn bs" onclick="addPOR()" style="margin-bottom:10px">+ Add product</button>
+    <button class="btn bs" onclick="addPOR()" style="margin-bottom:10px" data-t="addproductbtn">+ Add product</button>
     <div class="tr" style="border-top:1px solid #e8e8e0"><span class="tl" style="font-weight:700">Purchase total</span><span class="tv" style="font-weight:700;color:#1D9E75" id="potot">EGP 0</span></div>
   </div>
   <div style="display:flex;justify-content:flex-end;gap:8px">
-    <button class="btn" onclick="go('pur',document.getElementById('ni-pur'))">Cancel</button>
-    <button class="btn bp" onclick="savePO()">&#10003; Confirm purchase order</button>
+    <button class="btn" onclick="go('pur',document.getElementById('ni-pur'))" data-t="cancel">Cancel</button>
+    <button class="btn bp" onclick="savePO()">&#10003; <span data-t="confirmpo">Confirm purchase order</span></button>
   </div>
 </div>
 
@@ -597,13 +597,13 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
 <div class="pg" id="pg-fin">
   <div class="r4" id="fstats" style="margin-bottom:14px"></div>
   <div style="display:flex;border-bottom:1px solid #e0ddd8;margin-bottom:14px;overflow-x:auto">
-    <button class="tab on" onclick="finTab('all',this)">All</button>
-    <button class="tab" onclick="finTab('sales',this)">Sales</button>
-    <button class="tab" onclick="finTab('maintenance',this)">Maintenance</button>
-    <button class="tab" onclick="finTab('installation',this)">Installation</button>
-    <button class="tab" onclick="finTab('uninstall',this)">Uninstall</button>
-    <button class="tab" onclick="finTab('expenses',this)">Expenses</button>
-    <button class="tab" onclick="finTab('outstanding',this)">Outstanding</button>
+    <button class="tab on" onclick="finTab('all',this)" data-t="allsales">All</button>
+    <button class="tab" onclick="finTab('sales',this)" data-t="sales">Sales</button>
+    <button class="tab" onclick="finTab('maintenance',this)" data-t="maintenance">Maintenance</button>
+    <button class="tab" onclick="finTab('installation',this)" data-t="installation">Installation</button>
+    <button class="tab" onclick="finTab('uninstall',this)" data-t="uninstall">Uninstall</button>
+    <button class="tab" onclick="finTab('expenses',this)" data-t="expenses">Expenses</button>
+    <button class="tab" onclick="finTab('outstanding',this)" data-t="outstanding">Outstanding</button>
   </div>
   <div id="fcont"></div>
 </div>
@@ -620,11 +620,11 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
 <!-- CUSTOMER DETAIL -->
 <div class="pg" id="pg-cd">
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-    <button class="btn bs" onclick="go('cust',document.getElementById('ni-cust'))">&larr; Back</button>
+    <button class="btn bs" onclick="go('cust',document.getElementById('ni-cust'))">&#8592; <span data-t="back">Back</span></button>
     <span style="font-size:15px;font-weight:700" id="cdname">Customer</span>
   </div>
-  <div class="cd"><div class="sh">Details</div><div id="cdcard"></div></div>
-  <div class="cd"><div class="sh">All tasks</div><div id="cdtasks"></div></div>
+  <div class="cd"><div class="sh" data-t="details">Details</div><div id="cdcard"></div></div>
+  <div class="cd"><div class="sh" data-t="alltasks">All tasks</div><div id="cdtasks"></div></div>
 </div>
 
 <!-- SUPPLIERS -->
@@ -635,26 +635,26 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
 <!-- SUPPLIER DETAIL -->
 <div class="pg" id="pg-sd">
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-    <button class="btn bs" onclick="go('sup',document.getElementById('ni-sup'))">&larr; Back</button>
+    <button class="btn bs" onclick="go('sup',document.getElementById('ni-sup'))">&#8592; <span data-t="back">Back</span></button>
     <span style="font-size:15px;font-weight:700" id="sdname">Supplier</span>
   </div>
-  <div class="cd"><div class="sh">Details</div><div id="sdcard"></div></div>
-  <div class="cd"><div class="sh">Purchase orders</div><div id="sdpos"></div></div>
+  <div class="cd"><div class="sh" data-t="details">Details</div><div id="sdcard"></div></div>
+  <div class="cd"><div class="sh" data-t="purchases">Purchase orders</div><div id="sdpos"></div></div>
 </div>
 
 <!-- USERS -->
 <div class="pg" id="pg-usr">
   <div class="cd" style="padding:0;overflow:hidden;margin-bottom:12px"><div id="usrl"></div></div>
-  <button class="btn bs bp" onclick="document.getElementById('auf').style.display='block'">+ Add user</button>
+  <button class="btn bs bp" onclick="document.getElementById('auf').style.display='block'">+ <span data-t="newuser">Add user</span></button>
   <div id="auf" style="display:none;margin-top:12px" class="cd">
-    <div class="sh">New user</div>
+    <div class="sh" data-t="newuser">New user</div>
     <div class="r2">
       <div class="fg"><label>Username</label><input id="nuu" placeholder="e.g. salah"></div>
       <div class="fg"><label>Password</label><input type="password" id="nupw" placeholder="Min 6 characters"></div>
     </div>
     <div class="r2">
-      <div class="fg"><label>Full name</label><input id="nunm" placeholder="Full name"></div>
-      <div class="fg"><label>Role</label><select id="nurol"><option value="admin">Office admin</option><option value="salesperson">Salesperson</option><option value="technician">Technician</option></select></div>
+      <div class="fg"><label data-t="fullname">Full name</label><input id="nunm" placeholder="Full name"></div>
+      <div class="fg"><label data-t="role">Role</label><select id="nurol"><option value="admin" data-t="admin">Office admin</option><option value="salesperson" data-t="salesrole">Salesperson</option><option value="technician" data-t="technician">Technician</option></select></div>
     </div>
     <div class="fg" style="margin-bottom:10px"><label>Branch</label><select id="nubr"><option>Nasr City</option><option>Madinaty</option><option>Rehab</option><option>Head Office</option></select></div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
@@ -724,7 +724,7 @@ async function doSignIn(){
   if(typeof db==='undefined'||!db){if(errEl){errEl.textContent='Connection error. Please check VPN and refresh.';errEl.style.display='block';}return;}
   if(errEl)errEl.style.display='none';
   const btn=document.querySelector('.btn.bp[onclick*="doSignIn"]');
-  if(btn){btn.textContent='Signing in...';btn.disabled=true;}
+  if(btn){btn.textContent=t('loadin');btn.disabled=true;}
   try{
     const{data,error}=await db.from('users').select('*').eq('username',u).eq('password',p).eq('active',true);
     if(btn){btn.textContent='Sign in';btn.disabled=false;}
@@ -918,7 +918,7 @@ async function openTask(id){
             CT.status=s.k;
             ss.querySelectorAll('.ss').forEach(x=>x.className='ss');
             b.className='ss '+s.c;
-            toast('Status updated');
+            toast(t('statusupdated'));
           };
           ss.appendChild(b);
         });
@@ -940,7 +940,7 @@ async function openTask(id){
     set('ddate',CT.date||'-');
     set('dds',CT.description||'-');
     set('dcreated',CT.created_by||'-');
-    set('dtax',CT.use_tax===false?'No tax (0%)':'14% VAT included');
+    set('dtax',CT.use_tax===false?t('tax')+': 0%':t('tax')+': 14% VAT');
     // Products table
     const tbody=S('pvb');
     if(tbody){
@@ -1135,7 +1135,7 @@ async function saveEditProds(){
   var{error:ie}=await db.from('task_products').insert(rows);
   _savingProds=false;
   if(ie){toast('Error saving: '+ie.message,true);return;}
-  toast('Products saved!');
+  toast(t('productssaved'));
   openTask(CT.id);
 }
 
@@ -1188,19 +1188,19 @@ function renderPays(){
 
   if(isOverpaid){
     remBox.style.background='#E6F1FB';
-    remLabel.style.color='#185FA5';remLabel.textContent='Customer credit';
+    remLabel.style.color='#185FA5';remLabel.textContent=t('outstanding')+' (Credit)';
     remVal.style.color='#185FA5';remVal.textContent=f(Math.abs(rem));
   } else if(isFullyPaid){
     remBox.style.background='#EAF3DE';
-    remLabel.style.color='#3B6D11';remLabel.textContent='Remaining';
+    remLabel.style.color='#3B6D11';remLabel.textContent=t('remaining');
     remVal.style.color='#3B6D11';remVal.textContent='EGP 0 Paid';
   } else if(gr===0&&pd>0){
     remBox.style.background='#E6F1FB';
-    remLabel.style.color='#185FA5';remLabel.textContent='Advance paid';
+    remLabel.style.color='#185FA5';remLabel.textContent=t('paid')+' (Advance)';
     remVal.style.color='#185FA5';remVal.textContent=f(pd);
   } else {
     remBox.style.background='#FCEBEB';
-    remLabel.style.color='#A32D2D';remLabel.textContent='Remaining';
+    remLabel.style.color='#A32D2D';remLabel.textContent=t('remaining');
     remVal.style.color='#A32D2D';remVal.textContent=f(Math.max(0,rem));
   }
 
@@ -1242,7 +1242,7 @@ function openPayModal(){
   document.getElementById('pm-task-info').innerHTML='<b>'+CT.task_num+'</b> . '+(CT.customer_name||'-')+'<br>Order total: <b>'+f(gr)+'</b> . Paid: <b style="color:#3B6D11">'+f(pd)+'</b> . '+remDisplay;
   // Quick buttons
   const qEl=document.getElementById('pm-quick');qEl.innerHTML='';
-  const amounts=[{l:'Full remaining',v:rem},{l:'Half',v:Math.ceil(rem/2)}];
+  const amounts=[{l:t('remaining')+' (Full)',v:rem},{l:'½',v:Math.ceil(rem/2)}];
   [500,1000,2000,5000].forEach(v=>{if(v<rem)amounts.push({l:'EGP '+v.toLocaleString(),v});});
   amounts.filter(x=>x.v>0).slice(0,5).forEach(x=>{
     const b=document.createElement('button');
@@ -1303,7 +1303,7 @@ async function deletePay(id){
   await db.from('tasks').update({pay_status:newStatus}).eq('id',CT.id);
   CT.pay_status=newStatus;
   document.getElementById('pst').value=newStatus;
-  renderPays();toast('Payment deleted');
+  renderPays();toast(t('paymentdeleted'));
 }
 
 async function savePay(){
@@ -1321,11 +1321,11 @@ async function savePay(){
     if(!confirm('Warning: This payment ('+f(amt)+') exceeds the remaining balance ('+f(remAmt)+'). Customer will have a credit of '+f(amt-remAmt)+'. Continue?'))return;
   }
   const btn=document.getElementById('pm-save-btn');
-  btn.disabled=true;btn.textContent='Saving...';
+  btn.disabled=true;btn.textContent=t('loadin');
   const{data,error}=await db.from('payments').insert({
     task_id:CT.id,amount:amt,method,note
   }).select().single();
-  btn.disabled=false;btn.textContent='Confirm & save payment';
+  btn.disabled=false;btn.textContent=t('save')+' payment';
   if(error){toast('Error saving payment: '+error.message,true);console.error(error);return;}
   CT.pays.push(data);
   // Auto-update pay_status using updated totals
@@ -1355,7 +1355,7 @@ async function saveComp(){
   CT.completion_notes=document.getElementById('cdn').value;
   CT.completion_time=document.getElementById('cdt').value;
   CT.customer_confirmed=document.getElementById('cok').checked;
-  toast('Completion report saved');
+  toast(t('completionsaved'));
 }
 
 function addPart(){const l=document.getElementById('ptsl');const d=document.createElement('div');d.style.cssText='display:grid;grid-template-columns:1fr 55px 80px 28px;gap:5px;margin-bottom:5px';d.innerHTML='<input placeholder="Part name"><input type="number" placeholder="Qty" min="1"><input type="number" placeholder="Cost (EGP)"><button class="ib" onclick="this.closest(\'div\').remove()">X</button>';l.appendChild(d);}
@@ -1400,7 +1400,7 @@ async function saveSubTask(){
     await db.from('task_products').insert({task_id:subTask.id,name:subType,qty:1,price:subPrice,inventory_id:null});
   }
   document.getElementById('sub-form').style.display='none';
-  toast('Sub-task created!');
+  toast(t('subtaskcreated'));
   loadSubTasks();
 }
 
@@ -1416,7 +1416,7 @@ async function loadSubTasks(){
     }
     return;
   }
-  if(!data?.length){list.innerHTML='<div style="font-size:12px;color:#888;padding:8px 0">No sub-tasks yet.</div>';return;}
+  if(!data?.length){list.innerHTML='<div style="font-size:12px;color:#888;padding:8px 0">'+t('nosubsections')+'</div>';return;}
   const sm={pending:'a',progress:'b',done:'g',cancel:'r'};
   const sl={pending:'Pending',progress:'In progress',done:'Completed',cancel:'Cancelled'};
   data.forEach(st=>{
@@ -1440,7 +1440,7 @@ async function deleteTask(){
   await db.from('task_products').delete().eq('task_id',CT.id);
   await db.from('po_items').delete().eq('po_id',CT.id);
   await db.from('tasks').delete().eq('id',CT.id);
-  toast('Task deleted');
+  toast(t('taskdeleted'));
   go('tasks',document.getElementById('ni-tasks'));
 }
 
@@ -1453,7 +1453,7 @@ function doPrint(){
   const pd=CT.pays.reduce((a,p)=>a+p.amount,0);
   const rem=Math.max(0,gr-pd);
   const cu=CT.cust||{};
-  const psMap={paid:'Paid in full',unpaid:'Unpaid',downpayment:'Down payment - remainder due '+(CT.due_date||'-'),installments:'Installments - final due '+(CT.due_date||'-')};
+  const psMap={paid:t('paidinfull'),unpaid:t('unpaid'),downpayment:t('downpayment')+' - '+t('remaining')+': '+(CT.due_date||'-'),installments:t('installments')+' - '+(CT.due_date||'-')};
 
   // Build product rows
   let prodRows='';
@@ -1674,7 +1674,7 @@ async function addRow(){
     tr.innerHTML=('<td><select style="width:100%;font-size:12px;padding:4px" onchange="onPS2(this)">'+(opts)+'<option value="">Other</option></select></td>')+'<td><input type="number" value="1" min="1" style="width:100%;text-align:center" oninput="calcR(this);chkStk(this)"></td> <td><input type="number" min="0" placeholder="0" style="width:100%" oninput="calcR(this)"></td> <td style="\'+(useTax?\'\':\'display:none\')+"><input readonly class="pt" style="width:100%;background:#f5f5f0"></td> <td><input readonly class="tt2" style="width:100%;background:#f5f5f0;color:#1D9E75;font-weight:700"></td> <td><button class="ib" onclick="this.closest(\'tr\').remove();ntRec()" style="font-size:12px">X</button></td>\';\'';
     setTimeout(()=>{const s=tr.querySelector('select');if(s&&s.value){const o=s.selectedOptions[0];if(o?.dataset.price){tr.cells[2].querySelector('input').value=o.dataset.price;calcR(tr.cells[1].querySelector('input'));}}},0);
   }else{
-    tr.innerHTML='<td><select style="width:100%;font-size:12px;padding:4px"><option>Maintenance</option><option>Installation</option><option>Uninstall</option><option>Install & Uninstall</option></select></td>'+'<td><input type="number" value="1" min="1" style="width:100%;text-align:center" oninput="calcR(this)"></td> <td><input type="number" min="0" placeholder="0" style="width:100%" oninput="calcR(this)"></td> <td style="\'+(useTax?\'\':\'display:none\')+"><input readonly class="pt" style="width:100%;background:#f5f5f0"></td> <td><input readonly class="tt2" style="width:100%;background:#f5f5f0;color:#1D9E75;font-weight:700"></td> <td><button class="ib" onclick="this.closest(\'tr\').remove();ntRec()" style="font-size:12px">X</button></td>\';\'';
+    tr.innerHTML='<td><select style="width:100%;font-size:12px;padding:4px"><option data-t="maintenance">Maintenance</option><option data-t="installation">Installation</option><option data-t="uninstall">Uninstall</option><option>Install & Uninstall</option></select></td>'+'<td><input type="number" value="1" min="1" style="width:100%;text-align:center" oninput="calcR(this)"></td> <td><input type="number" min="0" placeholder="0" style="width:100%" oninput="calcR(this)"></td> <td style="\'+(useTax?\'\':\'display:none\')+"><input readonly class="pt" style="width:100%;background:#f5f5f0"></td> <td><input readonly class="tt2" style="width:100%;background:#f5f5f0;color:#1D9E75;font-weight:700"></td> <td><button class="ib" onclick="this.closest(\'tr\').remove();ntRec()" style="font-size:12px">X</button></td>\';\'';
   }
   tbody.appendChild(tr);
 }
@@ -1700,7 +1700,7 @@ async function saveTask(){
   let customerName=document.getElementById('ncnm')?.textContent||'';
   if(document.getElementById('ncc').checked){
     const nm=document.getElementById('ncn')?.value.trim();
-    if(!nm){toast('Customer name required',true);return;}
+    if(!nm){toast(t('fullname')+' required',true);return;}
     const{data:nc,error}=await db.from('customers').insert({full_name:nm,phone:document.getElementById('ncp')?.value,phone2:document.getElementById('ncp2')?.value,address:document.getElementById('nca')?.value,id_number:document.getElementById('nci')?.value}).select().single();
     if(error){toast('Error: '+error.message,true);return;}
     cid=nc.id;customerName=nm;
@@ -1739,17 +1739,17 @@ async function saveTask(){
       }
     }
   }
-  toast('Task created!');go('tasks',document.getElementById('ni-tasks'));
+  toast(t('taskcreated'));go('tasks',document.getElementById('ni-tasks'));
 }
 
 async function loadInv(search,brand){
   const body=document.getElementById('invb');
-  body.innerHTML='<tr><td colspan="9" style="text-align:center;padding:16px;color:#888">Loading...</td></tr>';
+  body.innerHTML='<tr><td colspan="9" style="text-align:center;padding:16px;color:#888">'+t('loadin')+'</td></tr>';
   let q=db.from('inventory').select('*').order('brand');
   if(search)q=q.or(('brand.ilike.%'+(search)+'%,model.ilike.%'+(search)+'%'));
   if(brand)q=q.eq('brand',brand);
   const{data}=await q;INV=data||[];body.innerHTML='';
-  if(!data?.length){body.innerHTML='<tr><td colspan="9" style="text-align:center;padding:16px;color:#888">No products.</td></tr>';return;}
+  if(!data?.length){body.innerHTML='<tr><td colspan="9" style="text-align:center;padding:16px;color:#888">'+t('noproducts')+'</td></tr>';return;}
   const{data:poItems}=await db.from('po_items').select('inventory_id,qty,purchase_orders!inner(status)').eq('purchase_orders.status','pending');
   const incomingMap={};
   (poItems||[]).forEach(pi=>{if(pi.inventory_id)incomingMap[pi.inventory_id]=(incomingMap[pi.inventory_id]||0)+pi.qty;});
@@ -1788,7 +1788,7 @@ async function saveProd(){
   const{error}=await db.from('inventory').insert({brand:b,model:m,hp:h,unit_type:document.getElementById('nput')?.value.trim()||'Highwall',cooling:document.getElementById('npco')?.value.trim()||'Cooling only',ac_type:document.getElementById('npac')?.value.trim()||'Inverter',qty:parseInt(document.getElementById('npqt')?.value)||0,sold:0,price:parseFloat(document.getElementById('nppr')?.value)||0,low_stock:parseInt(document.getElementById('nplw')?.value)||2});
   if(error){toast('Error: '+error.message,true);return;}
   ['npbr','npmd','nphp','nput','npco','npac'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
-  toast('Product added!');go('inv',document.getElementById('ni-inv'));
+  toast(t('productsaved'));go('inv',document.getElementById('ni-inv'));
 }
 
 async function loadPur(){
@@ -1800,11 +1800,11 @@ async function loadPur(){
   const sm={received:'g',pending:'a',cancelled:'r'};
   (data||[]).forEach(po=>{
     const tr=document.createElement('tr');tr.className='hv';tr.style.cursor='pointer';
-    var poBtnLabel=po.status==='partial'?'Receive more':'Mark delivered';
+    var poBtnLabel=po.status==='partial'?t('receivemore'):t('markdelivered');
     var poBtn2=po.status==='pending'||po.status==='partial'?('<button onclick="event.stopPropagation();markDelivered(\''+po.id+'\')" style="padding:4px 10px;font-size:11px;border:1px solid #639922;border-radius:6px;background:#EAF3DE;color:#3B6D11;cursor:pointer">'+poBtnLabel+'</button>'):'<span style="color:#3B6D11;font-size:12px">Received</span>';
     tr.innerHTML='<td style="font-weight:700">'+po.po_num+'</td><td>'+(supMap[po.supplier_id]||'-')+'</td><td>'+(po.date||'-')+'</td><td>'+(po.items||0)+' items</td><td style="font-weight:700">'+f(po.total)+'</td><td><span class="bx '+(sm[po.status]||'gr')+'">'+po.status+'</span></td><td>'+poBtn2+'</td>';
     var poBtn=po.status==='pending'?('<button onclick="event.stopPropagation();markDelivered(\''+po.id+'\')">Mark delivered</button>'):'<span style="color:#3B6D11">Received</span>';
-    var poBtnLabel=po.status==='partial'?'Receive more':'Mark delivered';
+    var poBtnLabel=po.status==='partial'?t('receivemore'):t('markdelivered');
     var poBtn2=po.status==='pending'||po.status==='partial'?('<button onclick="event.stopPropagation();markDelivered(\''+po.id+'\')" style="padding:4px 10px;font-size:11px;border:1px solid #639922;border-radius:6px;background:#EAF3DE;color:#3B6D11;cursor:pointer">'+poBtnLabel+'</button>'):'<span style="color:#3B6D11;font-size:12px">Received</span>';
     tr.innerHTML='<td style="font-weight:700">'+po.po_num+'</td><td>'+(supMap[po.supplier_id]||'-')+'</td><td>'+(po.date||'-')+'</td><td>'+(po.items||0)+' items</td><td style="font-weight:700">'+f(po.total)+'</td><td><span class="bx '+(sm[po.status]||'gr')+'">'+po.status+'</span></td><td>'+poBtn2+'</td>';
     (function(poId){
@@ -1863,7 +1863,7 @@ async function markDelivered(poId){
   document.getElementById('recv-cancel').onclick=function(){overlay.remove();};
   document.getElementById('recv-save').onclick=async function(){
     var btn=document.getElementById('recv-save');
-    btn.disabled=true;btn.textContent='Saving...';
+    btn.disabled=true;btn.textContent=t('loadin');
     var allFull=true;
     for(var k=0;k<items.length;k++){
       var it=items[k];
@@ -1878,7 +1878,7 @@ async function markDelivered(poId){
     var newStatus=allFull?'received':'partial';
     await db.from('purchase_orders').update({status:newStatus}).eq('id',poId);
     overlay.remove();
-    toast(allFull?'All items received - inventory updated!':'Partial receive saved - PO still open for remaining items');
+    toast(allFull?t('received')+' - '+t('inventory')+' updated!':'Partial '+t('received')+' - '+t('remaining'));
     loadPur();
   };
 }
@@ -1935,7 +1935,7 @@ async function returnProducts(poId){
   document.getElementById('ret-cancel').onclick=function(){overlay.remove();};
   document.getElementById('ret-save').onclick=async function(){
     var btn2=document.getElementById('ret-save');
-    btn2.disabled=true;btn2.textContent='Processing...';
+    btn2.disabled=true;btn2.textContent=t('loadin');
     var reason=document.getElementById('ret-reason')?.value||'';
     var totalReturned=0;
     for(var k=0;k<items.length;k++){
@@ -1947,13 +1947,13 @@ async function returnProducts(poId){
         if(inv){await db.from('inventory').update({qty:Math.max(0,(inv.qty||0)-retQty)}).eq('id',it.inventory_id);}
       }
     }
-    if(totalReturned===0){toast('Enter quantity to return',true);btn2.disabled=false;btn2.textContent='Confirm return';return;}
+    if(totalReturned===0){toast('Enter quantity to return',true);btn2.disabled=false;btn2.textContent=t('save');return;}
     // Log return as a note on PO
     var currentNotes=po.notes||'';
     var returnNote=currentNotes+(currentNotes?'\n':'')+'RETURN '+new Date().toLocaleDateString('en-GB')+': '+totalReturned+' units returned to supplier'+(reason?' - '+reason:'');
     await db.from('purchase_orders').update({notes:returnNote}).eq('id',po.id);
     overlay.remove();
-    toast(totalReturned+' units returned to supplier - inventory updated');
+    toast(totalReturned+' '+t('items')+' returned');
     loadPur();
   };
 }
@@ -2029,7 +2029,7 @@ async function openPODetail(poId){
   html+='</div>';
   html+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">';
   html+='<div style="background:#fff;border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:#888;text-transform:uppercase;font-weight:700;margin-bottom:3px">PO Total</div><div style="font-size:15px;font-weight:700">'+f(po.total)+'</div></div>';
-  html+='<div style="background:#EAF3DE;border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:#3B6D11;text-transform:uppercase;font-weight:700;margin-bottom:3px">Paid</div><div style="font-size:15px;font-weight:700;color:#3B6D11">'+f(totalPaid)+'</div></div>';
+  html+='<div style="background:#EAF3DE;border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:#3B6D11;text-transform:uppercase;font-weight:700;margin-bottom:3px" data-t="paid">Paid</div><div style="font-size:15px;font-weight:700;color:#3B6D11">'+f(totalPaid)+'</div></div>';
   html+='<div style="background:'+(remaining>0?'#FCEBEB':'#EAF3DE')+';border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:'+(remaining>0?'#A32D2D':'#3B6D11')+';text-transform:uppercase;font-weight:700;margin-bottom:3px">Remaining</div><div style="font-size:15px;font-weight:700;color:'+(remaining>0?'#A32D2D':'#3B6D11')+'">'+f(remaining)+'</div></div>';
   html+='</div>';
   // Payment history
@@ -2061,8 +2061,8 @@ async function openPODetail(poId){
   html+='<div style="font-size:13px;font-weight:700">PO Total: '+f(po.total)+'</div>';
   if(po.status==='pending'||po.status==='partial'){
     html+='<button id="md-btn-'+po.id+'" style="padding:8px 16px;font-size:12px;border:1px solid #639922;border-radius:8px;background:#EAF3DE;color:#3B6D11;cursor:pointer;font-weight:600">';
-    if(po.status==='partial')html+='Receive more items';
-    else html+='Mark as received - update inventory';
+    if(po.status==='partial')html+=t('receivemore');
+    else html+=t('markdelivered');
     html+='</button>';
   } else {
     html+='<span style="color:#3B6D11;font-weight:600">Received</span>';
@@ -2121,7 +2121,7 @@ async function savePOPayment(poId,poTotal){
     }
     return;
   }
-  toast('Payment saved!');
+  toast(t('paymentsaved'));
   document.querySelectorAll('.po-modal').forEach(function(e){e.remove();});
   openPODetail(poId);
 }
@@ -2149,14 +2149,14 @@ async function deletePO(poId){
         }
       }
     }
-    toast('Inventory restored for '+( items||[]).length+' items');
+    toast(t('inventory')+' restored: '+( items||[]).length+' '+t('items'));
   }
   // Delete PO and all related records
   await db.from('po_items').delete().eq('po_id',poId);
   await db.from('po_payments').delete().eq('po_id',poId);
   await db.from('purchase_orders').delete().eq('id',poId);
   document.querySelectorAll('.po-modal').forEach(function(e){e.remove();});
-  toast('Purchase order deleted!');
+  toast(t('porderdeleted'));
   loadPur();
 }
 
@@ -2213,8 +2213,8 @@ async function finTab(type,btn){
     });
     var ph9='';
     poPays.forEach(function(p){var po9=pos.find(function(x){return x.id===p.po_id;})||{};ph9+='<tr><td style="font-weight:700">'+f(p.amount)+'</td><td>'+(p.method||'-')+'</td><td>'+(sn9[po9.supplier_id]||'-')+'</td><td>'+(po9.po_num||'-')+'</td><td>'+(p.note||'-')+'</td><td style="font-size:11px;color:#888">'+(p.created_at?new Date(p.created_at).toLocaleDateString('en-GB'):'-')+'</td></tr>';});
-    var eh='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px"><div class="sc"><div class="sl">Total PO value</div><div class="sv">'+f(tpv)+'</div></div><div class="sc"><div class="sl" style="color:#A32D2D">Paid to suppliers</div><div class="sv" style="color:#A32D2D">'+f(tpd)+'</div></div><div class="sc"><div class="sl" style="color:#854F0B">Still owed</div><div class="sv" style="color:#854F0B">'+f(tow)+'</div></div></div><div class="cd"><div class="sh">Purchase orders</div><div class="tw"><table><thead><tr><th>PO#</th><th>Supplier</th><th>Date</th><th>Items</th><th>PO Total</th><th style="color:#3B6D11">Paid</th><th style="color:#A32D2D">Owed</th><th>Status</th></tr></thead><tbody>'+pr9+'</tbody></table></div><div style="display:flex;justify-content:flex-end;gap:24px;padding:8px 0;font-size:12px;border-top:1px solid #e8e8e0"><span style="color:#888">PO value: <b>'+f(tpv)+'</b></span><span style="color:#A32D2D">Paid: <b>'+f(tpd)+'</b></span><span style="color:#854F0B">Owed: <b>'+f(tow)+'</b></span></div></div>';
-    if(poPays.length){eh+='<div class="cd" style="margin-top:10px"><div class="sh">Payments to suppliers</div><div class="tw"><table><thead><tr><th>Amount</th><th>Method</th><th>Supplier</th><th>PO#</th><th>Note</th><th>Date</th></tr></thead><tbody>'+ph9+'</tbody></table></div><div style="display:flex;justify-content:flex-end;padding:8px 0;font-size:12px;border-top:1px solid #e8e8e0"><span style="color:#A32D2D;font-weight:700">Total paid out: '+f(tpd)+'</span></div></div>';}
+    var eh='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px"><div class="sc"><div class="sl">Total PO value</div><div class="sv">'+f(tpv)+'</div></div><div class="sc"><div class="sl" style="color:#A32D2D">Paid to suppliers</div><div class="sv" style="color:#A32D2D">'+f(tpd)+'</div></div><div class="sc"><div class="sl" style="color:#854F0B">Still owed</div><div class="sv" style="color:#854F0B">'+f(tow)+'</div></div></div><div class="cd"><div class="sh" data-t="purchases">Purchase orders</div><div class="tw"><table><thead><tr><th>PO#</th><th data-t="supplier">Supplier</th><th>Date</th><th>Items</th><th>PO Total</th><th style="color:#3B6D11">Paid</th><th style="color:#A32D2D">Owed</th><th>Status</th></tr></thead><tbody>'+pr9+'</tbody></table></div><div style="display:flex;justify-content:flex-end;gap:24px;padding:8px 0;font-size:12px;border-top:1px solid #e8e8e0"><span style="color:#888">PO value: <b>'+f(tpv)+'</b></span><span style="color:#A32D2D">Paid: <b>'+f(tpd)+'</b></span><span style="color:#854F0B">Owed: <b>'+f(tow)+'</b></span></div></div>';
+    if(poPays.length){eh+='<div class="cd" style="margin-top:10px"><div class="sh">Payments to suppliers</div><div class="tw"><table><thead><tr><th>Amount</th><th>Method</th><th data-t="supplier">Supplier</th><th>PO#</th><th>Note</th><th>Date</th></tr></thead><tbody>'+ph9+'</tbody></table></div><div style="display:flex;justify-content:flex-end;padding:8px 0;font-size:12px;border-top:1px solid #e8e8e0"><span style="color:#A32D2D;font-weight:700">Total paid out: '+f(tpd)+'</span></div></div>';}
     el.innerHTML=eh;
     document.querySelectorAll('.po-fin-row').forEach(function(rw){rw.style.cursor='pointer';rw.onclick=function(){openPODetail(this.dataset.poid);};});
     return;
@@ -2252,7 +2252,7 @@ async function loadCust(search){
 
 function editCust(){var c=window._editCustData;if(!c)return;editCustomer(c);}
 function editCustomer(c){
-  document.getElementById('cdcard').innerHTML=('<div class="r3" style="margin-bottom:10px"><div class="fg"><label>Full name *</label><input id="ec-name" value="'+(c.full_name||'')+'"></div><div class="fg"><label>Phone *</label><input id="ec-phone" value="'+(c.phone||'')+'"></div><div class="fg"><label>Second phone</label><input id="ec-phone2" value="'+(c.phone2||'')+'"></div></div><div class="r2" style="margin-bottom:10px"><div class="fg"><label>Address</label><input id="ec-addr" value="'+(c.address||'')+'"></div><div class="fg"><label>ID / Passport</label><input id="ec-id" value="'+(c.id_number||'')+'"></div></div><div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn bs" onclick="openCD('+(JSON.stringify(c).replace(/"/g,'"'))+')">Cancel</button><button class="btn bs bp" onclick="saveEditCustomer(\''+(c.id)+'\')">&#10003; Save</button></div>');
+  document.getElementById('cdcard').innerHTML=('<div class="r3" style="margin-bottom:10px"><div class="fg"><label data-t="fullname">Full name</label><input id="ec-name" value="'+(c.full_name||'')+'"></div><div class="fg"><label>Phone *</label><input id="ec-phone" value="'+(c.phone||'')+'"></div><div class="fg"><label data-t="secondphone">Second phone</label><input id="ec-phone2" value="'+(c.phone2||'')+'"></div></div><div class="r2" style="margin-bottom:10px"><div class="fg"><label data-t="address">Address</label><input id="ec-addr" value="'+(c.address||'')+'"></div><div class="fg"><label data-t="idpassport">ID / Passport</label><input id="ec-id" value="'+(c.id_number||'')+'"></div></div><div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn bs" onclick="openCD('+(JSON.stringify(c).replace(/"/g,'"'))+')">Cancel</button><button class="btn bs bp" onclick="saveEditCustomer(\''+(c.id)+'\')">&#10003; Save</button></div>');
 }
 
 async function saveEditCustomer(id){
@@ -2261,13 +2261,13 @@ async function saveEditCustomer(id){
   const updates={full_name:name,phone:document.getElementById('ec-phone')?.value,phone2:document.getElementById('ec-phone2')?.value,address:document.getElementById('ec-addr')?.value,id_number:document.getElementById('ec-id')?.value};
   const{data,error}=await db.from('customers').update(updates).eq('id',id).select().single();
   if(error){toast('Error: '+error.message,true);return;}
-  toast('Customer updated!');openCD(data);
+  toast(t('customerupdated'));openCD(data);
 }
 
 async function openCD(c){
   go('cd',null);document.getElementById('ptitle').textContent=c.full_name;document.getElementById('cdname').textContent=c.full_name;
   var editBtn=can('export')?'<button class="btn bs bp" onclick="editCust()">Edit</button>':'';
-  document.getElementById('cdcard').innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px"><div style="display:flex;align-items:center;gap:14px"><div class="av" style="width:50px;height:50px;font-size:16px">'+ini(c.full_name)+'</div><div style="font-size:16px;font-weight:700">'+c.full_name+'</div></div>'+editBtn+'</div><div class="r2"><div class="fg"><label>Phone</label><div style="padding:4px 0;font-weight:700">'+(c.phone||'-')+'</div></div><div class="fg"><label>Second phone</label><div style="padding:4px 0;font-weight:700">'+(c.phone2||'-')+'</div></div><div class="fg"><label>Address</label><div style="padding:4px 0;font-weight:700">'+(c.address||'-')+'</div></div><div class="fg"><label>ID / Passport</label><div style="padding:4px 0;font-weight:700">'+(c.id_number||'-')+'</div></div></div>';
+  document.getElementById('cdcard').innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px"><div style="display:flex;align-items:center;gap:14px"><div class="av" style="width:50px;height:50px;font-size:16px">'+ini(c.full_name)+'</div><div style="font-size:16px;font-weight:700">'+c.full_name+'</div></div>'+editBtn+'</div><div class="r2"><div class="fg"><label data-t="phone">Phone</label><div style="padding:4px 0;font-weight:700">'+(c.phone||'-')+'</div></div><div class="fg"><label data-t="secondphone">Second phone</label><div style="padding:4px 0;font-weight:700">'+(c.phone2||'-')+'</div></div><div class="fg"><label data-t="address">Address</label><div style="padding:4px 0;font-weight:700">'+(c.address||'-')+'</div></div><div class="fg"><label data-t="idpassport">ID / Passport</label><div style="padding:4px 0;font-weight:700">'+(c.id_number||'-')+'</div></div></div>';
   window._editCustData=c;
   const{data:tasks}=await db.from('tasks').select('id,task_num,type,branch,salesperson,date,status').eq('customer_id',c.id).order('created_at',{ascending:false});
   const tp=await db.from('task_products').select('task_id,qty,price');const prods=tp.data||[];
@@ -2276,29 +2276,29 @@ async function openCD(c){
   const sm={pending:'a',progress:'b',done:'g',cancel:'r'};
   const sl={pending:'Pending',progress:'In progress',done:'Completed',cancel:'Cancelled'};
   (tasks||[]).forEach(t=>{const d=document.createElement('div');d.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid #f0f0e8;cursor:pointer';d.innerHTML='<div><div style="font-weight:700">'+t.task_num+' - '+t.type+'</div><div style="font-size:11px;color:#888">'+t.branch+' - '+t.salesperson+' - '+(t.date||'-')+'</div></div><div style="text-align:right"><div style="font-weight:700">'+f(grand(t.id))+'</div><span class="bx '+(sm[t.status]||'gr')+'">'+( sl[t.status]||t.status)+'</span></div>';d.onclick=()=>openTask(t.id);tl.appendChild(d);});
-  if(!tasks?.length)tl.innerHTML='<div style="color:#888;font-size:12px;padding:10px 0">No tasks for this customer.</div>';
+  if(!tasks?.length)tl.innerHTML='<div style="color:#888;font-size:12px;padding:10px 0">'+t('notasksfound')+'</div>';
 }
 
 function openAC(){
-  go('cd',null);document.getElementById('ptitle').textContent='New Customer';document.getElementById('cdname').textContent='New Customer';
-  document.getElementById('cdcard').innerHTML='<div class="r3"><div class="fg"><label>Full name *</label><input id="acn" placeholder="Name"></div><div class="fg"><label>Phone *</label><input id="acp" placeholder="010xxxxxxxx"></div><div class="fg"><label>Second phone</label><input id="acp2"></div></div><div class="r2"><div class="fg"><label>Address</label><input id="aca" placeholder="Street, city"></div><div class="fg"><label>ID / Passport</label><input id="aci"></div></div><div style="display:flex;justify-content:flex-end;margin-top:8px"><button class="btn bp" onclick="saveAC()">&#10003; Save customer</button></div>';
+  go('cd',null);document.getElementById('ptitle').textContent=t('newcustomer');document.getElementById('cdname').textContent=t('newcustomer');
+  document.getElementById('cdcard').innerHTML='<div class="r3"><div class="fg"><label data-t="fullname">Full name</label><input id="acn" placeholder="Name"></div><div class="fg"><label>Phone *</label><input id="acp" placeholder="010xxxxxxxx"></div><div class="fg"><label data-t="secondphone">Second phone</label><input id="acp2"></div></div><div class="r2"><div class="fg"><label data-t="address">Address</label><input id="aca" placeholder="Street, city"></div><div class="fg"><label data-t="idpassport">ID / Passport</label><input id="aci"></div></div><div style="display:flex;justify-content:flex-end;margin-top:8px"><button class="btn bp" onclick="saveAC()">&#10003; Save customer</button></div>';
   document.getElementById('cdtasks').innerHTML='';
 }
 async function saveAC(){
   const nm=document.getElementById('acn')?.value.trim();if(!nm){toast('Name required',true);return;}
   const{error}=await db.from('customers').insert({full_name:nm,phone:document.getElementById('acp')?.value,phone2:document.getElementById('acp2')?.value,address:document.getElementById('aca')?.value,id_number:document.getElementById('aci')?.value});
-  if(error){toast('Error: '+error.message,true);return;}toast('Customer saved!');go('cust',document.getElementById('ni-cust'));
+  if(error){toast('Error: '+error.message,true);return;}toast(t('customersaved'));go('cust',document.getElementById('ni-cust'));
 }
 
 async function expCust(){
   const{data}=await db.from('customers').select('*').order('full_name');
-  if(!data?.length){toast('No customers',true);return;}
+  if(!data?.length){toast(t('nocust'),true);return;}
   const h=['Full Name','Phone','Second Phone','Address','ID / Passport','Created'];
   const rows=data.map(c=>[c.full_name,c.phone||'',c.phone2||'',c.address||'',c.id_number||'',c.created_at?.slice(0,10)||'']);
   var csv=h.join(',')+String.fromCharCode(10)+rows.map(function(r){return r.map(function(v){return '"'+String(v).replace(/"/g,'""')+'"';}).join(',');}).join(String.fromCharCode(10));
 
 
-  const blob=new Blob([csv],{type:'text/csv'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='brothercond_customers.csv';a.click();URL.revokeObjectURL(url);toast('Exported!');
+  const blob=new Blob([csv],{type:'text/csv'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='brothercond_customers.csv';a.click();URL.revokeObjectURL(url);toast(t('exported'));
 }
 
 async function loadSup(){
@@ -2310,36 +2310,36 @@ async function loadSup(){
 
 async function openSD(s){
   go('sd',null);document.getElementById('ptitle').textContent=s.name;document.getElementById('sdname').textContent=s.name;
-  document.getElementById('sdcard').innerHTML=('<div class="r2"><div class="fg"><label>Name</label><div style="padding:4px 0;font-weight:700">'+(s.name)+'</div></div><div class="fg"><label>Phone</label><div style="padding:4px 0;font-weight:700">'+(s.phone||'-')+'</div></div><div class="fg"><label>Address</label><div style="padding:4px 0;font-weight:700">'+(s.address||'-')+'</div></div><div class="fg"><label>Tax number</label><div style="padding:4px 0;font-weight:700">'+(s.tax_number||'-')+'</div></div></div>');
+  document.getElementById('sdcard').innerHTML=('<div class="r2"><div class="fg"><label>Name</label><div style="padding:4px 0;font-weight:700">'+(s.name)+'</div></div><div class="fg"><label data-t="phone">Phone</label><div style="padding:4px 0;font-weight:700">'+(s.phone||'-')+'</div></div><div class="fg"><label data-t="address">Address</label><div style="padding:4px 0;font-weight:700">'+(s.address||'-')+'</div></div><div class="fg"><label data-t="taxnumber">Tax number</label><div style="padding:4px 0;font-weight:700">'+(s.tax_number||'-')+'</div></div></div>');
   const{data:pos}=await db.from('purchase_orders').select('*').eq('supplier_id',s.id).order('created_at',{ascending:false});
   const pl=document.getElementById('sdpos');pl.innerHTML='';
   (pos||[]).forEach(po=>{const d=document.createElement('div');d.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0e8';d.innerHTML=('<div><div style="font-weight:700">'+(po.po_num)+'</div><div style="font-size:11px;color:#888">'+(po.date||'-')+' - '+(po.items||0)+' items</div></div><div style="text-align:right"><div style="font-weight:700">'+(f(po.total))+'</div><span class="bx '+(po.status==='received'?'g':'a')+'">'+(po.status)+'</span></div>');pl.appendChild(d);});
-  if(!pos?.length)pl.innerHTML='<div style="color:#888;font-size:12px;padding:8px 0">No purchase orders.</div>';
+  if(!pos?.length)pl.innerHTML='<div style="color:#888;font-size:12px;padding:8px 0">'+t('nopos')+'</div>';
 }
 
 function openAS(){
   go('sd',null);document.getElementById('ptitle').textContent='New Supplier';document.getElementById('sdname').textContent='New Supplier';
-  document.getElementById('sdcard').innerHTML='<div class="r2"><div class="fg"><label>Name *</label><input id="asn" placeholder="Company name"></div><div class="fg"><label>Phone</label><input id="asph"></div><div class="fg"><label>Address</label><input id="asad"></div><div class="fg"><label>Tax number</label><input id="astx"></div></div><div style="display:flex;justify-content:flex-end;margin-top:8px"><button class="btn bp" onclick="saveAS()">&#10003; Save supplier</button></div>';
+  document.getElementById('sdcard').innerHTML='<div class="r2"><div class="fg"><label>Name *</label><input id="asn" placeholder="Company name"></div><div class="fg"><label data-t="phone">Phone</label><input id="asph"></div><div class="fg"><label data-t="address">Address</label><input id="asad"></div><div class="fg"><label data-t="taxnumber">Tax number</label><input id="astx"></div></div><div style="display:flex;justify-content:flex-end;margin-top:8px"><button class="btn bp" onclick="saveAS()">&#10003; Save supplier</button></div>';
   document.getElementById('sdpos').innerHTML='';
 }
 async function saveAS(){
   const nm=document.getElementById('asn')?.value.trim();if(!nm){toast('Name required',true);return;}
   const{error}=await db.from('suppliers').insert({name:nm,phone:document.getElementById('asph')?.value,address:document.getElementById('asad')?.value,tax_number:document.getElementById('astx')?.value});
-  if(error){toast('Error: '+error.message,true);return;}toast('Supplier saved!');go('sup',document.getElementById('ni-sup'));
+  if(error){toast('Error: '+error.message,true);return;}toast(t('suppliersaved'));go('sup',document.getElementById('ni-sup'));
 }
 
 async function loadUsr(){
   const{data}=await db.from('users').select('*').order('full_name');
   const el=document.getElementById('usrl');el.innerHTML='';
-  (data||[]).forEach(u=>{var rp=ROLES[u.role]||ROLES.technician;var d=document.createElement('div');d.style.cssText='display:grid;grid-template-columns:1fr 100px 100px 80px 90px;gap:8px;align-items:center;padding:9px 14px;border-bottom:1px solid #f0f0e8';d.innerHTML='<div><div style="font-weight:700">'+u.full_name+'</div><div style="font-size:11px;color:#888">@'+u.username+'</div></div><span class="bx '+rp.c+'">'+rp.l+'</span><span style="font-size:12px;color:#888">'+u.branch+'</span><span class="bx '+(u.active?'g':'r')+'">'+(u.active?'Active':'Inactive')+'</span>'+(u.role!=='owner'?'<button class="btn bs" onclick="togUsr(\''+u.id+'\','+(  !u.active)+')">'+( u.active?'Deactivate':'Activate')+'</button>':'<span></span>');el.appendChild(d);});
+  (data||[]).forEach(u=>{var rp=ROLES[u.role]||ROLES.technician;var d=document.createElement('div');d.style.cssText='display:grid;grid-template-columns:1fr 100px 100px 80px 90px;gap:8px;align-items:center;padding:9px 14px;border-bottom:1px solid #f0f0e8';d.innerHTML='<div><div style="font-weight:700">'+u.full_name+'</div><div style="font-size:11px;color:#888">@'+u.username+'</div></div><span class="bx '+rp.c+'">'+rp.l+'</span><span style="font-size:12px;color:#888">'+u.branch+'</span><span class="bx '+(u.active?'g':'r')+'">'+(u.active?t('active'):t('inactive'))+'</span>'+(u.role!=='owner'?'<button class="btn bs" onclick="togUsr(\''+u.id+'\','+(  !u.active)+')">'+( u.active?'Deactivate':'Activate')+'</button>':'<span></span>');el.appendChild(d);});
 }
-async function togUsr(id,active){await db.from('users').update({active}).eq('id',id);loadUsr();toast(active?'User activated':'User deactivated');}
+async function togUsr(id,active){await db.from('users').update({active}).eq('id',id);loadUsr();toast(active?'User activated':t('inactive'));}
 async function saveUsr(){
   const u=document.getElementById('nuu')?.value.trim(),p=document.getElementById('nupw')?.value,n=document.getElementById('nunm')?.value.trim();
   if(!u||!p||!n){toast('Fill all fields',true);return;}if(p.length<6){toast('Password min 6 chars',true);return;}
   const{error}=await db.from('users').insert({username:u,password:p,full_name:n,role:document.getElementById('nurol')?.value,branch:document.getElementById('nubr')?.value,active:true});
   if(error){toast(error.message.includes('unique')?'Username already exists':error.message,true);return;}
-  document.getElementById('auf').style.display='none';toast('User created!');loadUsr();
+  document.getElementById('auf').style.display='none';toast(t('usercreated'));loadUsr();
 }
 
 // PO functions
@@ -2382,12 +2382,12 @@ async function savePO(){
   const{data:po,error:pe}=await db.from('purchase_orders').insert({po_num:poNum,supplier_id:sid,date:document.getElementById('pod')?.value||new Date().toISOString().slice(0,10),delivery_date:document.getElementById('podl')?.value||null,total,items,status:'pending',notes:document.getElementById('pon')?.value}).select().single();
   if(pe){toast('Error: '+pe.message,true);return;}
   if(poItems.length)await db.from('po_items').insert(poItems.map(x=>({...x,po_id:po.id})));
-  toast('Purchase order created!');go('pur',document.getElementById('ni-pur'));
+  toast(t('pocreated'));go('pur',document.getElementById('ni-pur'));
 }
 
 // Edit product in inventory
 function editProd(id,brand,model,hp,unit_type,cooling,ac_type,qty,price,low_stock){
-  const html=('<div style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9000;display:flex;align-items:center;justify-content:center" id="edit-prod-modal" onclick="if(event.target===this)this.remove()"><div style="background:#fff;border-radius:12px;padding:22px;width:420px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.2)"><div style="font-size:15px;font-weight:700;margin-bottom:14px">Edit product</div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px"><div class="fg"><label>Brand</label><input id="ep-brand" value="'+(brand)+'"></div><div class="fg"><label>Model</label><input id="ep-model" value="'+(model)+'"></div><div class="fg"><label>HP</label><input id="ep-hp" value="'+(hp)+'"></div></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px"><div class="fg"><label>Unit type</label><input id="ep-unit" value="'+(unit_type)+'"></div><div class="fg"><label>Cooling</label><input id="ep-cool" value="'+(cooling)+'"></div><div class="fg"><label>AC type</label><input id="ep-actype" value="'+(ac_type)+'"></div></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px"><div class="fg"><label>Quantity</label><input type="number" id="ep-qty" value="'+(qty)+'" min="0"></div><div class="fg"><label>Price (EGP)</label><input type="number" id="ep-price" value="'+(price)+'"></div><div class="fg"><label>Low stock at</label><input type="number" id="ep-low" value="'+(low_stock)+'" min="0"></div></div><div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn bs" onclick="document.getElementById(\'edit-prod-modal\').remove()">Cancel</button><button class="btn bs bp" onclick="saveEditProd(\''+(id)+'\')">&#10003; Save</button></div></div></div>');
+  const html=('<div style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9000;display:flex;align-items:center;justify-content:center" id="edit-prod-modal" onclick="if(event.target===this)this.remove()"><div style="background:#fff;border-radius:12px;padding:22px;width:420px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.2)"><div style="font-size:15px;font-weight:700;margin-bottom:14px">Edit product</div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px"><div class="fg"><label>Brand</label><input id="ep-brand" value="'+(brand)+'"></div><div class="fg"><label>Model</label><input id="ep-model" value="'+(model)+'"></div><div class="fg"><label>HP</label><input id="ep-hp" value="'+(hp)+'"></div></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px"><div class="fg"><label data-t="unittype">Unit type</label><input id="ep-unit" value="'+(unit_type)+'"></div><div class="fg"><label data-t="cooling">Cooling</label><input id="ep-cool" value="'+(cooling)+'"></div><div class="fg"><label data-t="actype">AC type</label><input id="ep-actype" value="'+(ac_type)+'"></div></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px"><div class="fg"><label>Quantity</label><input type="number" id="ep-qty" value="'+(qty)+'" min="0"></div><div class="fg"><label>Price (EGP)</label><input type="number" id="ep-price" value="'+(price)+'"></div><div class="fg"><label>Low stock at</label><input type="number" id="ep-low" value="'+(low_stock)+'" min="0"></div></div><div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn bs" onclick="document.getElementById(\'edit-prod-modal\').remove()">Cancel</button><button class="btn bs bp" onclick="saveEditProd(\''+(id)+'\')">&#10003; Save</button></div></div></div>');
   document.body.insertAdjacentHTML('beforeend',html);
 }
 async function saveEditProd(id){
@@ -2399,7 +2399,7 @@ async function saveEditProd(id){
 async function delProd(id){
   if(!confirm('Delete this product? This cannot be undone.'))return;
   const{error}=await db.from('inventory').delete().eq('id',id);
-  if(error){toast('Error: '+error.message,true);return;}toast('Product deleted');loadInv();
+  if(error){toast('Error: '+error.message,true);return;}toast(t('productdeleted'));loadInv();
 }
 document.getElementById('ntpt').textContent=POL;
 </script>
@@ -2416,56 +2416,168 @@ const POL_AR=`تسعير الأنابيب: 1.5-2.25 حصان 950 ج.م/م، 3 ح
 
 window.T={
   en:{
+    
     dashboard:'Dashboard',tasks:'Tasks',inventory:'Inventory',purchases:'Purchases',
     finance:'Finance',customers:'Customers',suppliers:'Suppliers',users:'Users',
     signout:'Sign out',signin:'Sign in',username:'Username',password:'Password',
     wrongpass:'Wrong username or password.',
     newtask:'New task',addproduct:'Add product',newpo:'New purchase order',
     addcustomer:'Add customer',addsupplier:'Add supplier',
+    
     pending:'Pending',inprogress:'In progress',completed:'Completed',cancelled:'Cancelled',
+    unpaid:'Unpaid',downpayment:'Down payment',installments:'Installments',paidinfull:'Paid in full',
+    instock:'In stock',lowstock:'Low stock',outofstock:'Out of stock',
+    received:'Received',partial:'Partial',
+    
     notasksfound:'No tasks found.',noproducts:'No products.',nopos:'No purchase orders.',
     nocust:'No customers found.',nosup:'No suppliers yet.',loadin:'Loading...',
-    taskdelconfirm:'Delete this task?',
+    notodaytasks:'No tasks today.',nooutstanding:'No outstanding payments.',
+    nostockissues:'All products well stocked.',nosubsections:'No sub-tasks yet.',
+    
+    taskdelconfirm:'Delete this task?',back:'Back',print:'Print',
+    recordpayment:'+ Record payment',save:'Save',cancel:'Cancel',
+    savechanges:'Save changes',clearfilters:'Clear filters',
+    markdelivered:'Mark as received - update inventory',receivemore:'Receive more items',
+    exportexcel:'Export Excel',addrow:'+ Add row',addpart:'+ Add part',
+    createtask:'Create task',confirmpo:'Confirm purchase order',
+    createsub:'Create sub-task',addproductbtn:'+ Add product',
+    
     branch:'Branch',salesperson:'Salesperson',type:'Type',date:'Date',
     description:'Description',customer:'Customer',orderinfo:'Order info',
     completion:'Completion',products:'Products',payment:'Payment',
     remaining:'Remaining',paid:'Paid',total:'Total',status:'Status',
-    back:'Back',print:'Print',recordpayment:'+ Record payment',save:'Save',cancel:'Cancel',
-    maintenance:'Maintenance',installation:'Installation',sales:'Sales',uninstall:'Uninstall',
+    subtotal:'Subtotal',grandtotal:'Grand total',tax:'Tax',createdby:'Created by',
+    tasknum:'Task #',taskdate:'Task date',tasktype:'Task type',
+    fullname:'Full name',phone:'Phone',secondphone:'Second phone',
+    address:'Address',idpassport:'ID / Passport',
+    brand:'Brand',model:'Model',capacity:'Capacity (HP)',
+    unittype:'Unit type',cooling:'Cooling',actype:'AC type',
+    initialqty:'Initial quantity',unitprice:'Unit price (EGP)',lowstockalert:'Low stock alert at',
+    unitcost:'Unit cost (EGP)',qtytorder:'Qty to order',currentstock:'Current stock',
+    notes:'Notes',deliverydate:'Expected delivery',taxnumber:'Tax number',
+    role:'Role',companyname:'Company name',
+    orderinfo2:'Order info',completionreport:'Completion report',
+    technicianname:'Technician name',completiontime:'Completion time',
+    techniciannote:'Technician note',customerconfirmed:'Customer confirmed & satisfied',
+    subtasks:'Sub-tasks',attachments:'Attachments',partsused:'Parts used',
+    termsandpolicy:'Terms & offer policy',whatwasdone:'What was done',
+    paymenthistory:'Payment history',paymentstatus:'Payment status',
+    ordertotal:'Order total',
+    quickamount:'Quick amount',paymentmethod:'Payment method *',
+    refnote:'Reference / note (optional)',
+    
     revenue:'Total revenue',collected:'Collected',outstanding:'Outstanding',netprofit:'Net profit',
+    allsales:'All transactions',expenses:'Expenses',
     todaystasks:"Today's tasks",lowstockalerts:'Low stock alerts',
     tasksbystatus:'Tasks by status',outstandingpayments:'Outstanding payments',
-    nooutstanding:'No outstanding payments.',nostockissues:'All products well stocked.',
-    notodaytasks:'No tasks today.',paymenthistory:'Payment history',
-    unpaid:'Unpaid',downpayment:'Down payment',installments:'Installments',paidinfull:'Paid in full',
-    outofstock:'Out of stock',lowstock:'Low stock',instock:'In stock',
-    owner:'Owner',admin:'Office admin',salesrole:'Salesperson',technician:'Technician'
+    allbranches:'All branches',alltypes:'All types',allstatuses:'All statuses',
+    ponum:'PO #',items:'Items',
+    
+    totalskus:'Total SKUs',unitsinstock:'Units in stock',
+    incomingstock:'incoming',sold:'Sold',stock:'Stock',
+    generatedname:'Generated product name (auto)',addnewproduct:'Add new product',
+    
+    details:'Details',alltasks:'All tasks',newcustomer:'New Customer',
+    
+    newuser:'New user',
+    
+    purchasetotal:'Purchase total',productstoorder:'Products to order',
+    
+    maintenance:'Maintenance',installation:'Installation',sales:'Sales',uninstall:'Uninstall',
+    salesorder:'Sales order',other:'Other',returnvisit:'Return visit',sparepart:'Spare part',
+    owner:'Owner',admin:'Office admin',salesrole:'Salesperson',technician:'Technician',
+    supplier:'Supplier',
+    
+    productsaved:'Product added!',taskcreated:'Task created!',customersaved:'Customer saved!',
+    suppliersaved:'Supplier saved!',usercreated:'User created!',pocreated:'Purchase order created!',
+    customerupdated:'Customer updated!',productupdated:'Product updated!',
+    subtaskcreated:'Sub-task created!',exported:'Exported!',paymentsaved:'Payment saved!',
+    completionsaved:'Completion report saved',productssaved:'Products saved!',
+    statusupdated:'Status updated',paymentdeleted:'Payment deleted',
+    taskdeleted:'Task deleted',productdeleted:'Product deleted',
+    porderdeleted:'Purchase order deleted!'
   },
   ar:{
+    
     dashboard:'الرئيسية',tasks:'المهام',inventory:'المخزون',purchases:'المشتريات',
     finance:'المالية',customers:'العملاء',suppliers:'الموردون',users:'المستخدمون',
     signout:'تسجيل الخروج',signin:'تسجيل الدخول',username:'اسم المستخدم',password:'كلمة المرور',
     wrongpass:'اسم المستخدم أو كلمة المرور غير صحيحة.',
     newtask:'مهمة جديدة',addproduct:'إضافة منتج',newpo:'أمر شراء جديد',
     addcustomer:'إضافة عميل',addsupplier:'إضافة مورد',
+    
     pending:'معلقة',inprogress:'جارية',completed:'مكتملة',cancelled:'ملغاة',
+    unpaid:'غير مدفوع',downpayment:'دفعة مقدمة',installments:'أقساط',paidinfull:'مدفوع بالكامل',
+    instock:'متوفر',lowstock:'مخزون منخفض',outofstock:'نفد المخزون',
+    received:'مستلم',partial:'جزئي',
+    
     notasksfound:'لا توجد مهام.',noproducts:'لا توجد منتجات.',nopos:'لا توجد أوامر شراء.',
     nocust:'لا يوجد عملاء.',nosup:'لا يوجد موردون.',loadin:'جاري التحميل...',
-    taskdelconfirm:'حذف هذه المهمة؟',
+    notodaytasks:'لا توجد مهام اليوم.',nooutstanding:'لا توجد مدفوعات متأخرة.',
+    nostockissues:'جميع المنتجات متوفرة بكميات كافية.',nosubsections:'لا توجد مهام فرعية.',
+    
+    taskdelconfirm:'حذف هذه المهمة؟',back:'رجوع',print:'طباعة',
+    recordpayment:'+ تسجيل دفعة',save:'حفظ',cancel:'إلغاء',
+    savechanges:'حفظ التغييرات',clearfilters:'مسح الفلاتر',
+    markdelivered:'تسجيل الاستلام - تحديث المخزون',receivemore:'استلام المزيد',
+    exportexcel:'تصدير Excel',addrow:'+ إضافة صف',addpart:'+ إضافة قطعة',
+    createtask:'إنشاء المهمة',confirmpo:'تأكيد أمر الشراء',
+    createsub:'إنشاء مهمة فرعية',addproductbtn:'+ إضافة منتج',
+    
     branch:'الفرع',salesperson:'المندوب',type:'النوع',date:'التاريخ',
     description:'الوصف',customer:'العميل',orderinfo:'معلومات الطلب',
     completion:'إتمام العمل',products:'المنتجات',payment:'الدفع',
     remaining:'المتبقي',paid:'المدفوع',total:'الإجمالي',status:'الحالة',
-    back:'رجوع',print:'طباعة',recordpayment:'+ تسجيل دفعة',save:'حفظ',cancel:'إلغاء',
-    maintenance:'صيانة',installation:'تركيب',sales:'مبيعات',uninstall:'فك تركيب',
+    subtotal:'المجموع قبل الضريبة',grandtotal:'الإجمالي الكلي',tax:'الضريبة',createdby:'أنشئ بواسطة',
+    tasknum:'رقم المهمة',taskdate:'تاريخ المهمة',tasktype:'نوع المهمة',
+    fullname:'الاسم الكامل',phone:'الهاتف',secondphone:'الهاتف الثاني',
+    address:'العنوان',idpassport:'الهوية / جواز السفر',
+    brand:'الماركة',model:'الموديل',capacity:'السعة (حصان)',
+    unittype:'نوع الوحدة',cooling:'التبريد',actype:'نوع التكييف',
+    initialqty:'الكمية الأولية',unitprice:'سعر الوحدة (ج.م)',lowstockalert:'تنبيه المخزون المنخفض عند',
+    unitcost:'تكلفة الوحدة (ج.م)',qtytorder:'الكمية المطلوبة',currentstock:'المخزون الحالي',
+    notes:'ملاحظات',deliverydate:'تاريخ التسليم المتوقع',taxnumber:'الرقم الضريبي',
+    role:'الدور',companyname:'اسم الشركة',
+    orderinfo2:'معلومات الطلب',completionreport:'تقرير الإنجاز',
+    technicianname:'اسم الفني',completiontime:'وقت الإنجاز',
+    techniciannote:'ملاحظة الفني',customerconfirmed:'العميل وافق وراضٍ عن العمل',
+    subtasks:'المهام الفرعية',attachments:'المرفقات',partsused:'قطع الغيار المستخدمة',
+    termsandpolicy:'الشروط وسياسة العرض',whatwasdone:'ما تم إنجازه',
+    paymenthistory:'سجل المدفوعات',paymentstatus:'حالة الدفع',
+    ordertotal:'إجمالي الطلب',
+    quickamount:'مبلغ سريع',paymentmethod:'طريقة الدفع *',
+    refnote:'المرجع / ملاحظة (اختياري)',
+    
     revenue:'إجمالي الإيرادات',collected:'المحصّل',outstanding:'المتأخر',netprofit:'صافي الربح',
+    allsales:'جميع المعاملات',expenses:'المصروفات',
     todaystasks:'مهام اليوم',lowstockalerts:'تنبيهات المخزون المنخفض',
     tasksbystatus:'المهام حسب الحالة',outstandingpayments:'المدفوعات المتأخرة',
-    nooutstanding:'لا توجد مدفوعات متأخرة.',nostockissues:'جميع المنتجات متوفرة بكميات كافية.',
-    notodaytasks:'لا توجد مهام اليوم.',paymenthistory:'سجل المدفوعات',
-    unpaid:'غير مدفوع',downpayment:'دفعة مقدمة',installments:'أقساط',paidinfull:'مدفوع بالكامل',
-    outofstock:'نفد المخزون',lowstock:'مخزون منخفض',instock:'متوفر',
-    owner:'المالك',admin:'مدير',salesrole:'مندوب مبيعات',technician:'فني'
+    allbranches:'جميع الفروع',alltypes:'جميع الأنواع',allstatuses:'جميع الحالات',
+    ponum:'رقم أمر الشراء',items:'عناصر',
+    
+    totalskus:'إجمالي المنتجات',unitsinstock:'الوحدات في المخزون',
+    incomingstock:'قادم',sold:'مباع',stock:'المخزون',
+    generatedname:'اسم المنتج المُنشأ تلقائياً',addnewproduct:'إضافة منتج جديد',
+    
+    details:'التفاصيل',alltasks:'جميع المهام',newcustomer:'عميل جديد',
+    
+    newuser:'مستخدم جديد',
+    
+    purchasetotal:'إجمالي الشراء',productstoorder:'المنتجات المطلوبة',
+    
+    maintenance:'صيانة',installation:'تركيب',sales:'مبيعات',uninstall:'فك تركيب',
+    salesorder:'طلب بيع',other:'أخرى',returnvisit:'زيارة متابعة',sparepart:'قطعة غيار',
+    owner:'المالك',admin:'مدير مكتب',salesrole:'مندوب مبيعات',technician:'فني',
+    supplier:'المورد',
+    
+    productsaved:'تم إضافة المنتج!',taskcreated:'تم إنشاء المهمة!',customersaved:'تم حفظ العميل!',
+    suppliersaved:'تم حفظ المورد!',usercreated:'تم إنشاء المستخدم!',pocreated:'تم إنشاء أمر الشراء!',
+    customerupdated:'تم تحديث بيانات العميل!',productupdated:'تم تحديث المنتج!',
+    subtaskcreated:'تم إنشاء المهمة الفرعية!',exported:'تم التصدير!',paymentsaved:'تم حفظ الدفعة!',
+    completionsaved:'تم حفظ تقرير الإنجاز',productssaved:'تم حفظ المنتجات!',
+    statusupdated:'تم تحديث الحالة',paymentdeleted:'تم حذف الدفعة',
+    taskdeleted:'تم حذف المهمة',productdeleted:'تم حذف المنتج',
+    porderdeleted:'تم حذف أمر الشراء!'
   }
 }
 
@@ -2479,8 +2591,27 @@ function setLang(l,btn){
 }
 
 function applyTranslations(){
-  document.querySelectorAll('[data-t]').forEach(el=>{const k=el.getAttribute('data-t');if(k)el.textContent=t(k);});
-  document.querySelectorAll('[data-t-ph]').forEach(el=>{const k=el.getAttribute('data-t-ph');if(k)el.placeholder=t(k);});
+  document.querySelectorAll('[data-t]').forEach(function(el){var k=el.getAttribute('data-t');if(k)el.textContent=t(k);});
+  document.querySelectorAll('[data-t-ph]').forEach(function(el){var k=el.getAttribute('data-t-ph');if(k)el.placeholder=t(k);});
+  // Nav sidebar
+  var navMap={'ni-dash':'dashboard','ni-tasks':'tasks','ni-inv':'inventory','ni-pur':'purchases','ni-fin':'finance','ni-cust':'customers','ni-sup':'suppliers','ni-usr':'users'};
+  Object.keys(navMap).forEach(function(id){var el=document.getElementById(id);if(el){var sp=el.querySelector('span');if(sp)sp.textContent=t(navMap[id]);}});
+  // Finance tabs
+  var tabMap={all:t('allsales'),sales:t('sales'),maintenance:t('maintenance'),installation:t('installation'),uninstall:t('uninstall'),expenses:t('expenses'),outstanding:t('outstanding')};
+  document.querySelectorAll('.tab').forEach(function(btn){var oc=btn.getAttribute('onclick')||'';var m=oc.match(/finTab\'([^\']+)\'/)||oc.match(/finTab\(.'([^']+)'/);if(m&&tabMap[m[1]])btn.textContent=tabMap[m[1]];});
+  // Filter dropdowns
+  var tft=document.getElementById('tft');
+  if(tft){var sm={sales:t('sales'),maintenance:t('maintenance'),installation:t('installation'),uninstall:t('uninstall')};Array.from(tft.options).forEach(function(o){if(sm[o.value])o.text=sm[o.value];else if(!o.value)o.text=t('alltypes');});}
+  var tfb=document.getElementById('tfb');
+  if(tfb){Array.from(tfb.options).forEach(function(o){if(!o.value)o.text=t('allbranches');});}
+  var tfs=document.getElementById('tfs');
+  if(tfs){var ss={pending:t('pending'),progress:t('inprogress'),done:t('completed'),cancel:t('cancelled')};Array.from(tfs.options).forEach(function(o){if(ss[o.value])o.text=ss[o.value];else if(!o.value)o.text=t('allstatuses');});}
+  // Task type select
+  var ntt2=document.getElementById('ntt');
+  if(ntt2){var tm={sales:t('salesorder'),maintenance:t('maintenance'),installation:t('installation'),uninstall:t('uninstall')};Array.from(ntt2.options).forEach(function(o){if(tm[o.value])o.text=tm[o.value];});}
+  // Payment status select
+  var pst2=document.getElementById('pst');
+  if(pst2){var pm={unpaid:t('unpaid'),downpayment:t('downpayment'),installments:t('installments'),paid:t('paidinfull')};Array.from(pst2.options).forEach(function(o){if(pm[o.value])o.text=pm[o.value];});}
 }
 
 // Auto-restore login on page load/refresh
