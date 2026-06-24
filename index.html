@@ -1748,21 +1748,44 @@ function ntRec(){
 }
 
 async function addRow(){
-  const type=document.getElementById('ntt').value;
-  const isSales=type==='sales';
-  const tbody=document.getElementById('ntb');
-  const tr=document.createElement('tr');
-  const useTax=document.getElementById('tax-toggle')?.checked!==false;
-  if(isSales){
-    if(!INV.length){const{data}=await db.from('inventory').select('*');INV=data||[];}
-    const opts=INV.map(p=>('<option value="'+(p.id)+'" data-price="'+(p.price)+'" data-qty="'+(p.qty)+'">'+(p.brand)+' '+(p.model)+' '+(p.hp)+' '+(p.unit_type||'')+' '+(p.cooling||'')+' '+(p.ac_type||'')+' (stock: '+(p.qty)+')</option>')).join('');
-    tr.innerHTML=('<td><select style="width:100%;font-size:12px;padding:4px" onchange="onPS2(this)">'+(opts)+'<option value="">Other</option></select></td>')+'<td><input type="number" value="1" min="1" style="width:100%;text-align:center" oninput="calcR(this);chkStk(this)"></td> <td><input type="number" min="0" placeholder="0" style="width:100%" oninput="calcR(this)"></td> <td style="\'+(useTax?\'\':\'display:none\')+"><input readonly class="pt" style="width:100%;background:#f5f5f0"></td> <td><input readonly class="tt2" style="width:100%;background:#f5f5f0;color:#1D9E75;font-weight:700"></td> <td><button class="ib" onclick="this.closest(\'tr\').remove();ntRec()" style="font-size:12px">X</button></td>\';\'';
-    setTimeout(()=>{const s=tr.querySelector('select');if(s&&s.value){const o=s.selectedOptions[0];if(o?.dataset.price){tr.cells[2].querySelector('input').value=o.dataset.price;calcR(tr.cells[1].querySelector('input'));}}},0);
+  var type2=document.getElementById('ntt').value;
+  var isSales2=type2==='sales';
+  var tbody=document.getElementById('ntb');
+  var tr=document.createElement('tr');
+  var useTax=document.getElementById('tax-toggle')?.checked!==false;
+  var taxStyle=useTax?'':'display:none';
+  var delBtn='<button class="ib" onclick="this.closest(\'tr\').remove();ntRec()" style="font-size:12px">X</button>';
+  var commonCells=''
+    +'<td><input type="number" value="1" min="1" style="width:60px;text-align:center" oninput="calcR(this)"></td>'
+    +'<td><input type="number" min="0" placeholder="0" style="width:100%" oninput="calcR(this)"></td>'
+    +'<td style="'+taxStyle+'"><input readonly class="pt" style="width:100%;background:#f5f5f0"></td>'
+    +'<td><input readonly class="tt2" style="width:100%;background:#f5f5f0;color:#1D9E75;font-weight:700"></td>'
+    +'<td>'+delBtn+'</td>';
+  if(isSales2){
+    if(!INV.length){var ir=await db.from('inventory').select('*');INV=ir.data||[];}
+    var opts=INV.map(function(p){
+      return '<option value="'+p.id+'" data-price="'+p.price+'" data-qty="'+p.qty+'">'+p.brand+' '+p.model+' '+p.hp+' '+(p.unit_type||'')+' '+(p.cooling||'')+' '+(p.ac_type||'')+' (stock: '+p.qty+')</option>';
+    }).join('');
+    opts+='<option value="">Other</option>';
+    tr.innerHTML='<td><select style="width:100%;font-size:12px;padding:4px" onchange="onPS2(this)">'+opts+'</select></td>'+commonCells;
+    setTimeout(function(){
+      var s=tr.querySelector('select');
+      if(s&&s.value){
+        var o=s.selectedOptions[0];
+        if(o&&o.dataset.price){
+          tr.cells[2].querySelector('input').value=o.dataset.price;
+          calcR(tr.cells[1].querySelector('input'));
+          chkStk(tr.cells[1].querySelector('input'));
+        }
+      }
+    },0);
   }else{
-    tr.innerHTML='<td><select style="width:100%;font-size:12px;padding:4px"><option data-t="maintenance">Maintenance</option><option data-t="installation">Installation</option><option data-t="uninstall">Uninstall</option><option>Install & Uninstall</option></select></td>'+'<td><input type="number" value="1" min="1" style="width:100%;text-align:center" oninput="calcR(this)"></td> <td><input type="number" min="0" placeholder="0" style="width:100%" oninput="calcR(this)"></td> <td style="\'+(useTax?\'\':\'display:none\')+"><input readonly class="pt" style="width:100%;background:#f5f5f0"></td> <td><input readonly class="tt2" style="width:100%;background:#f5f5f0;color:#1D9E75;font-weight:700"></td> <td><button class="ib" onclick="this.closest(\'tr\').remove();ntRec()" style="font-size:12px">X</button></td>\';\'';
+    tr.innerHTML='<td><select style="width:100%;font-size:12px;padding:4px"><option data-t="maintenance">Maintenance</option><option data-t="installation">Installation</option><option data-t="uninstall">Uninstall</option><option>Install &amp; Uninstall</option><option data-t="other">Other</option></select></td>'+commonCells;
   }
   tbody.appendChild(tr);
+  tr.querySelectorAll('option[data-t]').forEach(function(el){var k=el.getAttribute('data-t');if(k&&window.t)el.text=t(k);});
 }
+
 
 function onPS2(sel){const tr=sel.closest('tr');const o=sel.selectedOptions[0];if(o?.dataset.price){tr.cells[2].querySelector('input').value=o.dataset.price;calcR(tr.cells[1].querySelector('input'));chkStk(tr.cells[1].querySelector('input'));}}
 function chkStk(inp){if(!inp?.closest)return;const tr=inp.closest('tr');if(!tr)return;const sel=tr.cells[0].querySelector('select');if(!sel?.value)return;const o=sel.selectedOptions[0];if(!o?.dataset.qty)return;const av=parseInt(o.dataset.qty);const rq=parseInt(inp.value)||0;const w=document.getElementById('ntwn');if(rq>av){w.style.display='flex';document.getElementById('ntwm').textContent=('Warning: Only '+(av)+' in stock.');}else if(w)w.style.display='none';}
