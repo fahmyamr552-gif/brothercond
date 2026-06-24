@@ -94,6 +94,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
 .uz{border:2px dashed #ccc;border-radius:8px;padding:14px;text-align:center;cursor:pointer;color:#888;font-size:12px;background:#f9f9f6}
 .pg{background:#f5f5f0;border:1px solid #e0ddd8;border-radius:8px;margin-bottom:6px}
 </style>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
 <div class="tst" id="tst"></div>
@@ -146,12 +147,12 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
 <div class="pg on" id="pg-dash">
   <div class="r4" id="dstats" style="margin-bottom:14px"></div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
-    <div class="cd"><div class="sh">Today's tasks</div><div id="dtoday"><div style="color:#888;font-size:12px">Loading...</div></div></div>
-    <div class="cd"><div class="sh">Low stock alerts</div><div id="dlow"></div></div>
+    <div class="cd"><div class="sh" data-t="todaystasks">Today's tasks</div><div id="dtoday"><div style="color:#888;font-size:12px">Loading...</div></div></div>
+    <div class="cd"><div class="sh" data-t="lowstockalerts">Low stock alerts</div><div id="dlow"></div></div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-    <div class="cd"><div class="sh">Tasks by status</div><div id="dbars"></div></div>
-    <div class="cd"><div class="sh">Outstanding payments</div><div id="dout"></div></div>
+    <div class="cd"><div class="sh" data-t="tasksbystatus">Tasks by status</div><div id="dbars"></div></div>
+    <div class="cd"><div class="sh" data-t="outstandingpayments">Outstanding payments</div><div id="dout"></div></div>
   </div>
 </div>
 
@@ -211,7 +212,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
   <div style="background:#fff;border:1px solid #e0ddd8;border-radius:10px;padding:14px;margin-bottom:12px">
     <!-- Summary row -->
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <div style="font-size:13px;font-weight:700">Payment</div>
+      <div style="font-size:13px;font-weight:700" data-t="payment">Payment</div>
       <button class="btn bs bp" id="rec-pay-btn" onclick="openPayModal()" style="font-size:12px">+ Record payment</button>
     </div>
     <!-- Amounts -->
@@ -310,18 +311,18 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     <button class="tab" onclick="dtab('sub',this)">Sub-tasks</button>
   </div>
   <div id="ti-info">
-    <div class="cd"><div class="sh">Customer</div><div id="tcc"></div></div>
+    <div class="cd"><div class="sh" data-t="customer">Customer</div><div id="tcc"></div></div>
     <div class="cd">
-      <div class="sh">Order info</div>
+      <div class="sh" data-t="orderinfo">Order info</div>
       <div class="r3">
-        <div class="fg"><label>Branch</label><div id="dbr" style="padding:4px 0;font-weight:600"></div></div>
-        <div class="fg"><label>Salesperson</label><div id="dsp" style="padding:4px 0;font-weight:600"></div></div>
-        <div class="fg"><label>Type</label><div id="dty" style="padding:4px 0;font-weight:600;text-transform:capitalize"></div></div>
-        <div class="fg"><label>Task date</label><div id="ddate" style="padding:4px 0;font-weight:600"></div></div>
-        <div class="fg"><label>Created by</label><div id="dcreated" style="padding:4px 0;font-weight:600"></div></div>
-        <div class="fg"><label>Tax</label><div id="dtax" style="padding:4px 0;font-weight:600"></div></div>
+        <div class="fg"><label data-t="branch">Branch</label><div id="dbr" style="padding:4px 0;font-weight:600"></div></div>
+        <div class="fg"><label data-t="salesperson">Salesperson</label><div id="dsp" style="padding:4px 0;font-weight:600"></div></div>
+        <div class="fg"><label data-t="type">Type</label><div id="dty" style="padding:4px 0;font-weight:600;text-transform:capitalize"></div></div>
+        <div class="fg"><label data-t="date">Task date</label><div id="ddate" style="padding:4px 0;font-weight:600"></div></div>
+        <div class="fg"><label data-t="createdby">Created by</label><div id="dcreated" style="padding:4px 0;font-weight:600"></div></div>
+        <div class="fg"><label data-t="tax">Tax</label><div id="dtax" style="padding:4px 0;font-weight:600"></div></div>
       </div>
-      <div class="fg"><label>Description</label><div id="dds" style="padding:4px 0;color:#666;line-height:1.5"></div></div>
+      <div class="fg"><label data-t="description">Description</label><div id="dds" style="padding:4px 0;color:#666;line-height:1.5"></div></div>
     </div>
     <div class="cd">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
@@ -797,16 +798,16 @@ async function loadDash(){
     let rev=0,col=0,out=0;
     tasks.forEach(t=>{const g=grand(t.id),p=paid(t.id);rev+=g;col+=p;out+=Math.max(0,g-p);});
     const exp=(tpo.data||[]).filter(p=>p.status==='received').reduce((a,p)=>a+(p.total||0),0);
-    document.getElementById('dstats').innerHTML='<div class="sc"><div class="sl">Total revenue</div><div class="sv">'+f(rev)+'</div></div><div class="sc"><div class="sl">Collected</div><div class="sv" style="color:#3B6D11">'+f(col)+'</div></div><div class="sc"><div class="sl">Outstanding</div><div class="sv" style="color:#A32D2D">'+f(out)+'</div></div><div class="sc"><div class="sl">Expenses</div><div class="sv">'+f(exp)+'</div></div>';
+    document.getElementById('dstats').innerHTML='<div class="sc"><div class="sl">'+t('revenue')+'</div><div class="sv">'+f(rev)+'</div></div><div class="sc"><div class="sl">'+t('collected')+'</div><div class="sv" style="color:#3B6D11">'+f(col)+'</div></div><div class="sc"><div class="sl">'+t('outstanding')+'</div><div class="sv" style="color:#A32D2D">'+f(out)+'</div></div><div class="sc"><div class="sl">Expenses</div><div class="sv">'+f(exp)+'</div></div>';
     const today=new Date().toISOString().slice(0,10);
     const todayEl=document.getElementById('dtoday');
     const tt=tasks.filter(t=>t.date===today);
-    todayEl.innerHTML=tt.length?'':'<div style="color:#888;font-size:12px">No tasks today.</div>';
+    todayEl.innerHTML=tt.length?'':'<div style="color:#888;font-size:12px">'+t('notodaytasks')+'</div>';
     tt.forEach(t=>{const d=document.createElement('div');d.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f0f0e8;font-size:12px;cursor:pointer';d.innerHTML=('<div><div style="font-weight:700">'+(t.customer_name||'-')+'</div><div style="font-size:11px;color:#888">'+(t.type)+' - '+(t.branch)+'</div></div><span class="bx '+(t.status==='done'?'g':t.status==='progress'?'b':'a')+'">'+(t.status)+'</span>');d.onclick=()=>openTask(t.id);todayEl.appendChild(d);});
     const inv=await db.from('inventory').select('brand,model,hp,qty,low_stock');
     const low=(inv.data||[]).filter(p=>p.qty<=p.low_stock);
     const lowEl=document.getElementById('dlow');
-    lowEl.innerHTML=low.length?'':'<div style="font-size:12px;color:#3B6D11">All products well stocked.</div>';
+    lowEl.innerHTML=low.length?'':'<div style="font-size:12px;color:#3B6D11">'+t('nostockissues')+'</div>';
     low.forEach(p=>{const d=document.createElement('div');d.style.cssText='display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid #f0f0e8';d.innerHTML=('<span>'+(p.brand)+' '+(p.model)+' '+(p.hp)+'</span><span style="font-weight:700;color:'+(p.qty===0?'#A32D2D':'#854F0B')+'">'+(p.qty===0?'Out':p.qty+' left')+'</span>');lowEl.appendChild(d);});
     const counts={pending:0,progress:0,done:0,cancel:0};
     tasks.forEach(t=>{if(counts[t.status]!==undefined)counts[t.status]++;});
@@ -819,7 +820,7 @@ async function loadDash(){
     });
     const oEl=document.getElementById('dout');
     const ot=tasks.filter(t=>Math.max(0,grand(t.id)-paid(t.id))>0);
-    oEl.innerHTML=ot.length?'':'<div style="font-size:12px;color:#3B6D11">No outstanding payments.</div>';
+    oEl.innerHTML=ot.length?'':'<div style="font-size:12px;color:#3B6D11">'+t('nooutstanding')+'</div>';
     ot.slice(0,6).forEach(t=>{const rem=Math.max(0,grand(t.id)-paid(t.id));const d=document.createElement('div');d.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f0f0e8;font-size:12px;cursor:pointer';d.innerHTML=('<div><div style="font-weight:700">'+(t.customer_name||'-')+'</div><div style="font-size:11px;color:#888">'+(t.task_num)+(t.due_date?' - Due '+t.due_date:'')+'</div></div><span style="font-weight:700;color:#A32D2D">'+(f(rem))+'</span>');d.onclick=()=>openTask(t.id);oEl.appendChild(d);});
   }catch(e){console.error('Dash error:',e);document.getElementById('dstats').innerHTML=('<div style="color:#A32D2D;padding:10px">Error loading dashboard: '+(e.message)+'</div>');}
 }
@@ -853,7 +854,7 @@ async function loadTasks(){
       d.style.cssText='display:grid;grid-template-columns:60px 1fr 95px 110px 90px;gap:8px;padding:10px 14px;border-bottom:1px solid #f0f0e8;cursor:pointer;align-items:center';
       d.onmouseover=()=>d.style.background='#f9f9f6';d.onmouseout=()=>d.style.background='';
       const psColor={paid:'#3B6D11',unpaid:'#A32D2D',downpayment:'#854F0B',installments:'#185FA5'};
-      const psLabel={paid:'Paid',unpaid:'Unpaid',downpayment:'Deposit',installments:'Installments'};
+      const psLabel={paid:t('paidinfull'),unpaid:t('unpaid'),downpayment:t('downpayment'),installments:t('installments')};
       d.innerHTML='<span style="font-size:11px;font-weight:700;color:#888">'+tk.task_num+'</span><div><div style="font-weight:700">'+(tk.customer_name||'-')+'</div><div style="font-size:11px;color:#888">'+tk.type+' . '+tk.salesperson+' . '+(tk.date||'-')+'</div></div><span style="font-size:11px;color:#888">'+tk.branch+'</span><div><div style="font-size:12px;font-weight:700">'+f(grand(tk.id))+'</div><div style="font-size:10px;color:'+(psColor[tk.pay_status]||'#888')+';font-weight:600">'+(psLabel[tk.pay_status]||'-')+'</div></div><span class="bx '+(sm[tk.status]||'gr')+'">'+(sl()[tk.status]||tk.status)+'</span>';
       d.onclick=()=>openTask(tk.id);body.appendChild(d);
     });
@@ -908,7 +909,7 @@ async function openTask(id){
     if(ss){
       ss.innerHTML='';
       if(!isLocked){
-        [{k:'pending',l:'Pending',c:'p'},{k:'progress',l:'In progress',c:'bl'},{k:'done',l:'Completed',c:'gn'},{k:'cancel',l:'Cancelled',c:'rd'}].forEach(s=>{
+        [{k:'pending',l:t('pending'),c:'p'},{k:'progress',l:t('inprogress'),c:'bl'},{k:'done',l:t('completed'),c:'gn'},{k:'cancel',l:t('cancelled'),c:'rd'}].forEach(s=>{
           const b=document.createElement('button');
           b.className='ss'+(CT.status===s.k?' '+s.c:'');
           b.textContent=s.l;
@@ -922,7 +923,7 @@ async function openTask(id){
           ss.appendChild(b);
         });
       } else {
-        const sl={pending:'Pending',progress:'In progress',done:'Completed',cancel:'Cancelled'};
+        const sl={pending:t('pending'),progress:t('inprogress'),done:t('completed'),cancel:t('cancelled')};
         const sm={pending:'a',progress:'b',done:'g',cancel:'r'};
         const badge=document.createElement('span');
         badge.className='bx '+(sm[CT.status]||'gr');
@@ -1211,7 +1212,7 @@ function renderPays(){
   if(CT.pays.length>0){
     const hdr=document.createElement('div');
     hdr.style.cssText='font-size:10px;font-weight:700;color:#888;text-transform:uppercase;margin-bottom:7px;margin-top:4px';
-    hdr.textContent='Payment history';box.appendChild(hdr);
+    hdr.textContent=t('paymenthistory');box.appendChild(hdr);
     CT.pays.forEach((p,i)=>{
       const methIcon={Cash:'[Cash]','Visa':'[Card]','Visa / Card':'[Card]',Instapay:'[Instapay]','Bank transfer':'[Bank]',Cheque:'[Cheque]'};
       const icon=methIcon[p.method]||'[Pay]';
@@ -1755,7 +1756,7 @@ async function loadInv(search,brand){
   data.forEach(p=>{
     const tr=document.createElement('tr');
     const incoming=incomingMap[p.id]||0;
-    const sb=p.qty===0?'<span class="bx r">Out of stock</span>':p.qty<=p.low_stock?'<span class="bx a">Low stock</span>':'<span class="bx g">In stock</span>';
+    const sb=p.qty===0?'<span class="bx r">'+t('outofstock')+'</span>':p.qty<=p.low_stock?'<span class="bx a">'+t('lowstock')+'</span>':'<span class="bx g">'+t('instock')+'</span>';
     const incomingBadge=incoming>0?('<span class="bx b" style="font-size:10px;margin-left:3px">+'+(incoming)+' incoming</span>'):'';
     const delBtn=can('export')?('<div style="display:flex;gap:4px"><button onclick="editProd(\''+(p.id)+'\',\''+(p.brand)+'\',\''+(p.model)+'\',\''+(p.hp)+'\',\''+(p.unit_type||'')+'\',\''+(p.cooling||'')+'\',\''+(p.ac_type||'')+'\','+(p.qty)+','+(p.price)+','+(p.low_stock)+')" style="padding:3px 8px;font-size:10px;border:1px solid #378ADD;border-radius:5px;background:#E6F1FB;color:#185FA5;cursor:pointer">Edit</button><button onclick="delProd(\''+(p.id)+'\')" style="padding:3px 8px;font-size:10px;border:1px solid #E24B4A;border-radius:5px;background:#FCEBEB;color:#A32D2D;cursor:pointer">Del</button></div>'):'-';
     tr.innerHTML='<td style="font-weight:700">'+p.brand+' '+p.model+'</td><td><span class="bx gr">'+p.brand+'</span></td><td>'+p.hp+'</td><td style="font-size:11px">'+(p.ac_type||'-')+'</td><td style="font-weight:700;color:'+(p.qty===0?'#A32D2D':p.qty<=p.low_stock?'#854F0B':'#3B6D11')+'">'+p.qty+incomingBadge+'</td><td style="color:#888">'+(p.sold||0)+'</td><td>'+f(p.price)+'</td><td>'+sb+'</td><td>'+delBtn+'</td>';
@@ -1811,7 +1812,7 @@ async function loadPur(){
     })(po.id);
     body.appendChild(tr);
   });
-  if(!data?.length)body.innerHTML='<tr><td colspan="7" style="text-align:center;padding:16px;color:#888">No purchase orders yet.</td></tr>';
+  if(!data?.length)body.innerHTML='<tr><td colspan="7" style="text-align:center;padding:16px;color:#888">'+t('nopos')+'</td></tr>';
 }
 
 async function markDelivered(poId){
@@ -2178,7 +2179,7 @@ async function loadFinStats(){
     var poPayR=await db.from('po_payments').select('amount');
     var exp=poPayR.error?0:(poPayR.data||[]).reduce(function(a,p){return a+(p.amount||0);},0);
     var el=document.getElementById('fstats');
-    if(el)el.innerHTML='<div class="sc"><div class="sl">Total revenue</div><div class="sv">'+f(rev)+'</div></div><div class="sc"><div class="sl">Collected</div><div class="sv" style="color:#3B6D11">'+f(col)+'</div></div><div class="sc"><div class="sl">Outstanding</div><div class="sv" style="color:#A32D2D">'+f(out)+'</div></div><div class="sc"><div class="sl">Net profit</div><div class="sv" style="color:#1D9E75">'+f(col-exp)+'</div></div>';
+    if(el)el.innerHTML='<div class="sc"><div class="sl">'+t('revenue')+'</div><div class="sv">'+f(rev)+'</div></div><div class="sc"><div class="sl">'+t('collected')+'</div><div class="sv" style="color:#3B6D11">'+f(col)+'</div></div><div class="sc"><div class="sl">'+t('outstanding')+'</div><div class="sv" style="color:#A32D2D">'+f(out)+'</div></div><div class="sc"><div class="sl">'+t('netprofit')+'</div><div class="sv" style="color:#1D9E75">'+f(col-exp)+'</div></div>';
   }catch(e){console.error('loadFinStats error:',e);}
 }
 
@@ -2237,16 +2238,16 @@ async function finTab(type,btn){
     return '<tr class="hv" onclick="openTask(\''+t.id+'\')"><td style="font-weight:700">'+t.task_num+'</td><td>'+(t.customer_name||'-')+'</td><td style="text-transform:capitalize">'+t.type+'</td><td>'+t.branch+'</td><td>'+(t.date||'-')+'</td><td style="font-weight:700">'+f(gx)+'</td><td>'+pDx+'</td><td>'+rDx+'</td><td><span class="bx '+(psMap[t.pay_status]||'gr')+'">'+(t.pay_status||'-')+'</span></td></tr>';
   }).join('');
   var totsx=tks.reduce(function(a,t){return{g:a.g+grand(t.id),p:a.p+paid(t.id),r:a.r+Math.max(0,grand(t.id)-paid(t.id))};},{g:0,p:0,r:0});
-  var tlMapx={all:'All transactions',sales:'Sales',maintenance:'Maintenance',installation:'Installation',uninstall:'Uninstall'};
+  var tlMapx={all:t('allsales'),sales:t('sales'),maintenance:t('maintenance'),installation:t('installation'),uninstall:t('uninstall')};
   el.innerHTML='<div class="cd"><div class="sh">'+(tlMapx[type]||type)+'</div><div class="tw"><table><thead><tr><th>Task #</th><th>Customer</th><th>Type</th><th>Branch</th><th>Date</th><th>Total</th><th>Paid</th><th>Remaining</th><th>Status</th></tr></thead><tbody>'+rowsStr+'</tbody></table></div><div class="tr" style="border-top:1px solid #e8e8e0"><span class="tl">Revenue</span><span class="tv">'+f(totsx.g)+'</span></div><div class="tr" style="padding-top:0"><span class="tl">Collected</span><span class="tv" style="color:#3B6D11">'+f(totsx.p)+'</span></div><div class="tr" style="padding-top:0"><span class="tl">Outstanding</span><span class="tv" style="color:#A32D2D">'+f(totsx.r)+'</span></div></div>';
 }
 
 async function loadCust(search){
-  const body=document.getElementById('custl');body.innerHTML='<div style="padding:20px;text-align:center;color:#888">Loading...</div>';
+  const body=document.getElementById('custl');body.innerHTML='<div style="padding:20px;text-align:center;color:#888">'+t('loadin')+'</div>';
   let q=db.from('customers').select('*').order('full_name');if(search)q=q.or(('full_name.ilike.%'+(search)+'%,phone.ilike.%'+(search)+'%'));
   const{data}=await q;body.innerHTML='';
   (data||[]).forEach(c=>{var d=document.createElement('div');d.className='lr';d.innerHTML='<div class="av">'+ini(c.full_name)+'</div><div style="flex:1"><div style="font-weight:700">'+c.full_name+'</div><div style="font-size:11px;color:#888">'+(c.phone||'-')+' - '+(c.address||'-')+'</div>'+(c.id_number?'<div style="font-size:11px;color:#888">ID: '+c.id_number+'</div>':'')+'</div><span style="color:#ccc">&gt;</span>';d.onclick=()=>openCD(c);body.appendChild(d);});
-  if(!data?.length)body.innerHTML='<div style="padding:20px;text-align:center;color:#888">No customers found.</div>';
+  if(!data?.length)body.innerHTML='<div style="padding:20px;text-align:center;color:#888">'+t('nocust')+'</div>';
 }
 
 function editCust(){var c=window._editCustData;if(!c)return;editCustomer(c);}
@@ -2304,7 +2305,7 @@ async function loadSup(){
   const{data}=await db.from('suppliers').select('*').order('name');
   const el=document.getElementById('supl');el.innerHTML='';
   (data||[]).forEach(s=>{var d=document.createElement('div');d.className='lr';d.innerHTML='<div class="av" style="background:#EEEDFE;color:#3C3489">'+ini(s.name)+'</div><div style="flex:1"><div style="font-weight:700">'+s.name+'</div><div style="font-size:11px;color:#888">'+(s.phone||'-')+' - '+(s.address||'-')+'</div>'+(s.tax_number?'<div style="font-size:11px;color:#888">Tax: '+s.tax_number+'</div>':'')+'</div><span style="color:#ccc">&gt;</span>';d.onclick=()=>openSD(s);el.appendChild(d);});
-  if(!data?.length)el.innerHTML='<div style="padding:20px;text-align:center;color:#888">No suppliers yet.</div>';
+  if(!data?.length)el.innerHTML='<div style="padding:20px;text-align:center;color:#888">'+t('nosup')+'</div>';
 }
 
 async function openSD(s){
@@ -2414,9 +2415,59 @@ const POL_AR=`تسعير الأنابيب: 1.5-2.25 حصان 950 ج.م/م، 3 ح
 شكراً لاختياركم برذركوند.`;
 
 window.T={
-  en:{dashboard:'Dashboard',tasks:'Tasks',inventory:'Inventory',purchases:'Purchases',finance:'Finance',customers:'Customers',suppliers:'Suppliers',users:'Users',signout:'Sign out',signin:'Sign in',username:'Username',password:'Password',wrongpass:'Wrong username or password.',newtask:'New task',addproduct:'Add product',newpo:'New purchase order',addcustomer:'Add customer',addsupplier:'Add supplier',pending:'Pending',inprogress:'In progress',completed:'Completed',cancelled:'Cancelled',notasksfound:'No tasks found.',noproducts:'No products.',nopos:'No purchase orders.',nocust:'No customers found.',nosup:'No suppliers yet.',loadin:'Loading...',taskdelconfirm:'Delete this task?'},
-  ar:{dashboard:'الرئيسية',tasks:'المهام',inventory:'المخزون',purchases:'المشتريات',finance:'المالية',customers:'العملاء',suppliers:'الموردون',users:'المستخدمون',signout:'تسجيل الخروج',signin:'تسجيل الدخول',username:'اسم المستخدم',password:'كلمة المرور',wrongpass:'اسم المستخدم أو كلمة المرور غير صحيحة.',newtask:'مهمة جديدة',addproduct:'إضافة منتج',newpo:'أمر شراء جديد',addcustomer:'إضافة عميل',addsupplier:'إضافة مورد',pending:'معلقة',inprogress:'جارية',completed:'مكتملة',cancelled:'ملغاة',notasksfound:'لا توجد مهام.',noproducts:'لا توجد منتجات.',nopos:'لا توجد أوامر شراء.',nocust:'لا يوجد عملاء.',nosup:'لا يوجد موردون.',loadin:'جاري التحميل...',taskdelconfirm:'حذف هذه المهمة؟'}
-};
+  en:{
+    dashboard:'Dashboard',tasks:'Tasks',inventory:'Inventory',purchases:'Purchases',
+    finance:'Finance',customers:'Customers',suppliers:'Suppliers',users:'Users',
+    signout:'Sign out',signin:'Sign in',username:'Username',password:'Password',
+    wrongpass:'Wrong username or password.',
+    newtask:'New task',addproduct:'Add product',newpo:'New purchase order',
+    addcustomer:'Add customer',addsupplier:'Add supplier',
+    pending:'Pending',inprogress:'In progress',completed:'Completed',cancelled:'Cancelled',
+    notasksfound:'No tasks found.',noproducts:'No products.',nopos:'No purchase orders.',
+    nocust:'No customers found.',nosup:'No suppliers yet.',loadin:'Loading...',
+    taskdelconfirm:'Delete this task?',
+    branch:'Branch',salesperson:'Salesperson',type:'Type',date:'Date',
+    description:'Description',customer:'Customer',orderinfo:'Order info',
+    completion:'Completion',products:'Products',payment:'Payment',
+    remaining:'Remaining',paid:'Paid',total:'Total',status:'Status',
+    back:'Back',print:'Print',recordpayment:'+ Record payment',save:'Save',cancel:'Cancel',
+    maintenance:'Maintenance',installation:'Installation',sales:'Sales',uninstall:'Uninstall',
+    revenue:'Total revenue',collected:'Collected',outstanding:'Outstanding',netprofit:'Net profit',
+    todaystasks:"Today's tasks",lowstockalerts:'Low stock alerts',
+    tasksbystatus:'Tasks by status',outstandingpayments:'Outstanding payments',
+    nooutstanding:'No outstanding payments.',nostockissues:'All products well stocked.',
+    notodaytasks:'No tasks today.',paymenthistory:'Payment history',
+    unpaid:'Unpaid',downpayment:'Down payment',installments:'Installments',paidinfull:'Paid in full',
+    outofstock:'Out of stock',lowstock:'Low stock',instock:'In stock',
+    owner:'Owner',admin:'Office admin',salesrole:'Salesperson',technician:'Technician'
+  },
+  ar:{
+    dashboard:'الرئيسية',tasks:'المهام',inventory:'المخزون',purchases:'المشتريات',
+    finance:'المالية',customers:'العملاء',suppliers:'الموردون',users:'المستخدمون',
+    signout:'تسجيل الخروج',signin:'تسجيل الدخول',username:'اسم المستخدم',password:'كلمة المرور',
+    wrongpass:'اسم المستخدم أو كلمة المرور غير صحيحة.',
+    newtask:'مهمة جديدة',addproduct:'إضافة منتج',newpo:'أمر شراء جديد',
+    addcustomer:'إضافة عميل',addsupplier:'إضافة مورد',
+    pending:'معلقة',inprogress:'جارية',completed:'مكتملة',cancelled:'ملغاة',
+    notasksfound:'لا توجد مهام.',noproducts:'لا توجد منتجات.',nopos:'لا توجد أوامر شراء.',
+    nocust:'لا يوجد عملاء.',nosup:'لا يوجد موردون.',loadin:'جاري التحميل...',
+    taskdelconfirm:'حذف هذه المهمة؟',
+    branch:'الفرع',salesperson:'المندوب',type:'النوع',date:'التاريخ',
+    description:'الوصف',customer:'العميل',orderinfo:'معلومات الطلب',
+    completion:'إتمام العمل',products:'المنتجات',payment:'الدفع',
+    remaining:'المتبقي',paid:'المدفوع',total:'الإجمالي',status:'الحالة',
+    back:'رجوع',print:'طباعة',recordpayment:'+ تسجيل دفعة',save:'حفظ',cancel:'إلغاء',
+    maintenance:'صيانة',installation:'تركيب',sales:'مبيعات',uninstall:'فك تركيب',
+    revenue:'إجمالي الإيرادات',collected:'المحصّل',outstanding:'المتأخر',netprofit:'صافي الربح',
+    todaystasks:'مهام اليوم',lowstockalerts:'تنبيهات المخزون المنخفض',
+    tasksbystatus:'المهام حسب الحالة',outstandingpayments:'المدفوعات المتأخرة',
+    nooutstanding:'لا توجد مدفوعات متأخرة.',nostockissues:'جميع المنتجات متوفرة بكميات كافية.',
+    notodaytasks:'لا توجد مهام اليوم.',paymenthistory:'سجل المدفوعات',
+    unpaid:'غير مدفوع',downpayment:'دفعة مقدمة',installments:'أقساط',paidinfull:'مدفوع بالكامل',
+    outofstock:'نفد المخزون',lowstock:'مخزون منخفض',instock:'متوفر',
+    owner:'المالك',admin:'مدير',salesrole:'مندوب مبيعات',technician:'فني'
+  }
+}
 
 LANG='en';
 function setLang(l,btn){
