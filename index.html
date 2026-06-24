@@ -771,7 +771,7 @@ function go(pg,el){
   const titles={}; Object.entries(titlesMap).forEach(([k,v])=>titles[k]=t(v));
   document.getElementById('ptitle').textContent=titles[pg]||pg;
   const ta=document.getElementById('tact');ta.innerHTML='';
-  const btns={tasks:{l:t('newtask'),f:()=>openNT()},inv:{l:t('addproduct'),f:()=>go('np',null)},pur:{l:t('newpo'),f:()=>openNPO()},cust:{l:t('addcustomer'),f:()=>openAC()},sup:{l:t('addsupplier'),f:()=>openAS()}};
+  const btns={tasks:{l:t('newtask'),f:()=>openNT()},inv:{l:t('addproduct'),f:()=>go('np',null)},pur:{l:t('newpo'),f:()=>openNewPO()},cust:{l:t('addcustomer'),f:()=>openAC()},sup:{l:t('addsupplier'),f:()=>openAS()}};
   if(btns[pg]){const b=document.createElement('button');b.className='btn bs bp';b.textContent='+ '+btns[pg].l;b.onclick=btns[pg].f;ta.appendChild(b);}
   if(pg==='dash')loadDash();
   if(pg==='tasks')loadTasks();
@@ -1799,9 +1799,13 @@ async function loadPur(){
   const sm={received:'g',pending:'a',cancelled:'r'};
   (data||[]).forEach(po=>{
     const tr=document.createElement('tr');tr.className='hv';tr.style.cursor='pointer';
-    tr.innerHTML='<td style="font-weight:700">'+po.po_num+'</td><td>'+(supMap[po.supplier_id]||'-')+'</td><td>'+(po.date||'-')+'</td><td>'+(po.items||0)+' items</td><td style="font-weight:700">'+f(po.total)+'</td><td><span class="bx '+(sm[po.status]||'gr')+'">'+po.status+'</span></td><td>'+poBtn+'</td>';
+    var poBtnLabel=po.status==='partial'?'Receive more':'Mark delivered';
+    var poBtn2=po.status==='pending'||po.status==='partial'?('<button onclick="event.stopPropagation();markDelivered(\''+po.id+'\')" style="padding:4px 10px;font-size:11px;border:1px solid #639922;border-radius:6px;background:#EAF3DE;color:#3B6D11;cursor:pointer">'+poBtnLabel+'</button>'):'<span style="color:#3B6D11;font-size:12px">Received</span>';
+    tr.innerHTML='<td style="font-weight:700">'+po.po_num+'</td><td>'+(supMap[po.supplier_id]||'-')+'</td><td>'+(po.date||'-')+'</td><td>'+(po.items||0)+' items</td><td style="font-weight:700">'+f(po.total)+'</td><td><span class="bx '+(sm[po.status]||'gr')+'">'+po.status+'</span></td><td>'+poBtn2+'</td>';
     var poBtn=po.status==='pending'?('<button onclick="event.stopPropagation();markDelivered(\''+po.id+'\')">Mark delivered</button>'):'<span style="color:#3B6D11">Received</span>';
-    tr.innerHTML='<td style="font-weight:700">'+po.po_num+'</td><td>'+(supMap[po.supplier_id]||'-')+'</td><td>'+(po.date||'-')+'</td><td>'+(po.items||0)+' items</td><td style="font-weight:700">'+f(po.total)+'</td><td><span class="bx '+(sm[po.status]||'gr')+'">'+po.status+'</span></td><td>'+poBtn+'</td>';
+    var poBtnLabel=po.status==='partial'?'Receive more':'Mark delivered';
+    var poBtn2=po.status==='pending'||po.status==='partial'?('<button onclick="event.stopPropagation();markDelivered(\''+po.id+'\')" style="padding:4px 10px;font-size:11px;border:1px solid #639922;border-radius:6px;background:#EAF3DE;color:#3B6D11;cursor:pointer">'+poBtnLabel+'</button>'):'<span style="color:#3B6D11;font-size:12px">Received</span>';
+    tr.innerHTML='<td style="font-weight:700">'+po.po_num+'</td><td>'+(supMap[po.supplier_id]||'-')+'</td><td>'+(po.date||'-')+'</td><td>'+(po.items||0)+' items</td><td style="font-weight:700">'+f(po.total)+'</td><td><span class="bx '+(sm[po.status]||'gr')+'">'+po.status+'</span></td><td>'+poBtn2+'</td>';
     (function(poId){
       tr.onclick=function(){openPODetail(poId);};
     })(po.id);
@@ -1811,21 +1815,147 @@ async function loadPur(){
 }
 
 async function markDelivered(poId){
-  if(!confirm('Mark this PO as received? This will add items to inventory.'))return;
-  var{data:items,error}=await db.from('po_items').select('*').eq('po_id',poId);
-  if(error){toast('Error: '+error.message,true);return;}
-  for(var k=0;k<(items||[]).length;k++){
-    var item=items[k];
-    if(item.inventory_id&&item.qty>0){
-      var{data:inv}=await db.from('inventory').select('qty').eq('id',item.inventory_id).single();
-      if(inv){await db.from('inventory').update({qty:(inv.qty||0)+item.qty}).eq('id',item.inventory_id);}
-    }
+  // Open partial receive modal
+  var{data:po}=await db.from('purchase_orders').select('*').eq('id',poId).single();
+  var{data:items}=await db.from('po_items').select('*').eq('po_id',poId);
+  if(!po||!items||!items.length){toast('No items found',true);return;}
+  // Get inventory names
+  var invIds=items.map(function(i){return i.inventory_id;}).filter(Boolean);
+  var invMap={};
+  if(invIds.length){
+    var{data:invData}=await db.from('inventory').select('id,brand,model,hp').in('id',invIds);
+    (invData||[]).forEach(function(inv){invMap[inv.id]=inv.brand+' '+inv.model+' '+inv.hp;});
   }
-  await db.from('purchase_orders').update({status:'received'}).eq('id',poId);
-  document.querySelectorAll('.po-modal').forEach(function(e){e.remove();});
-  toast('Marked as received - inventory updated!');
-  loadPur();
+  document.querySelectorAll('.po-modal,.receive-modal').forEach(function(e){e.remove();});
+  var overlay=document.createElement('div');
+  overlay.className='receive-modal';
+  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9000;display:flex;align-items:center;justify-content:center';
+  overlay.onclick=function(e){if(e.target===overlay)overlay.remove();};
+  var html='<div style="background:#fff;border-radius:14px;padding:24px;width:560px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.25)">';
+  html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">';
+  html+='<div><div style="font-size:15px;font-weight:700">Receive items - '+po.po_num+'</div>';
+  html+='<div style="font-size:12px;color:#888">Enter how many units you are receiving today</div></div>';
+  html+='<button id="recv-close" style="border:none;background:none;font-size:24px;cursor:pointer;color:#888">X</button>';
+  html+='</div>';
+  html+='<div style="border:1px solid #e0ddd8;border-radius:8px;overflow:hidden;margin-bottom:16px">';
+  html+='<table style="width:100%;border-collapse:collapse;font-size:12px">';
+  html+='<thead><tr style="background:#f9f9f6"><th style="padding:8px 10px;text-align:left">Product</th><th style="padding:8px 10px;text-align:center;width:80px">Ordered</th><th style="padding:8px 10px;text-align:center;width:100px">Receive now</th></tr></thead>';
+  html+='<tbody>';
+  items.forEach(function(it){
+    var name=invMap[it.inventory_id]||'Unknown';
+    html+='<tr><td style="padding:8px 10px;border-top:1px solid #f0f0e8">'+name+'</td>';
+    html+='<td style="padding:8px 10px;text-align:center;border-top:1px solid #f0f0e8;color:#888">'+it.qty+'</td>';
+    html+='<td style="padding:8px 10px;border-top:1px solid #f0f0e8"><input type="number" id="recv-'+it.id+'" value="'+it.qty+'" min="0" max="'+it.qty+'" style="width:70px;text-align:center;border:1px solid #ccc;border-radius:6px;padding:4px"></td>';
+    html+='</tr>';
+  });
+  html+='</tbody></table></div>';
+  html+='<div style="background:#EAF3DE;border-radius:8px;padding:10px;font-size:12px;color:#3B6D11;margin-bottom:16px">';
+  html+='If you receive only some items, the PO stays <b>pending</b> for the rest. Mark as fully received when all items arrive.';
+  html+='</div>';
+  html+='<div style="display:flex;gap:8px;justify-content:flex-end">';
+  html+='<button id="recv-cancel" style="padding:8px 16px;font-size:12px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer">Cancel</button>';
+  html+='<button id="recv-save" style="padding:8px 16px;font-size:12px;border:1px solid #1D9E75;border-radius:8px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:600">Confirm receive</button>';
+  html+='</div></div>';
+  overlay.innerHTML=html;
+  document.body.appendChild(overlay);
+  document.getElementById('recv-close').onclick=function(){overlay.remove();};
+  document.getElementById('recv-cancel').onclick=function(){overlay.remove();};
+  document.getElementById('recv-save').onclick=async function(){
+    var btn=document.getElementById('recv-save');
+    btn.disabled=true;btn.textContent='Saving...';
+    var allFull=true;
+    for(var k=0;k<items.length;k++){
+      var it=items[k];
+      var recvQty=parseInt(document.getElementById('recv-'+it.id)?.value)||0;
+      if(recvQty<it.qty)allFull=false;
+      if(recvQty>0&&it.inventory_id){
+        var{data:inv}=await db.from('inventory').select('qty').eq('id',it.inventory_id).single();
+        if(inv){await db.from('inventory').update({qty:(inv.qty||0)+recvQty}).eq('id',it.inventory_id);}
+      }
+    }
+    // Update PO status
+    var newStatus=allFull?'received':'partial';
+    await db.from('purchase_orders').update({status:newStatus}).eq('id',poId);
+    overlay.remove();
+    toast(allFull?'All items received - inventory updated!':'Partial receive saved - PO still open for remaining items');
+    loadPur();
+  };
 }
+
+
+async function returnProducts(poId){
+  var{data:po}=await db.from('purchase_orders').select('*').eq('id',poId).single();
+  var{data:items}=await db.from('po_items').select('*').eq('po_id',poId);
+  if(!po||!items?.length){toast('No items to return',true);return;}
+  var invIds=items.map(function(i){return i.inventory_id;}).filter(Boolean);
+  var invMap={};
+  if(invIds.length){
+    var{data:invData}=await db.from('inventory').select('id,brand,model,hp,qty').in('id',invIds);
+    (invData||[]).forEach(function(inv){invMap[inv.id]={name:inv.brand+' '+inv.model+' '+inv.hp,qty:inv.qty};});
+  }
+  document.querySelectorAll('.po-modal,.receive-modal,.return-modal').forEach(function(e){e.remove();});
+  var overlay=document.createElement('div');
+  overlay.className='return-modal';
+  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9000;display:flex;align-items:center;justify-content:center';
+  overlay.onclick=function(e){if(e.target===overlay)overlay.remove();};
+  var html='<div style="background:#fff;border-radius:14px;padding:24px;width:560px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.25)">';
+  html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">';
+  html+='<div style="font-size:15px;font-weight:700;color:#A32D2D">Return products to supplier</div>';
+  html+='<button id="ret-close" style="border:none;background:none;font-size:24px;cursor:pointer;color:#888">X</button>';
+  html+='</div>';
+  html+='<div style="font-size:12px;color:#888;margin-bottom:14px">'+po.po_num+' - Products will be removed from inventory</div>';
+  html+='<div style="border:1px solid #e0ddd8;border-radius:8px;overflow:hidden;margin-bottom:14px">';
+  html+='<table style="width:100%;border-collapse:collapse;font-size:12px">';
+  html+='<thead><tr style="background:#f9f9f6"><th style="padding:8px 10px;text-align:left">Product</th><th style="padding:8px 10px;text-align:center;width:90px">In stock</th><th style="padding:8px 10px;text-align:center;width:100px">Return qty</th></tr></thead>';
+  html+='<tbody>';
+  items.forEach(function(it){
+    var inv=invMap[it.inventory_id]||{name:'Unknown',qty:0};
+    html+='<tr><td style="padding:8px 10px;border-top:1px solid #f0f0e8">'+inv.name+'</td>';
+    html+='<td style="padding:8px 10px;text-align:center;border-top:1px solid #f0f0e8;color:#888">'+inv.qty+'</td>';
+    html+='<td style="padding:8px 10px;border-top:1px solid #f0f0e8"><input type="number" id="ret-'+it.id+'" value="0" min="0" max="'+inv.qty+'" style="width:70px;text-align:center;border:1px solid #ccc;border-radius:6px;padding:4px"></td>';
+    html+='</tr>';
+  });
+  html+='</tbody></table></div>';
+  html+='<div style="margin-bottom:14px">';
+  html+='<label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Return reason</label>';
+  html+='<input id="ret-reason" placeholder="e.g. Defective unit, wrong model..." style="width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:8px;font-size:12px">';
+  html+='</div>';
+  html+='<div style="background:#FCEBEB;border-radius:8px;padding:10px;font-size:12px;color:#A32D2D;margin-bottom:16px">';
+  html+='Returned items will be deducted from inventory. This action records a supplier return and cannot be undone.';
+  html+='</div>';
+  html+='<div style="display:flex;gap:8px;justify-content:flex-end">';
+  html+='<button id="ret-cancel" style="padding:8px 16px;font-size:12px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer">Cancel</button>';
+  html+='<button id="ret-save" style="padding:8px 16px;font-size:12px;border:1px solid #E24B4A;border-radius:8px;background:#E24B4A;color:#fff;cursor:pointer;font-weight:600">Confirm return</button>';
+  html+='</div></div>';
+  overlay.innerHTML=html;
+  document.body.appendChild(overlay);
+  document.getElementById('ret-close').onclick=function(){overlay.remove();};
+  document.getElementById('ret-cancel').onclick=function(){overlay.remove();};
+  document.getElementById('ret-save').onclick=async function(){
+    var btn2=document.getElementById('ret-save');
+    btn2.disabled=true;btn2.textContent='Processing...';
+    var reason=document.getElementById('ret-reason')?.value||'';
+    var totalReturned=0;
+    for(var k=0;k<items.length;k++){
+      var it=items[k];
+      var retQty=parseInt(document.getElementById('ret-'+it.id)?.value)||0;
+      if(retQty>0&&it.inventory_id){
+        totalReturned+=retQty;
+        var{data:inv}=await db.from('inventory').select('qty').eq('id',it.inventory_id).single();
+        if(inv){await db.from('inventory').update({qty:Math.max(0,(inv.qty||0)-retQty)}).eq('id',it.inventory_id);}
+      }
+    }
+    if(totalReturned===0){toast('Enter quantity to return',true);btn2.disabled=false;btn2.textContent='Confirm return';return;}
+    // Log return as a note on PO
+    var currentNotes=po.notes||'';
+    var returnNote=currentNotes+(currentNotes?'\n':'')+'RETURN '+new Date().toLocaleDateString('en-GB')+': '+totalReturned+' units returned to supplier'+(reason?' - '+reason:'');
+    await db.from('purchase_orders').update({notes:returnNote}).eq('id',po.id);
+    overlay.remove();
+    toast(totalReturned+' units returned to supplier - inventory updated');
+    loadPur();
+  };
+}
+
 
 async function openPODetail(poId){
   var{data:po}=await db.from('purchase_orders').select('*').eq('id',poId).single();
@@ -1927,10 +2057,17 @@ async function openPODetail(poId){
   // Action buttons
   html+='<div style="display:flex;justify-content:space-between;align-items:center">';
   html+='<div style="font-size:13px;font-weight:700">PO Total: '+f(po.total)+'</div>';
-  if(po.status==='pending'){
-    html+='<button id="md-btn-'+po.id+'" style="padding:8px 16px;font-size:12px;border:1px solid #639922;border-radius:8px;background:#EAF3DE;color:#3B6D11;cursor:pointer;font-weight:600">Mark as received - update inventory</button>';
-  }else{
-    html+='<span style="color:#3B6D11;font-weight:600">Received - inventory updated</span>';
+  if(po.status==='pending'||po.status==='partial'){
+    html+='<button id="md-btn-'+po.id+'" style="padding:8px 16px;font-size:12px;border:1px solid #639922;border-radius:8px;background:#EAF3DE;color:#3B6D11;cursor:pointer;font-weight:600">';
+    if(po.status==='partial')html+='Receive more items';
+    else html+='Mark as received - update inventory';
+    html+='</button>';
+  } else {
+    html+='<span style="color:#3B6D11;font-weight:600">Received</span>';
+  }
+  html+=' &nbsp; ';
+  if(po.status==='received'||po.status==='partial'){
+    html+='<button id="ret-btn-'+po.id+'" style="padding:8px 16px;font-size:12px;border:1px solid #E24B4A;border-radius:8px;background:#FCEBEB;color:#A32D2D;cursor:pointer;font-weight:600">Return products to supplier</button>';
   }
   html+='</div></div>';
 
