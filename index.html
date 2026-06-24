@@ -1906,13 +1906,14 @@ async function returnProducts(poId){
   html+='<div style="font-size:12px;color:#888;margin-bottom:14px">'+po.po_num+' - Products will be removed from inventory</div>';
   html+='<div style="border:1px solid #e0ddd8;border-radius:8px;overflow:hidden;margin-bottom:14px">';
   html+='<table style="width:100%;border-collapse:collapse;font-size:12px">';
-  html+='<thead><tr style="background:#f9f9f6"><th style="padding:8px 10px;text-align:left">Product</th><th style="padding:8px 10px;text-align:center;width:90px">In stock</th><th style="padding:8px 10px;text-align:center;width:100px">Return qty</th></tr></thead>';
+  html+='<thead><tr style="background:#f9f9f6"><th style="padding:8px 10px;text-align:left">Product</th><th style="padding:8px 10px;text-align:center;width:110px">PO qty</th><th style="padding:8px 10px;text-align:center;width:100px">Return qty</th></tr></thead>';
   html+='<tbody>';
   items.forEach(function(it){
     var inv=invMap[it.inventory_id]||{name:'Unknown',qty:0};
+    var maxReturn=Math.min(it.qty,inv.qty);
     html+='<tr><td style="padding:8px 10px;border-top:1px solid #f0f0e8">'+inv.name+'</td>';
-    html+='<td style="padding:8px 10px;text-align:center;border-top:1px solid #f0f0e8;color:#888">'+inv.qty+'</td>';
-    html+='<td style="padding:8px 10px;border-top:1px solid #f0f0e8"><input type="number" id="ret-'+it.id+'" value="0" min="0" max="'+inv.qty+'" style="width:70px;text-align:center;border:1px solid #ccc;border-radius:6px;padding:4px"></td>';
+    html+='<td style="padding:8px 10px;text-align:center;border-top:1px solid #f0f0e8;color:#888">'+it.qty+' ordered</td>';
+    html+='<td style="padding:8px 10px;border-top:1px solid #f0f0e8"><input type="number" id="ret-'+it.id+'" value="0" min="0" max="'+maxReturn+'" style="width:70px;text-align:center;border:1px solid #ccc;border-radius:6px;padding:4px"><span style="font-size:10px;color:#888;margin-left:4px">max '+maxReturn+'</span></td>';
     html+='</tr>';
   });
   html+='</tbody></table></div>';
@@ -1938,7 +1939,7 @@ async function returnProducts(poId){
     var totalReturned=0;
     for(var k=0;k<items.length;k++){
       var it=items[k];
-      var retQty=parseInt(document.getElementById('ret-'+it.id)?.value)||0;
+      var retQty=Math.min(parseInt(document.getElementById('ret-'+it.id)?.value)||0,it.qty);
       if(retQty>0&&it.inventory_id){
         totalReturned+=retQty;
         var{data:inv}=await db.from('inventory').select('qty').eq('id',it.inventory_id).single();
