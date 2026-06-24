@@ -2041,113 +2041,63 @@ async function loadFinStats(){
 }
 
 async function finTab(type,btn){
-  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));if(btn)btn.classList.add('on');
-  const el=document.getElementById('fcont');el.innerHTML='<div style="padding:20px;text-align:center;color:#888">Loading...</div>';
+  document.querySelectorAll('.tab').forEach(function(b){b.classList.remove('on');});
+  if(btn)btn.classList.add('on');
+  var el=document.getElementById('fcont');
+  el.innerHTML='<div style="padding:20px;text-align:center;color:#888">Loading...</div>';
   var fa=await db.from('tasks').select('id,task_num,customer_name,type,branch,date,pay_status,due_date,status').order('created_at',{ascending:false});
   var fb=await db.from('task_products').select('task_id,qty,price');
   var fc=await db.from('payments').select('task_id,amount');
-  if(fa.error)console.error('finTab tasks error:',fa.error.message);
-  if(fb.error)console.error('finTab prods error:',fb.error.message);
-  if(fc.error)console.error('finTab pays error:',fc.error.message);
   var allTasks=fa.data||[];var prods=fb.data||[];var pays=fc.data||[];
-  const grand=id=>prods.filter(p=>p.task_id===id).reduce((a,p)=>a+p.qty*p.price,0);
-  const paid=id=>pays.filter(p=>p.task_id===id).reduce((a,p)=>a+p.amount,0);
+  var grand=function(id){return prods.filter(function(p){return p.task_id===id;}).reduce(function(a,p){return a+p.qty*p.price;},0);};
+  var paid=function(id){return pays.filter(function(p){return p.task_id===id;}).reduce(function(a,p){return a+p.amount;},0);};
   if(type==='expenses'){
-    // Load POs and their payments
     var poRes=await db.from('purchase_orders').select('*').order('created_at',{ascending:false});
-    var poPayRes=await db.from('po_payments').select('*').order('created_at',{ascending:true});
-    var pos=poRes.data||[];
-    var poPays=poPayRes.data||[];
-    // Get supplier names
-    var sids=[...new Set(pos.map(function(p){return p.supplier_id;}).filter(Boolean))];
-    var supNames={};
-    if(sids.length){
-      var supRes=await db.from('suppliers').select('id,name').in('id',sids);
-      (supRes.data||[]).forEach(function(s){supNames[s.id]=s.name;});
-    }
-    // Calculate totals
-    var totalPOValue=pos.reduce(function(a,p){return a+(p.total||0);},0);
-    var totalPaid=poPays.reduce(function(a,p){return a+(p.amount||0);},0);
-    var totalOwed=Math.max(0,totalPOValue-totalPaid);
-    // Build PO rows with payment status
-    var poRows='';
+    var ppRes=await db.from('po_payments').select('*').order('created_at',{ascending:true});
+    var pos=poRes.data||[];var poPays=ppRes.data||[];
+    var sids9=[...new Set(pos.map(function(p){return p.supplier_id;}).filter(Boolean))];
+    var sn9={};
+    if(sids9.length){var sr9=await db.from('suppliers').select('id,name').in('id',sids9);(sr9.data||[]).forEach(function(s){sn9[s.id]=s.name;});}
+    var tpv=pos.reduce(function(a,p){return a+(p.total||0);},0);
+    var tpd=poPays.reduce(function(a,p){return a+(p.amount||0);},0);
+    var tow=Math.max(0,tpv-tpd);
+    var pr9='';
     pos.forEach(function(po){
-      var poPaidAmt=poPays.filter(function(p){return p.po_id===po.id;}).reduce(function(a,p){return a+(p.amount||0);},0);
-      var poOwed=Math.max(0,(po.total||0)-poPaidAmt);
-      var statusColor=po.status==='received'?'g':'a';
-      poRows+='<tr class="po-fin-row" data-poid="'+po.id+'">';
-      poRows+='<td style="font-weight:700">'+po.po_num+'</td>';
-      poRows+='<td>'+(supNames[po.supplier_id]||'-')+'</td>';
-      poRows+='<td>'+(po.date||'-')+'</td>';
-      poRows+='<td>'+(po.items||0)+' items</td>';
-      poRows+='<td style="font-weight:700">'+f(po.total||0)+'</td>';
-      poRows+='<td style="color:#3B6D11;font-weight:700">'+f(poPaidAmt)+'</td>';
-      poRows+='<td style="color:'+(poOwed>0?'#A32D2D':'#3B6D11')+';font-weight:700">'+f(poOwed)+'</td>';
-      poRows+='<td><span class="bx '+statusColor+'">'+po.status+'</span></td>';
-      poRows+='</tr>';
+      var pa9=poPays.filter(function(p){return p.po_id===po.id;}).reduce(function(a,p){return a+(p.amount||0);},0);
+      var ow9=Math.max(0,(po.total||0)-pa9);
+      var sc9=po.status==='received'?'g':po.status==='pending'?'a':'r';
+      pr9+='<tr class="po-fin-row hv" data-poid="'+po.id+'"><td style="font-weight:700">'+po.po_num+'</td><td>'+(sn9[po.supplier_id]||'-')+'</td><td>'+(po.date||'-')+'</td><td>'+(po.items||0)+' items</td><td style="font-weight:700">'+f(po.total||0)+'</td><td style="color:#3B6D11;font-weight:700">'+f(pa9)+'</td><td style="color:'+(ow9>0?'#A32D2D':'#3B6D11')+';font-weight:700">'+f(ow9)+'</td><td><span class="bx '+sc9+'">'+po.status+'</span></td></tr>';
     });
-    // Build payment history rows
-    var payHistRows='';
-    poPays.forEach(function(p){
-      var po=pos.find(function(x){return x.id===p.po_id;})||{};
-      payHistRows+='<tr>';
-      payHistRows+='<td style="font-weight:700">'+f(p.amount)+'</td>';
-      payHistRows+='<td>'+(p.method||'-')+'</td>';
-      payHistRows+='<td>'+(supNames[po.supplier_id]||'-')+'</td>';
-      payHistRows+='<td>'+(po.po_num||'-')+'</td>';
-      payHistRows+='<td>'+(p.note||'-')+'</td>';
-      payHistRows+='<td style="font-size:11px;color:#888">'+(p.created_at?new Date(p.created_at).toLocaleDateString('en-GB'):'-')+'</td>';
-      payHistRows+='</tr>';
-    });
-    var html='';
-    // Summary cards
-    html+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px">';
-    html+='<div class="sc"><div class="sl">Total PO value</div><div class="sv">'+f(totalPOValue)+'</div></div>';
-    html+='<div class="sc"><div class="sl" style="color:#A32D2D">Paid to suppliers</div><div class="sv" style="color:#A32D2D">'+f(totalPaid)+'</div></div>';
-    html+='<div class="sc"><div class="sl" style="color:#854F0B">Still owed</div><div class="sv" style="color:#854F0B">'+f(totalOwed)+'</div></div>';
-    html+='</div>';
-    // PO table
-    html+='<div class="cd">';
-    html+='<div class="sh">Purchase orders</div>';
-    html+='<div class="tw"><table><thead><tr>';
-    html+='<th>PO #</th><th>Supplier</th><th>Date</th><th>Items</th>';
-    html+='<th>PO Total</th><th style="color:#3B6D11">Paid</th><th style="color:#A32D2D">Owed</th><th>Status</th>';
-    html+='</tr></thead><tbody>'+poRows+'</tbody></table></div>';
-    html+='<div style="display:flex;justify-content:flex-end;gap:24px;padding:8px 0;font-size:12px;border-top:1px solid #e8e8e0;margin-top:8px">';
-    html+='<span style="color:#888">Total PO value: <b>'+f(totalPOValue)+'</b></span>';
-    html+='<span style="color:#A32D2D">Paid out: <b>'+f(totalPaid)+'</b></span>';
-    html+='<span style="color:#854F0B">Still owed: <b>'+f(totalOwed)+'</b></span>';
-    html+='</div></div>';
-    // Payments made table
-    if(poPays.length){
-      html+='<div class="cd" style="margin-top:10px">';
-      html+='<div class="sh">Payments made to suppliers (cash out)</div>';
-      html+='<div class="tw"><table><thead><tr>';
-      html+='<th>Amount</th><th>Method</th><th>Supplier</th><th>PO #</th><th>Note</th><th>Date</th>';
-      html+='</tr></thead><tbody>'+payHistRows+'</tbody></table></div>';
-      html+='<div style="display:flex;justify-content:flex-end;padding:8px 0;font-size:12px;border-top:1px solid #e8e8e0">';
-      html+='<span style="color:#A32D2D;font-weight:700">Total cash paid out: '+f(totalPaid)+'</span>';
-      html+='</div></div>';
-    }
-    el.innerHTML=html;
-    document.querySelectorAll('.po-fin-row').forEach(function(rw){
-      rw.style.cursor='pointer';
-      rw.onclick=function(){openPODetail(this.dataset.poid);};
-    });
+    var ph9='';
+    poPays.forEach(function(p){var po9=pos.find(function(x){return x.id===p.po_id;})||{};ph9+='<tr><td style="font-weight:700">'+f(p.amount)+'</td><td>'+(p.method||'-')+'</td><td>'+(sn9[po9.supplier_id]||'-')+'</td><td>'+(po9.po_num||'-')+'</td><td>'+(p.note||'-')+'</td><td style="font-size:11px;color:#888">'+(p.created_at?new Date(p.created_at).toLocaleDateString('en-GB'):'-')+'</td></tr>';});
+    var eh='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px"><div class="sc"><div class="sl">Total PO value</div><div class="sv">'+f(tpv)+'</div></div><div class="sc"><div class="sl" style="color:#A32D2D">Paid to suppliers</div><div class="sv" style="color:#A32D2D">'+f(tpd)+'</div></div><div class="sc"><div class="sl" style="color:#854F0B">Still owed</div><div class="sv" style="color:#854F0B">'+f(tow)+'</div></div></div><div class="cd"><div class="sh">Purchase orders</div><div class="tw"><table><thead><tr><th>PO#</th><th>Supplier</th><th>Date</th><th>Items</th><th>PO Total</th><th style="color:#3B6D11">Paid</th><th style="color:#A32D2D">Owed</th><th>Status</th></tr></thead><tbody>'+pr9+'</tbody></table></div><div style="display:flex;justify-content:flex-end;gap:24px;padding:8px 0;font-size:12px;border-top:1px solid #e8e8e0"><span style="color:#888">PO value: <b>'+f(tpv)+'</b></span><span style="color:#A32D2D">Paid: <b>'+f(tpd)+'</b></span><span style="color:#854F0B">Owed: <b>'+f(tow)+'</b></span></div></div>';
+    if(poPays.length){eh+='<div class="cd" style="margin-top:10px"><div class="sh">Payments to suppliers</div><div class="tw"><table><thead><tr><th>Amount</th><th>Method</th><th>Supplier</th><th>PO#</th><th>Note</th><th>Date</th></tr></thead><tbody>'+ph9+'</tbody></table></div><div style="display:flex;justify-content:flex-end;padding:8px 0;font-size:12px;border-top:1px solid #e8e8e0"><span style="color:#A32D2D;font-weight:700">Total paid out: '+f(tpd)+'</span></div></div>';}
+    el.innerHTML=eh;
+    document.querySelectorAll('.po-fin-row').forEach(function(rw){rw.style.cursor='pointer';rw.onclick=function(){openPODetail(this.dataset.poid);};});
     return;
   }
-  var tasks=(type==='all'?allTasks:allTasks.filter(function(t){return t.type===type;}));
-
-
-
-let CU=null,CT=null,scid=null,ssid=null,INV=[],PFO=false;
-const f=n=>'EGP '+Math.round(n||0).toLocaleString();
-const ini=n=>(n||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-
-
-
-
-
+  if(type==='outstanding'){
+    var out9=allTasks.filter(function(t){return(grand(t.id)-paid(t.id))>0;});
+    var oh='<div class="cd"><div class="sh">Outstanding balances</div>';
+    if(!out9.length){oh+='<div style="font-size:12px;color:#3B6D11;padding:10px 0">No outstanding payments.</div>';}
+    else{out9.forEach(function(t){var g9=grand(t.id),p9=paid(t.id),r9=g9-p9;oh+='<div style="padding:10px;background:#f9f9f6;border-radius:8px;margin-bottom:8px;border:1px solid #e0ddd8;cursor:pointer" onclick="openTask(\''+t.id+'\')"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px"><div><b>'+(t.customer_name||'-')+'</b> <span style="font-size:11px;color:#888">'+t.task_num+' . '+t.type+'</span></div><span style="font-weight:700;color:#A32D2D">'+f(r9)+'</span></div><div style="font-size:12px;color:#888;display:flex;gap:14px"><span>Total: <b>'+f(g9)+'</b></span><span>Paid: <b style="color:#3B6D11">'+f(p9)+'</b></span></div></div>';});}
+    var tot9=out9.reduce(function(a,t){return a+Math.max(0,grand(t.id)-paid(t.id));},0);
+    oh+='<div class="tr" style="border-top:1px solid #e8e8e0"><span class="tl" style="font-weight:700">Total outstanding</span><span class="tv" style="color:#A32D2D;font-weight:700">'+f(tot9)+'</span></div></div>';
+    el.innerHTML=oh;
+    return;
+  }
+  var tks=(type==='all'?allTasks:allTasks.filter(function(t){return t.type===type;}));
+  var psMap={paid:'g',unpaid:'r',downpayment:'a',installments:'b'};
+  var rowsStr=tks.map(function(t){
+    var gx=grand(t.id),px=paid(t.id),rx=gx-px;
+    var rDx=rx<0?('<span style="color:#185FA5;font-weight:700">Credit '+f(Math.abs(rx))+'</span>'):rx===0&&gx>0?('<span style="color:#3B6D11;font-weight:700">EGP 0</span>'):('<span style="color:'+(rx>0?'#A32D2D':'#888')+';font-weight:700">'+f(rx)+'</span>');
+    var pDx=px>0?('<span style="color:#3B6D11;font-weight:700">'+f(px)+'</span>'):('<span style="color:#888">EGP 0</span>');
+    return '<tr class="hv" onclick="openTask(\''+t.id+'\')"><td style="font-weight:700">'+t.task_num+'</td><td>'+(t.customer_name||'-')+'</td><td style="text-transform:capitalize">'+t.type+'</td><td>'+t.branch+'</td><td>'+(t.date||'-')+'</td><td style="font-weight:700">'+f(gx)+'</td><td>'+pDx+'</td><td>'+rDx+'</td><td><span class="bx '+(psMap[t.pay_status]||'gr')+'">'+(t.pay_status||'-')+'</span></td></tr>';
+  }).join('');
+  var totsx=tks.reduce(function(a,t){return{g:a.g+grand(t.id),p:a.p+paid(t.id),r:a.r+Math.max(0,grand(t.id)-paid(t.id))};},{g:0,p:0,r:0});
+  var tlMapx={all:'All transactions',sales:'Sales',maintenance:'Maintenance',installation:'Installation',uninstall:'Uninstall'};
+  el.innerHTML='<div class="cd"><div class="sh">'+(tlMapx[type]||type)+'</div><div class="tw"><table><thead><tr><th>Task #</th><th>Customer</th><th>Type</th><th>Branch</th><th>Date</th><th>Total</th><th>Paid</th><th>Remaining</th><th>Status</th></tr></thead><tbody>'+rowsStr+'</tbody></table></div><div class="tr" style="border-top:1px solid #e8e8e0"><span class="tl">Revenue</span><span class="tv">'+f(totsx.g)+'</span></div><div class="tr" style="padding-top:0"><span class="tl">Collected</span><span class="tv" style="color:#3B6D11">'+f(totsx.p)+'</span></div><div class="tr" style="padding-top:0"><span class="tl">Outstanding</span><span class="tv" style="color:#A32D2D">'+f(totsx.r)+'</span></div></div>';
+}
 
 async function loadCust(search){
   const body=document.getElementById('custl');body.innerHTML='<div style="padding:20px;text-align:center;color:#888">Loading...</div>';
@@ -2307,7 +2257,6 @@ async function delProd(id){
   if(!confirm('Delete this product? This cannot be undone.'))return;
   const{error}=await db.from('inventory').delete().eq('id',id);
   if(error){toast('Error: '+error.message,true);return;}toast('Product deleted');loadInv();
-}
 }
 document.getElementById('ntpt').textContent=POL;
 </script>
