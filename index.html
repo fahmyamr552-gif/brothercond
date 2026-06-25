@@ -419,11 +419,15 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
     <button class="btn bs" onclick="go('tasks',document.getElementById('ni-tasks'))">&larr;</button>
     <span style="font-size:15px;font-weight:700" data-t="newtask">New task</span>
-    <select id="ntt" onchange="onTC(this.value)" style="width:150px;margin-left:auto">
-      <option value="sales" data-t="salesorder">Sales order</option>
-      <option value="maintenance" data-t="maintenance">Maintenance</option>
-      <option value="installation" data-t="installation">Installation</option>
-      <option value="uninstall" data-t="uninstall">Uninstall</option>
+    <select id="ntt" onchange="onTC(this.value)" style="width:180px;margin-left:auto">
+      <option value="sales">طلب بيع</option>
+      <option value="maintenance">صيانة</option>
+      <option value="installation">تركيب</option>
+      <option value="uninstall">فك</option>
+      <option value="uninstall_install">فك و تركيب</option>
+      <option value="pull">سحب</option>
+      <option value="inspection">معاينة</option>
+      <option value="workshop">اصلاح ورشة</option>
     </select>
   </div>
   <div class="cd">
@@ -1813,7 +1817,7 @@ function openNT(){
 function onTC(v){
   document.getElementById('ntpc').style.display=v==='sales'?'block':'none';
   var addrBlock=document.getElementById('nt-addr-block');
-  if(addrBlock)addrBlock.style.display=(v==='uninstall'||v==='installation')?'block':'none';
+  if(addrBlock)addrBlock.style.display=(v==='uninstall'||v==='installation'||v==='uninstall_install')?'block':'none';
   document.getElementById('ntb').innerHTML='';
   addRow();
 }
