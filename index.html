@@ -1918,45 +1918,95 @@ async function addRow(){
     +'<td>'+delBtn+'</td>';
   if(isSales2){
     if(!INV.length){var ir=await db.from('inventory').select('*');INV=ir.data||[];}
-    var opts=INV.map(function(p){
-      return '<option value="'+p.id+'" data-price="'+p.price+'" data-qty="'+p.qty+'">'+p.brand+' '+p.model+' '+p.hp+' '+(p.unit_type||'')+' '+(p.cooling||'')+' '+(p.ac_type||'')+' (stock: '+p.qty+')</option>';
-    }).join('');
-    opts+='<option value="">Other</option>';
-    tr.innerHTML='<td><select style="width:100%;font-size:12px;padding:4px" onchange="onPS2(this)">'+opts+'</select></td>'+commonCells;
-    setTimeout(function(){
-      var s=tr.querySelector('select');
-      if(s&&s.value){
-        var o=s.selectedOptions[0];
-        if(o&&o.dataset.price){
-          tr.cells[2].querySelector('input').value=o.dataset.price;
-          calcR(tr.cells[1].querySelector('input'));
-          chkStk(tr.cells[1].querySelector('input'));
-        }
+    // Build searchable product cell
+    var prodCell=document.createElement('td');
+    prodCell.style.cssText='position:relative';
+    var srchWrap=document.createElement('div');
+    srchWrap.style.cssText='position:relative;width:100%';
+    var srchInp=document.createElement('input');
+    srchInp.type='text';
+    srchInp.placeholder='Search product...';
+    srchInp.style.cssText='width:100%;padding:5px 8px;border:1px solid #ccc;border-radius:6px;font-size:12px;box-sizing:border-box';
+    srchInp.dataset.price='0';
+    srchInp.dataset.invId='';
+    var dropdown=document.createElement('div');
+    dropdown.style.cssText='display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #ccc;border-radius:6px;z-index:999;max-height:220px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.15)';
+    function buildList(query){
+      var filtered=INV.filter(function(p){
+        var name=(p.brand+' '+p.model+' '+p.hp+' '+(p.unit_type||'')+' '+(p.cooling||'')+' '+(p.ac_type||'')).toLowerCase();
+        return !query||name.includes(query.toLowerCase());
+      });
+      dropdown.innerHTML='';
+      if(!filtered.length){
+        var empty=document.createElement('div');
+        empty.style.cssText='padding:8px 10px;color:#888;font-size:12px';
+        empty.textContent='No products found';
+        dropdown.appendChild(empty);
+        return;
       }
-    },0);
+      filtered.forEach(function(p){
+        var item=document.createElement('div');
+        item.style.cssText='padding:7px 10px;cursor:pointer;font-size:12px;border-bottom:1px solid #f0f0e8;display:flex;justify-content:space-between;align-items:center';
+        item.onmouseover=function(){item.style.background='#f0f9f4';};
+        item.onmouseout=function(){item.style.background='';};
+        var name=p.brand+' '+p.model+' '+p.hp+' '+(p.unit_type||'')+' '+(p.cooling||'')+' '+(p.ac_type||'');
+        item.innerHTML='<span>'+name+'</span><span style="color:#888;font-size:11px">Stock:'+p.qty+' | EGP'+Math.round(p.price||0).toLocaleString()+'</span>';
+        item.onclick=function(){
+          srchInp.value=name.trim();
+          srchInp.dataset.price=p.price||0;
+          srchInp.dataset.invId=p.id;
+          srchInp.dataset.stock=p.qty;
+          dropdown.style.display='none';
+          // Set price and recalc
+          var priceInp=tr.cells[2].querySelector('input');
+          if(priceInp){priceInp.value=p.price||0;calcR(priceInp);chkStk(tr.cells[1].querySelector('input'));}
+        };
+        dropdown.appendChild(item);
+      });
+    }
+    buildList('');
+    srchInp.oninput=function(){buildList(this.value);dropdown.style.display='block';};
+    srchInp.onfocus=function(){buildList(this.value);dropdown.style.display='block';};
+    document.addEventListener('click',function hideDD(e){
+      if(!srchWrap.contains(e.target)){dropdown.style.display='none';}
+    });
+    srchWrap.appendChild(srchInp);
+    srchWrap.appendChild(dropdown);
+    prodCell.appendChild(srchWrap);
+    tr.appendChild(prodCell);
+    tr.innerHTML+=commonCells;
+    // Re-insert prodCell since innerHTML wipes it
+    // Better: build via DOM
+    var tempTr=document.createElement('tr');
+    tempTr.innerHTML=commonCells;
+    Array.from(tempTr.cells).forEach(function(c){tr.appendChild(c);});
+    tbody.appendChild(tr);
+    return;
   }else{
-    tr.innerHTML='<td><select style="width:100%;font-size:12px;padding:4px"><option value="صيانة">صيانة</option><option value="تركيب">تركيب</option><option value="فك">فك</option><option value="فك و تركيب">فك و تركيب</option><option value="سحب">سحب</option><option value="معاينة">معاينة</option><option value="اصلاح ورشة">اصلاح ورشة</option></select></td>'+commonCells;
+    tr.innerHTML='<td><select style="width:100%;font-size:12px;padding:4px;direction:rtl"><option value="صيانة">صيانة</option><option value="تركيب">تركيب</option><option value="فك">فك</option><option value="فك و تركيب">فك و تركيب</option><option value="سحب">سحب</option><option value="معاينة">معاينة</option><option value="اصلاح ورشة">اصلاح ورشة</option></select></td>'+commonCells;
   }
   tbody.appendChild(tr);
-  tr.querySelectorAll('option[data-t]').forEach(function(el){var k=el.getAttribute('data-t');if(k&&window.t)el.text=t(k);});
 }
 
-
-function onPS2(sel){const tr=sel.closest('tr');const o=sel.selectedOptions[0];if(o?.dataset.price){tr.cells[2].querySelector('input').value=o.dataset.price;calcR(tr.cells[1].querySelector('input'));chkStk(tr.cells[1].querySelector('input'));}}
-function chkStk(inp){if(!inp?.closest)return;const tr=inp.closest('tr');if(!tr)return;const sel=tr.cells[0].querySelector('select');if(!sel?.value)return;const o=sel.selectedOptions[0];if(!o?.dataset.qty)return;const av=parseInt(o.dataset.qty);const rq=parseInt(inp.value)||0;const w=document.getElementById('ntwn');if(rq>av){w.style.display='flex';document.getElementById('ntwm').textContent=('Warning: Only '+(av)+' in stock.');}else if(w)w.style.display='none';}
 
 async function saveTask(){
   const useTax=document.getElementById('tax-toggle')?.checked===true;
   const taskRows=[];
-  document.querySelectorAll('#ntb tr').forEach(tr=>{
-    const sel=tr.cells[0].querySelector('select');
-    const q=parseInt(tr.cells[1]?.querySelector('input')?.value)||0;
-    const p=parseFloat(tr.cells[2]?.querySelector('input')?.value)||0;
-    if(q>0){
-      const optVal=sel?.value||'';
-      const pid=(optVal&&optVal.includes('-'))?optVal:null;
-      const nm=sel?.selectedOptions[0]?.text?.split('(')[0]?.trim()||'Product';
-      taskRows.push({name:nm,qty:q,price:p,pid:pid});
+  document.querySelectorAll('#ntb tr').forEach(function(tr2){
+    var sel2=tr2.cells[0]?.querySelector('select');
+    var inp2=tr2.cells[0]?.querySelector('input[type="text"]');
+    var q2=parseInt(tr2.cells[1]?.querySelector('input')?.value)||0;
+    var p2=parseFloat(tr2.cells[2]?.querySelector('input')?.value)||0;
+    if(q2>0){
+      var nm2='',pid2=null;
+      if(inp2){
+        nm2=inp2.value.trim()||'Product';
+        pid2=inp2.dataset.invId||null;
+      }else if(sel2){
+        nm2=sel2.value||'Service';
+        pid2=null;
+      }
+      taskRows.push({name:nm2,qty:q2,price:p2,pid:pid2});
     }
   });
   let cid=scid;
