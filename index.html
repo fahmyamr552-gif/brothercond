@@ -804,14 +804,14 @@ async function loadDash(){
       db.from('tasks').select('id,task_num,type,branch,status,date,customer_name,pay_status,due_date'),
       db.from('task_products').select('task_id,qty,price'),
       db.from('payments').select('task_id,amount'),
-      db.from('purchase_orders').select('total'),
+      db.from('po_payments').select('amount'),
     ]);
     const tasks=tr.data||[];const prods=ti.data||[];const pays=tp.data||[];
     const grand=id=>{const ps=prods.filter(p=>p.task_id===id);return ps.reduce((a,p)=>a+p.qty*p.price,0);};
     const paid=id=>{const py=pays.filter(p=>p.task_id===id);return py.reduce((a,p)=>a+p.amount,0);};
     let rev=0,col=0,out=0;
     tasks.forEach(t=>{const g=grand(t.id),p=paid(t.id);rev+=g;col+=p;out+=Math.max(0,g-p);});
-    const exp=(tpo.data||[]).filter(p=>p.status==='received').reduce((a,p)=>a+(p.total||0),0);
+    const exp=(tpo.data||[]).reduce((a,p)=>a+(p.amount||0),0);
     document.getElementById('dstats').innerHTML='<div class="sc"><div class="sl">'+t('revenue')+'</div><div class="sv">'+f(rev)+'</div></div><div class="sc"><div class="sl">'+t('collected')+'</div><div class="sv" style="color:#3B6D11">'+f(col)+'</div></div><div class="sc"><div class="sl">'+t('outstanding')+'</div><div class="sv" style="color:#A32D2D">'+f(out)+'</div></div><div class="sc"><div class="sl">Expenses</div><div class="sv">'+f(exp)+'</div></div>';
     const today=new Date().toISOString().slice(0,10);
     const todayEl=document.getElementById('dtoday');
@@ -1921,10 +1921,8 @@ async function addRow(){
   var taxStyle=useTax?'':'display:none';
   if(isSales2){
     if(!INV.length){
-      srchInp.placeholder='Loading...';
       var ir=await db.from('inventory').select('*');
       INV=ir.data||[];
-      srchInp.placeholder='Search product...';
     }
     var tr=document.createElement('tr');
     // Cell 0: search
