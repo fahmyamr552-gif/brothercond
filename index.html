@@ -1911,28 +1911,35 @@ async function addRow(){
   if(isSales2){
     if(!INV.length){var ir=await db.from('inventory').select('*');INV=ir.data||[];}
     var tr=document.createElement('tr');
-    // Cell 0: search input
-    var td0=document.createElement('td');
-    td0.style.cssText='position:relative;min-width:200px';
+    // Cell 0: search
+    var td0=document.createElement('td');td0.style.cssText='position:relative;min-width:220px';
     var srchInp=document.createElement('input');
-    srchInp.type='text';
-    srchInp.placeholder='Search product...';
+    srchInp.type='text';srchInp.placeholder='Search product...';
     srchInp.style.cssText='width:100%;padding:6px 8px;border:1px solid #ccc;border-radius:6px;font-size:12px;box-sizing:border-box';
     srchInp.dataset.price='0';srchInp.dataset.invId='';srchInp.dataset.stock='0';
+    // Dropdown appended to body to escape table overflow
     var dd=document.createElement('div');
-    dd.style.cssText='display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #ccc;border-radius:6px;z-index:9999;max-height:240px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.18);min-width:320px';
+    dd.style.cssText='display:none;position:fixed;background:#fff;border:1px solid #ccc;border-radius:8px;z-index:99999;max-height:260px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.18);min-width:340px';
+    document.body.appendChild(dd);
+    function posDD(){
+      var rect=srchInp.getBoundingClientRect();
+      dd.style.top=(rect.bottom+4)+'px';
+      dd.style.left=rect.left+'px';
+      dd.style.width=Math.max(rect.width,340)+'px';
+    }
     function showItems(q){
       var fil=INV.filter(function(p){
         var nm=(p.brand+' '+p.model+' '+p.hp+' '+(p.unit_type||'')+' '+(p.cooling||'')+' '+(p.ac_type||'')).toLowerCase();
         return !q||nm.includes(q.toLowerCase());
       });
       dd.innerHTML='';
-      if(!fil.length){dd.innerHTML='<div style="padding:8px 10px;color:#888;font-size:12px">No products found</div>';return;}
+      if(!fil.length){dd.innerHTML='<div style="padding:10px 12px;color:#888;font-size:12px">No products found</div>';return;}
       fil.forEach(function(p){
         var nm=(p.brand+' '+p.model+' '+p.hp+' '+(p.unit_type||'')+' '+(p.cooling||'')+' '+(p.ac_type||'')).trim().replace(/\s+/g,' ');
         var item=document.createElement('div');
-        item.style.cssText='padding:8px 12px;cursor:pointer;font-size:12px;border-bottom:1px solid #f0f0e8;display:flex;justify-content:space-between;align-items:center';
-        item.innerHTML='<span style="font-weight:600">'+nm+'</span><span style="color:#888;font-size:11px;margin-left:8px;white-space:nowrap">Stock: '+p.qty+' &nbsp;|&nbsp; EGP '+Math.round(p.price||0).toLocaleString()+'</span>';
+        item.style.cssText='padding:9px 12px;cursor:pointer;font-size:12px;border-bottom:1px solid #f0f0e8;display:flex;justify-content:space-between;align-items:center';
+        item.innerHTML='<span style="font-weight:600">'+nm+'</span>'
+          +'<span style="color:#1D9E75;font-size:11px;white-space:nowrap;margin-left:8px">'+p.qty+' pcs | EGP '+Math.round(p.price||0).toLocaleString()+'</span>';
         item.onmouseenter=function(){this.style.background='#f0f9f4';};
         item.onmouseleave=function(){this.style.background='';};
         item.onmousedown=function(e){
@@ -1950,23 +1957,24 @@ async function addRow(){
         dd.appendChild(item);
       });
     }
-    srchInp.addEventListener('input',function(){showItems(this.value);dd.style.display='block';});
-    srchInp.addEventListener('focus',function(){showItems(this.value);dd.style.display='block';});
-    srchInp.addEventListener('blur',function(){setTimeout(function(){dd.style.display='none';},150);});
-    td0.appendChild(srchInp);td0.appendChild(dd);tr.appendChild(td0);
+    srchInp.addEventListener('input',function(){posDD();showItems(this.value);dd.style.display='block';});
+    srchInp.addEventListener('focus',function(){posDD();showItems(this.value);dd.style.display='block';});
+    srchInp.addEventListener('blur',function(){setTimeout(function(){dd.style.display='none';},200);});
+    window.addEventListener('scroll',function(){if(dd.style.display!=='none')posDD();},true);
+    td0.appendChild(srchInp);tr.appendChild(td0);
     // Cell 1: qty
     var td1=document.createElement('td');
     var qInp=document.createElement('input');qInp.type='number';qInp.value='1';qInp.min='1';
     qInp.style.cssText='width:60px;text-align:center';
     qInp.oninput=function(){calcR(this);chkStk(this);};
     td1.appendChild(qInp);tr.appendChild(td1);
-    // Cell 2: unit price
+    // Cell 2: price
     var td2=document.createElement('td');
     var pInp=document.createElement('input');pInp.type='number';pInp.min='0';pInp.placeholder='0';
     pInp.style.cssText='width:100%';pInp.oninput=function(){calcR(this);};
     td2.appendChild(pInp);tr.appendChild(td2);
     // Cell 3: before tax
-    var td3=document.createElement('td');td3.style.display=taxStyle==='display:none'?'none':'';
+    var td3=document.createElement('td');if(taxStyle==='display:none')td3.style.display='none';
     var btInp=document.createElement('input');btInp.readOnly=true;btInp.className='pt';
     btInp.style.cssText='width:100%;background:#f5f5f0';
     td3.appendChild(btInp);tr.appendChild(td3);
@@ -1977,12 +1985,10 @@ async function addRow(){
     td4.appendChild(ttInp);tr.appendChild(td4);
     // Cell 5: delete
     var td5=document.createElement('td');
-    var dBtn=document.createElement('button');dBtn.className='ib';dBtn.textContent='X';
-    dBtn.style.cssText='font-size:12px';
-    dBtn.onclick=function(){tr.remove();ntRec();};
+    var dBtn=document.createElement('button');dBtn.className='ib';dBtn.textContent='X';dBtn.style.cssText='font-size:12px';
+    dBtn.onclick=function(){dd.remove();tr.remove();ntRec();};
     td5.appendChild(dBtn);tr.appendChild(td5);
     tbody.appendChild(tr);
-    showItems('');
   }else{
     var tr2=document.createElement('tr');
     tr2.innerHTML='<td><select style="width:100%;font-size:12px;padding:4px;direction:rtl"><option value="صيانة">صيانة</option><option value="تركيب">تركيب</option><option value="فك">فك</option><option value="فك و تركيب">فك و تركيب</option><option value="سحب">سحب</option><option value="معاينة">معاينة</option><option value="اصلاح ورشة">اصلاح ورشة</option></select></td>'
