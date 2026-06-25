@@ -1864,8 +1864,8 @@ function recalcAllRows(){
 function calcR(inp){
   if(!inp||!inp.closest)return;
   const tr=inp.closest('tr');if(!tr)return;
-  const q=parseFloat(tr.cells[1]?.querySelector('input')?.value)||0;
-  const p=parseFloat(tr.cells[2]?.querySelector('input')?.value)||0;
+  const q=parseFloat(tr.querySelector('td:nth-child(2) input')?.value||tr.cells[1]?.querySelector('input')?.value)||0;
+  const p=parseFloat(tr.querySelector('td:nth-child(3) input')?.value||tr.cells[2]?.querySelector('input')?.value)||0;
   const useTax=document.getElementById('tax-toggle')?.checked===true;
   const total=q*p;
   const beforeTax=useTax?(total/1.14):total;
@@ -1906,86 +1906,93 @@ async function addRow(){
   var type2=document.getElementById('ntt').value;
   var isSales2=type2==='sales';
   var tbody=document.getElementById('ntb');
-  var tr=document.createElement('tr');
   var useTax=document.getElementById('tax-toggle')?.checked!==false;
   var taxStyle=useTax?'':'display:none';
-  var delBtn='<button class="ib" onclick="this.closest(\'tr\').remove();ntRec()" style="font-size:12px">X</button>';
-  var commonCells=''
-    +'<td><input type="number" value="1" min="1" style="width:60px;text-align:center" oninput="calcR(this)"></td>'
-    +'<td><input type="number" min="0" placeholder="0" style="width:100%" oninput="calcR(this)"></td>'
-    +'<td style="'+taxStyle+'"><input readonly class="pt" style="width:100%;background:#f5f5f0"></td>'
-    +'<td><input readonly class="tt2" style="width:100%;background:#f5f5f0;color:#1D9E75;font-weight:700"></td>'
-    +'<td>'+delBtn+'</td>';
   if(isSales2){
     if(!INV.length){var ir=await db.from('inventory').select('*');INV=ir.data||[];}
-    // Build searchable product cell
-    var prodCell=document.createElement('td');
-    prodCell.style.cssText='position:relative';
-    var srchWrap=document.createElement('div');
-    srchWrap.style.cssText='position:relative;width:100%';
+    var tr=document.createElement('tr');
+    // Cell 0: search input
+    var td0=document.createElement('td');
+    td0.style.cssText='position:relative;min-width:200px';
     var srchInp=document.createElement('input');
     srchInp.type='text';
     srchInp.placeholder='Search product...';
-    srchInp.style.cssText='width:100%;padding:5px 8px;border:1px solid #ccc;border-radius:6px;font-size:12px;box-sizing:border-box';
-    srchInp.dataset.price='0';
-    srchInp.dataset.invId='';
-    var dropdown=document.createElement('div');
-    dropdown.style.cssText='display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #ccc;border-radius:6px;z-index:999;max-height:220px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.15)';
-    function buildList(query){
-      var filtered=INV.filter(function(p){
-        var name=(p.brand+' '+p.model+' '+p.hp+' '+(p.unit_type||'')+' '+(p.cooling||'')+' '+(p.ac_type||'')).toLowerCase();
-        return !query||name.includes(query.toLowerCase());
+    srchInp.style.cssText='width:100%;padding:6px 8px;border:1px solid #ccc;border-radius:6px;font-size:12px;box-sizing:border-box';
+    srchInp.dataset.price='0';srchInp.dataset.invId='';srchInp.dataset.stock='0';
+    var dd=document.createElement('div');
+    dd.style.cssText='display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #ccc;border-radius:6px;z-index:9999;max-height:240px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.18);min-width:320px';
+    function showItems(q){
+      var fil=INV.filter(function(p){
+        var nm=(p.brand+' '+p.model+' '+p.hp+' '+(p.unit_type||'')+' '+(p.cooling||'')+' '+(p.ac_type||'')).toLowerCase();
+        return !q||nm.includes(q.toLowerCase());
       });
-      dropdown.innerHTML='';
-      if(!filtered.length){
-        var empty=document.createElement('div');
-        empty.style.cssText='padding:8px 10px;color:#888;font-size:12px';
-        empty.textContent='No products found';
-        dropdown.appendChild(empty);
-        return;
-      }
-      filtered.forEach(function(p){
+      dd.innerHTML='';
+      if(!fil.length){dd.innerHTML='<div style="padding:8px 10px;color:#888;font-size:12px">No products found</div>';return;}
+      fil.forEach(function(p){
+        var nm=(p.brand+' '+p.model+' '+p.hp+' '+(p.unit_type||'')+' '+(p.cooling||'')+' '+(p.ac_type||'')).trim().replace(/\s+/g,' ');
         var item=document.createElement('div');
-        item.style.cssText='padding:7px 10px;cursor:pointer;font-size:12px;border-bottom:1px solid #f0f0e8;display:flex;justify-content:space-between;align-items:center';
-        item.onmouseover=function(){item.style.background='#f0f9f4';};
-        item.onmouseout=function(){item.style.background='';};
-        var name=p.brand+' '+p.model+' '+p.hp+' '+(p.unit_type||'')+' '+(p.cooling||'')+' '+(p.ac_type||'');
-        item.innerHTML='<span>'+name+'</span><span style="color:#888;font-size:11px">Stock:'+p.qty+' | EGP'+Math.round(p.price||0).toLocaleString()+'</span>';
-        item.onclick=function(){
-          srchInp.value=name.trim();
+        item.style.cssText='padding:8px 12px;cursor:pointer;font-size:12px;border-bottom:1px solid #f0f0e8;display:flex;justify-content:space-between;align-items:center';
+        item.innerHTML='<span style="font-weight:600">'+nm+'</span><span style="color:#888;font-size:11px;margin-left:8px;white-space:nowrap">Stock: '+p.qty+' &nbsp;|&nbsp; EGP '+Math.round(p.price||0).toLocaleString()+'</span>';
+        item.onmouseenter=function(){this.style.background='#f0f9f4';};
+        item.onmouseleave=function(){this.style.background='';};
+        item.onmousedown=function(e){
+          e.preventDefault();
+          srchInp.value=nm;
           srchInp.dataset.price=p.price||0;
           srchInp.dataset.invId=p.id;
           srchInp.dataset.stock=p.qty;
-          dropdown.style.display='none';
-          // Set price and recalc
-          var priceInp=tr.cells[2].querySelector('input');
-          if(priceInp){priceInp.value=p.price||0;calcR(priceInp);chkStk(tr.cells[1].querySelector('input'));}
+          dd.style.display='none';
+          var priceInp=tr.querySelector('td:nth-child(3) input');
+          var qtyInp=tr.querySelector('td:nth-child(2) input');
+          if(priceInp){priceInp.value=Math.round(p.price||0);calcR(priceInp);}
+          if(qtyInp)chkStk(qtyInp);
         };
-        dropdown.appendChild(item);
+        dd.appendChild(item);
       });
     }
-    buildList('');
-    srchInp.oninput=function(){buildList(this.value);dropdown.style.display='block';};
-    srchInp.onfocus=function(){buildList(this.value);dropdown.style.display='block';};
-    document.addEventListener('click',function hideDD(e){
-      if(!srchWrap.contains(e.target)){dropdown.style.display='none';}
-    });
-    srchWrap.appendChild(srchInp);
-    srchWrap.appendChild(dropdown);
-    prodCell.appendChild(srchWrap);
-    tr.appendChild(prodCell);
-    tr.innerHTML+=commonCells;
-    // Re-insert prodCell since innerHTML wipes it
-    // Better: build via DOM
-    var tempTr=document.createElement('tr');
-    tempTr.innerHTML=commonCells;
-    Array.from(tempTr.cells).forEach(function(c){tr.appendChild(c);});
+    srchInp.addEventListener('input',function(){showItems(this.value);dd.style.display='block';});
+    srchInp.addEventListener('focus',function(){showItems(this.value);dd.style.display='block';});
+    srchInp.addEventListener('blur',function(){setTimeout(function(){dd.style.display='none';},150);});
+    td0.appendChild(srchInp);td0.appendChild(dd);tr.appendChild(td0);
+    // Cell 1: qty
+    var td1=document.createElement('td');
+    var qInp=document.createElement('input');qInp.type='number';qInp.value='1';qInp.min='1';
+    qInp.style.cssText='width:60px;text-align:center';
+    qInp.oninput=function(){calcR(this);chkStk(this);};
+    td1.appendChild(qInp);tr.appendChild(td1);
+    // Cell 2: unit price
+    var td2=document.createElement('td');
+    var pInp=document.createElement('input');pInp.type='number';pInp.min='0';pInp.placeholder='0';
+    pInp.style.cssText='width:100%';pInp.oninput=function(){calcR(this);};
+    td2.appendChild(pInp);tr.appendChild(td2);
+    // Cell 3: before tax
+    var td3=document.createElement('td');td3.style.display=taxStyle==='display:none'?'none':'';
+    var btInp=document.createElement('input');btInp.readOnly=true;btInp.className='pt';
+    btInp.style.cssText='width:100%;background:#f5f5f0';
+    td3.appendChild(btInp);tr.appendChild(td3);
+    // Cell 4: total
+    var td4=document.createElement('td');
+    var ttInp=document.createElement('input');ttInp.readOnly=true;ttInp.className='tt2';
+    ttInp.style.cssText='width:100%;background:#f5f5f0;color:#1D9E75;font-weight:700';
+    td4.appendChild(ttInp);tr.appendChild(td4);
+    // Cell 5: delete
+    var td5=document.createElement('td');
+    var dBtn=document.createElement('button');dBtn.className='ib';dBtn.textContent='X';
+    dBtn.style.cssText='font-size:12px';
+    dBtn.onclick=function(){tr.remove();ntRec();};
+    td5.appendChild(dBtn);tr.appendChild(td5);
     tbody.appendChild(tr);
-    return;
+    showItems('');
   }else{
-    tr.innerHTML='<td><select style="width:100%;font-size:12px;padding:4px;direction:rtl"><option value="صيانة">صيانة</option><option value="تركيب">تركيب</option><option value="فك">فك</option><option value="فك و تركيب">فك و تركيب</option><option value="سحب">سحب</option><option value="معاينة">معاينة</option><option value="اصلاح ورشة">اصلاح ورشة</option></select></td>'+commonCells;
+    var tr2=document.createElement('tr');
+    tr2.innerHTML='<td><select style="width:100%;font-size:12px;padding:4px;direction:rtl"><option value="صيانة">صيانة</option><option value="تركيب">تركيب</option><option value="فك">فك</option><option value="فك و تركيب">فك و تركيب</option><option value="سحب">سحب</option><option value="معاينة">معاينة</option><option value="اصلاح ورشة">اصلاح ورشة</option></select></td>'
+      +'<td><input type="number" value="1" min="1" style="width:60px;text-align:center" oninput="calcR(this)"></td>'
+      +'<td><input type="number" min="0" placeholder="0" style="width:100%" oninput="calcR(this)"></td>'
+      +'<td style="'+taxStyle+'"><input readonly class="pt" style="width:100%;background:#f5f5f0"></td>'
+      +'<td><input readonly class="tt2" style="width:100%;background:#f5f5f0;color:#1D9E75;font-weight:700"></td>'
+      +'<td><button class="ib" onclick="this.closest(\'tr\').remove();ntRec()" style="font-size:12px">X</button></td>';
+    tbody.appendChild(tr2);
   }
-  tbody.appendChild(tr);
 }
 
 
