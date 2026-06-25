@@ -1931,7 +1931,7 @@ async function addRow(){
       }
     },0);
   }else{
-    tr.innerHTML='<td><select style="width:100%;font-size:12px;padding:4px"><option data-t="maintenance">Maintenance</option><option data-t="installation">Installation</option><option data-t="uninstall">Uninstall</option><option>Install &amp; Uninstall</option><option data-t="other">Other</option></select></td>'+commonCells;
+    tr.innerHTML='<td><select style="width:100%;font-size:12px;padding:4px"><option value="صيانة">صيانة</option><option value="تركيب">تركيب</option><option value="فك">فك</option><option value="فك و تركيب">فك و تركيب</option><option value="سحب">سحب</option><option value="معاينة">معاينة</option><option value="اصلاح ورشة">اصلاح ورشة</option></select></td>'+commonCells;
   }
   tbody.appendChild(tr);
   tr.querySelectorAll('option[data-t]').forEach(function(el){var k=el.getAttribute('data-t');if(k&&window.t)el.text=t(k);});
