@@ -657,7 +657,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     </div>
     <div class="r2">
       <div class="fg"><label data-t="fullname">Full name</label><input id="nunm" placeholder="Full name"></div>
-      <div class="fg"><label data-t="role">Role</label><select id="nurol"><option value="admin" data-t="admin">Office admin</option><option value="salesperson" data-t="salesrole">Salesperson</option><option value="technician" data-t="technician">Technician</option></select></div>
+      <div class="fg"><label data-t="role">Role</label><select id="nurol"><option value="finance">Finance</option><option value="inventory_manager">Inventory Manager</option><option value="admin" data-t="admin">Office admin</option><option value="salesperson" data-t="salesrole">Salesperson</option><option value="technician" data-t="technician">Technician</option></select></div>
     </div>
     <div class="fg" style="margin-bottom:10px"><label data-t="branch">Branch</label><select id="nubr"><option>Nasr City</option><option>Madinaty</option><option>Rehab</option><option>Head Office</option></select></div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
@@ -711,7 +711,7 @@ The following items and services are not covered by this offer:
 We hope our offer meets your requirements. Thank you for choosing BrotherCond - where quality and service meet your comfort needs.
 Thanks & Best Regards,`
 const MDL={Carrier:['Xcool Inverter','X-Power Gold','Optimax Edge','Flair Plus'],Midea:['Blanc Inverter','Aurora','Xtreme Save Plus','Mission'],Sharp:['J-Tech Inverter','X-Inverter','AH-AP Series','UV Protect'],Trane:['XR15','4MXW8','TWE Series','XR14'],Haier:['Pearl Plus','Arctic Super Match','Titan Inverter','FLEXIS Plus'],Fresh:['Siwa Inverter','Smart Inverter','Cool Series','Marvel']};
-const ROLES={owner:{l:'Owner',c:'pu',can:['dash','tasks','inv','pur','fin','cust','sup','usr','print','export','delete']},finance:{l:'Finance',c:'g',can:['dash','tasks','inv','pur','fin','cust','sup','print','export']},admin:{l:'Office admin',c:'b',can:['dash','tasks','inv','pur','fin','cust','sup','print','delete']},salesperson:{l:'Salesperson',c:'te',can:['dash','tasks','cust']},technician:{l:'Technician',c:'gr',can:['tasks']}};
+const ROLES={owner:{l:'Owner',c:'pu',can:['dash','tasks','inv','pur','fin','cust','sup','usr','print','export','delete']},finance:{l:'Finance',c:'g',can:['dash','tasks','inv','pur','fin','cust','sup','print','export']},inventory_manager:{l:'Inventory Manager',c:'b',can:['dash','inv','pur']},admin:{l:'Office admin',c:'b',can:['dash','tasks','inv','pur','fin','cust','sup','print','delete']},salesperson:{l:'Salesperson',c:'te',can:['dash','tasks','cust']},technician:{l:'Technician',c:'gr',can:['tasks']}};
 
 let CU=null,CT=null,scid=null,ssid=null,INV=[],PFO=false,TASK_PAGE=0,TASK_PAGE_SIZE=50,TASK_HAS_MORE=false;
 const f=n=>'EGP '+Math.round(n||0).toLocaleString();
