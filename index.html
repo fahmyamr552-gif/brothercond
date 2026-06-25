@@ -711,7 +711,7 @@ The following items and services are not covered by this offer:
 We hope our offer meets your requirements. Thank you for choosing BrotherCond - where quality and service meet your comfort needs.
 Thanks & Best Regards,`
 const MDL={Carrier:['Xcool Inverter','X-Power Gold','Optimax Edge','Flair Plus'],Midea:['Blanc Inverter','Aurora','Xtreme Save Plus','Mission'],Sharp:['J-Tech Inverter','X-Inverter','AH-AP Series','UV Protect'],Trane:['XR15','4MXW8','TWE Series','XR14'],Haier:['Pearl Plus','Arctic Super Match','Titan Inverter','FLEXIS Plus'],Fresh:['Siwa Inverter','Smart Inverter','Cool Series','Marvel']};
-const ROLES={owner:{l:'Owner',c:'pu',can:['dash','tasks','inv','pur','fin','cust','sup','usr','print','export']},admin:{l:'Office admin',c:'b',can:['dash','tasks','inv','pur','fin','cust','sup','print']},salesperson:{l:'Salesperson',c:'te',can:['dash','tasks','cust']},technician:{l:'Technician',c:'gr',can:['tasks']}};
+const ROLES={owner:{l:'Owner',c:'pu',can:['dash','tasks','inv','pur','fin','cust','sup','usr','print','export','delete']},finance:{l:'Finance',c:'g',can:['dash','tasks','inv','pur','fin','cust','sup','print','export']},admin:{l:'Office admin',c:'b',can:['dash','tasks','inv','pur','fin','cust','sup','print','delete']},salesperson:{l:'Salesperson',c:'te',can:['dash','tasks','cust']},technician:{l:'Technician',c:'gr',can:['tasks']}};
 
 let CU=null,CT=null,scid=null,ssid=null,INV=[],PFO=false,TASK_PAGE=0,TASK_PAGE_SIZE=50,TASK_HAS_MORE=false;
 const f=n=>'EGP '+Math.round(n||0).toLocaleString();
@@ -997,7 +997,7 @@ async function openTask(id){
     const set=(id,val)=>{const e=S(id);if(e)e.textContent=val;};
     const setV=(id,val)=>{const e=S(id);if(e)e.value=val;};
     const setD=(id,val)=>{const e=S(id);if(e)e.style.display=val;};
-    if(S('delbtn'))S('delbtn').style.display=CU?.role==='owner'?'':'none';
+    if(S('delbtn'))S('delbtn').style.display=can('delete')?'':'none';
     set('ptitle',CT.task_num);
     set('tdtitle',CT.task_num+' - '+(CT.customer_name||'-'));
     // Status buttons
@@ -1328,7 +1328,7 @@ function renderPays(){
       var color=methColor[p.method]||'#333';
       var dateStr=p.created_at?new Date(p.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):'';
       var timeStr=p.created_at?new Date(p.created_at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'';
-      var isOwner=CU&&CU.role==='owner';
+      var isOwner=can('delete');
       var d=document.createElement('div');
       d.style.cssText='display:flex;align-items:center;gap:12px;padding:12px 14px;background:#f9f9f6;border:1px solid #e8e8e0;border-radius:10px;margin-bottom:6px';
       var delBtn=isOwner?('<button onclick="deletePay(\''+p.id+'\')" style="background:none;border:1px solid #E24B4A;color:#A32D2D;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-weight:600">Delete</button>'):'';
@@ -1413,6 +1413,7 @@ function updatePayConfirm(){
 function togglePF(){openPayModal();}
 
 async function deletePay(id){
+  if(!can('delete')){toast('No permission to delete',true);return;}
   if(!confirm('Delete this payment record?'))return;
   const{error}=await db.from('payments').delete().eq('id',id);
   if(error){toast('Error: '+error.message,true);return;}
@@ -2386,6 +2387,7 @@ async function savePOPayment(poId,poTotal){
 }
 
 async function delPOPay(payId,poId){
+  if(!can('delete')){toast('No permission to delete',true);return;}
   if(!confirm('Delete this payment?'))return;
   await db.from('po_payments').delete().eq('id',payId);
   document.querySelectorAll('.po-modal').forEach(function(e){e.remove();});
@@ -2393,6 +2395,7 @@ async function delPOPay(payId,poId){
 }
 
 async function deletePO(poId){
+  if(!can('delete')){toast('No permission to delete',true);return;}
   if(!confirm('Delete this purchase order? Inventory quantities will be restored if it was received.'))return;
   // Always restore inventory regardless of status
   var{data:items}=await db.from('po_items').select('*').eq('po_id',poId);
@@ -2656,6 +2659,7 @@ async function saveEditProd(id){
   document.getElementById('edit-prod-modal').remove();toast('Product updated!');loadInv();
 }
 async function delProd(id){
+  if(!can('delete')){toast('No permission to delete',true);return;}
   if(!confirm('Delete this product? This cannot be undone.'))return;
   const{error}=await db.from('inventory').delete().eq('id',id);
   if(error){toast('Error: '+error.message,true);return;}toast(t('productdeleted'));loadInv();
