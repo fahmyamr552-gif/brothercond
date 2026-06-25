@@ -460,7 +460,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     <div class="sh">Order info</div>
     <div class="r3">
       <div class="fg"><label data-t="branch">Branch</label><select id="ntbr"><option>Nasr City</option><option>Madinaty</option><option>Rehab</option><option>Head Office</option></select></div>
-      <div class="fg"><label>Salesperson</label><select id="ntsp"><option>Salah</option><option>Alaa</option><option>Ayman</option><option>Amr Ashraf</option></select></div>
+      <div class="fg"><label>Salesperson</label><select id="ntsp"><option>Salah</option><option>Alaa</option><option>Ayman</option><option>Heba</option><option>Amr Ashraf</option></select></div>
       <div class="fg"><label data-t="taskdate">Task date <span style="color:#A32D2D">*</span></label><input type="date" id="ntdate"></div>
     </div>
     <div class="fg"><label data-t="description">Description</label><textarea id="ntds" placeholder="Special instructions..."></textarea></div>
@@ -849,7 +849,7 @@ function openEditOrderInfo(){
   overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.45);z-index:9000;display:flex;align-items:center;justify-content:center';
   overlay.onclick=function(e){if(e.target===overlay)overlay.remove();};
   var BRANCHES=['Nasr City','Madinaty','Rehab','Head Office'];
-  var SPS=['Salah','Alaa','Ayman','Amr Ashraf'];
+  var SPS=['Salah','Alaa','Ayman','Heba','Amr Ashraf'];
   var TYPES=['sales','maintenance','installation','uninstall'];
   var brOpts=BRANCHES.map(function(b){return '<option value="'+b+'"'+(CT.branch===b?' selected':'')+'>'+b+'</option>';}).join('');
   var spOpts=SPS.map(function(s){return '<option value="'+s+'"'+(CT.salesperson===s?' selected':'')+'>'+s+'</option>';}).join('');
@@ -1800,6 +1800,18 @@ function openNT(){
   scid=null;
   document.getElementById('ntb').innerHTML='';
   document.getElementById('ntpt').textContent=LANG==='ar'?POL_AR:POL;
+  // Set default salesperson to current logged-in user
+  var spSel=document.getElementById('ntsp');
+  if(spSel&&CU){
+    var userSP=CU.full_name||CU.username||'';
+    // Match by first name or full name
+    var matched=Array.from(spSel.options).find(function(o){
+      return o.value.toLowerCase()===userSP.toLowerCase()||
+             userSP.toLowerCase().startsWith(o.value.toLowerCase())||
+             o.value.toLowerCase().startsWith(userSP.split(' ')[0].toLowerCase());
+    });
+    if(matched)spSel.value=matched.value;
+  }
   document.getElementById('ntpc').style.display='block';
   document.getElementById('ncc').checked=false;
   togNC(false);
