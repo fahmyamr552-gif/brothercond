@@ -326,6 +326,12 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
         <div class="fg"><label data-t="tax">Tax</label><div id="dtax" style="padding:4px 0;font-weight:600"></div></div>
       </div>
       <div class="fg"><label data-t="description">Description</label><div id="dds" style="padding:4px 0;color:#666;line-height:1.5"></div></div>
+      <div id="td-addr-section" style="display:none">
+        <div class="r2" style="gap:10px;margin-top:10px;padding:10px;background:#f5f9ff;border-radius:8px;border:1px solid #e0eaf5">
+          <div class="fg"><div style="font-size:10px;color:#888;font-weight:700;text-transform:uppercase;margin-bottom:3px">&#128205; Uninstall from</div><div id="td-addr-from" style="font-weight:600;color:#111"></div></div>
+          <div class="fg"><div style="font-size:10px;color:#888;font-weight:700;text-transform:uppercase;margin-bottom:3px">&#128205; Install to</div><div id="td-addr-to" style="font-weight:600;color:#111"></div></div>
+        </div>
+      </div>
     </div>
     <div class="cd">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
@@ -711,7 +717,7 @@ The following items and services are not covered by this offer:
 We hope our offer meets your requirements. Thank you for choosing BrotherCond - where quality and service meet your comfort needs.
 Thanks & Best Regards,`
 const MDL={Carrier:['Xcool Inverter','X-Power Gold','Optimax Edge','Flair Plus'],Midea:['Blanc Inverter','Aurora','Xtreme Save Plus','Mission'],Sharp:['J-Tech Inverter','X-Inverter','AH-AP Series','UV Protect'],Trane:['XR15','4MXW8','TWE Series','XR14'],Haier:['Pearl Plus','Arctic Super Match','Titan Inverter','FLEXIS Plus'],Fresh:['Siwa Inverter','Smart Inverter','Cool Series','Marvel']};
-const ROLES={owner:{l:'Owner',c:'pu',can:['dash','tasks','inv','pur','fin','cust','sup','usr','print','export','delete']},finance:{l:'Finance',c:'g',can:['dash','tasks','inv','pur','fin','cust','sup','print','export']},inventory_manager:{l:'Inventory Manager',c:'b',can:['dash','inv','pur']},admin:{l:'Office admin',c:'b',can:['dash','tasks','inv','pur','fin','cust','sup','print','delete']},salesperson:{l:'Salesperson',c:'te',can:['dash','tasks','cust']},technician:{l:'Technician',c:'gr',can:['tasks']}};
+const ROLES={owner:{l:'Owner',c:'pu',can:['dash','tasks','inv','pur','fin','cust','sup','usr','print','export','delete']},finance:{l:'Finance',c:'g',can:['dash','tasks','inv','pur','fin','cust','sup','print','export','delete_payment']},inventory_manager:{l:'Inventory Manager',c:'b',can:['dash','inv','pur']},admin:{l:'Office admin',c:'b',can:['dash','tasks','inv','pur','fin','cust','sup','print','delete']},salesperson:{l:'Salesperson',c:'te',can:['dash','tasks','cust']},technician:{l:'Technician',c:'gr',can:['tasks']}};
 
 let CU=null,CT=null,scid=null,ssid=null,INV=[],PFO=false,TASK_PAGE=0,TASK_PAGE_SIZE=50,TASK_HAS_MORE=false;
 const f=n=>'EGP '+Math.round(n||0).toLocaleString();
@@ -856,6 +862,12 @@ function openEditOrderInfo(){
   html+='<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">Task date</label><input type="date" id="eoi-dt" value="'+(CT.date||'')+'" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div>';
   html+='</div>';
   html+='<div style="margin-bottom:12px"><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">Description</label><textarea id="eoi-ds" rows="3" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px;resize:vertical;box-sizing:border-box">'+(CT.description||'')+'</textarea></div>';
+  if(CT.type==='uninstall'||CT.type==='installation'){
+    html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;padding:10px;background:#f5f9ff;border-radius:8px">';
+    html+='<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">&#128205; Uninstall from address</label><input id="eoi-addr-from" value="'+(CT.from_address||'')+'" placeholder="Address..." style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div>';
+    html+='<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">&#128205; Install to address</label><input id="eoi-addr-to" value="'+(CT.to_address||'')+'" placeholder="Address..." style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div>';
+    html+="</div>";
+  }
   if(isOwnerOrAdmin){
     html+='<div style="margin-bottom:16px"><label style="font-size:11px;color:#888;display:block;margin-bottom:4px">Tax</label>';
     html+='<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="eoi-tax"'+(CT.use_tax!==false?' checked':'')+' style="width:auto"> Include 14% tax</label></div>';
@@ -876,7 +888,9 @@ function openEditOrderInfo(){
       salesperson:document.getElementById('eoi-sp').value,
       type:document.getElementById('eoi-ty').value,
       date:document.getElementById('eoi-dt').value,
-      description:document.getElementById('eoi-ds').value
+      description:document.getElementById('eoi-ds').value,
+      from_address:document.getElementById('eoi-addr-from')?.value||null,
+      to_address:document.getElementById('eoi-addr-to')?.value||null
     };
     var taxEl=document.getElementById('eoi-tax');
     if(taxEl)updates.use_tax=taxEl.checked;
@@ -888,6 +902,9 @@ function openEditOrderInfo(){
     setEl('dbr',CT.branch);setEl('dsp',CT.salesperson);setEl('dty',CT.type);
     setEl('ddate',CT.date||'-');setEl('dds',CT.description||'-');
     setEl('dtax',CT.use_tax===false?t('tax')+': 0%':t('tax')+': 14% VAT');
+    setEl('td-addr-from',CT.from_address||'-');setEl('td-addr-to',CT.to_address||'-');
+    var ads=document.getElementById('td-addr-section');
+    if(ads)ads.style.display=(CT.type==='uninstall'||CT.type==='installation')?'':'none';
     overlay.remove();
     toast('Order info updated');
   };
@@ -991,7 +1008,7 @@ async function openTask(id){
     }
     go('td',null);
     const S=(id)=>document.getElementById(id);
-    const isLocked2=CT.pay_status==='paid'&&!['owner','admin'].includes(CU?.role);
+    const isLocked2=CT.pay_status==='paid'&&!['owner','admin','finance'].includes(CU?.role);
     const recBtn=document.getElementById('rec-pay-btn');
     if(recBtn)recBtn.style.display=isLocked2?'none':'';
     const set=(id,val)=>{const e=S(id);if(e)e.textContent=val;};
@@ -1004,7 +1021,7 @@ async function openTask(id){
     const ss=S('sbtns');
     // Task lock: if paid and user is not owner/admin, lock editing
     // Lock order info editing after payment confirmed (not completion report)
-    const isLocked=CT.pay_status==='paid'&&!['owner','admin'].includes(CU?.role);
+    const isLocked=CT.pay_status==='paid'&&!['owner','admin','finance','salesperson'].includes(CU?.role);
     if(isLocked){
       // Show lock banner
       const lockBanner=document.createElement('div');
@@ -1049,6 +1066,17 @@ async function openTask(id){
     set('dds',CT.description||'-');
     set('dcreated',CT.created_by||'-');
     set('dtax',CT.use_tax===false?t('tax')+': 0%':t('tax')+': 14% VAT');
+    // Show addresses for uninstall/installation tasks
+    var addrSection=S('td-addr-section');
+    if(addrSection){
+      if(CT.type==='uninstall'||CT.type==='installation'){
+        addrSection.style.display='';
+        set('td-addr-from',CT.from_address||'-');
+        set('td-addr-to',CT.to_address||'-');
+      }else{
+        addrSection.style.display='none';
+      }
+    }
     // Products table
     const tbody=S('pvb');
     if(tbody){
@@ -1328,7 +1356,7 @@ function renderPays(){
       var color=methColor[p.method]||'#333';
       var dateStr=p.created_at?new Date(p.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):'';
       var timeStr=p.created_at?new Date(p.created_at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'';
-      var isOwner=can('delete');
+      var isOwner=can('delete')||can('delete_payment');
       var d=document.createElement('div');
       d.style.cssText='display:flex;align-items:center;gap:12px;padding:12px 14px;background:#f9f9f6;border:1px solid #e8e8e0;border-radius:10px;margin-bottom:6px';
       var delBtn=isOwner?('<button onclick="deletePay(\''+p.id+'\')" style="background:none;border:1px solid #E24B4A;color:#A32D2D;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-weight:600">Delete</button>'):'';
@@ -1413,7 +1441,7 @@ function updatePayConfirm(){
 function togglePF(){openPayModal();}
 
 async function deletePay(id){
-  if(!can('delete')){toast('No permission to delete',true);return;}
+  if(!can('delete')&&!can('delete_payment')){toast('No permission to delete',true);return;}
   if(!confirm('Delete this payment record?'))return;
   const{error}=await db.from('payments').delete().eq('id',id);
   if(error){toast('Error: '+error.message,true);return;}
@@ -1681,6 +1709,12 @@ function doPrint(){
     html+='<td style="padding:0 18px 8px 0;font-weight:700;text-transform:capitalize">'+CT.type+'</td>';
     html+='<td style="padding:0 0 8px;font-weight:700">'+(CT.pay_status||'-')+'</td>';
     html+='</tr></table>';
+    if((CT.type==="uninstall"||CT.type==="installation")&&(CT.from_address||CT.to_address)){
+      html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;padding:10px;background:#f5f9ff;border-radius:8px;border:1px solid #d0e4f5">';
+      html+='<div><div style="font-size:9px;color:#888;font-weight:700;text-transform:uppercase;margin-bottom:2px">Uninstall from</div><div style="font-weight:700;font-size:12px">'+(CT.from_address||'-')+'</div></div>';
+      html+='<div><div style="font-size:9px;color:#888;font-weight:700;text-transform:uppercase;margin-bottom:2px">Install to</div><div style="font-weight:700;font-size:12px">'+(CT.to_address||'-')+'</div></div>';
+      html+='</div>';
+    }
   }
 
   /* ── SALES INTRO PARAGRAPH ── */
@@ -1771,6 +1805,8 @@ function openNT(){
 
 function onTC(v){
   document.getElementById('ntpc').style.display=v==='sales'?'block':'none';
+  var addrBlock=document.getElementById('nt-addr-block');
+  if(addrBlock)addrBlock.style.display=(v==='uninstall'||v==='installation')?'block':'none';
   document.getElementById('ntb').innerHTML='';
   addRow();
 }
@@ -1935,7 +1971,9 @@ async function saveTask(){
     description:document.getElementById('ntds')?.value,
     date:today,status:'pending',pay_status:'unpaid',
     created_by:CU?.full_name||CU?.username||'-',
-    use_tax:useTax
+    use_tax:useTax,
+    from_address:document.getElementById('nt-addr-from')?.value||null,
+    to_address:document.getElementById('nt-addr-to')?.value||null
   }).select().single();
   if(te){toast('Error: '+te.message,true);return;}
   const rows=taskRows.map(r=>({task_id:task.id,name:r.name,qty:r.qty,price:r.price,inventory_id:r.pid||null}));
