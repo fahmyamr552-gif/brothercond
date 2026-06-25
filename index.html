@@ -2758,7 +2758,7 @@ async function sSearch(v){
 function clrS(){ssid=null;document.getElementById('ssel').style.display='none';}
 async function addPOR(){
   if(!INV.length){const{data}=await db.from('inventory').select('*');INV=data||[];}
-  const opts=INV.map(p=>('<option value="'+(p.id)+'" data-stock="'+(p.qty)+'">'+(p.brand)+' '+(p.model)+' '+(p.hp)+' '+(p.unit_type||'')+' '+(p.ac_type||'')+'</option>')).join('');
+  const opts=INV.map(p=>('<option value="'+(p.id)+'" data-stock="'+(p.qty)+'">'+(p.brand)+' '+(p.model)+' '+(p.hp)+' '+(p.unit_type||'')+' '+(p.cooling||'')+' '+(p.ac_type||'')+'</option>')).join('');
   const tr=document.createElement('tr');
   tr.innerHTML=('<td><select style="width:100%;font-size:12px;padding:4px" onchange="showStk(this)">'+(opts)+'</select></td><td style="text-align:center"><span class="stk" style="font-size:12px;color:#888">-</span></td><td><input type="number" value="1" min="1" style="width:80px" oninput="calcPOT()"></td><td><input type="number" min="0" placeholder="0" style="width:100%" oninput="calcPOT()"></td><td><button class="ib" onclick="this.closest(\'tr\').remove();calcPOT()" style="font-size:12px">X</button></td>');
   document.getElementById('potb').appendChild(tr);showStk(tr.querySelector('select'));
