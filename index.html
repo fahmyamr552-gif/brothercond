@@ -311,7 +311,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     <button class="tab" onclick="dtab('sub',this)" data-t="subtasks">Sub-tasks</button>
   </div>
   <div id="ti-info">
-    <div class="cd"><div class="sh" data-t="customer">Customer</div><div id="tcc"></div></div>
+    <div class="cd"><div class="sh" data-t="customer">Customer <span style="color:#A32D2D">*</span></div><div id="tcc"></div></div>
     <div class="cd">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
         <div class="sh" data-t="orderinfo" style="margin-bottom:0">Order info</div>
@@ -348,14 +348,14 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
   <div id="ti-comp" style="display:none">
     <div class="cd">
       <div class="sh" data-t="completionreport">Completion report</div>
-      <div class="fg" style="margin-bottom:10px"><label data-t="whatwasdone">What was done</label><textarea id="cdn" placeholder="Describe what the technician completed..."></textarea></div>
+      <div class="fg" style="margin-bottom:10px"><label data-t="whatwasdone">What was done <span style="color:#A32D2D">*</span></label><textarea id="cdn" placeholder="Describe what the technician completed..."></textarea></div>
       <div class="sh" data-t="partsused">Parts used</div>
       <div id="ptsl"></div>
       <button class="btn bs" onclick="addPart()" style="margin:5px 0 12px" data-t="addpart">+ Add part</button>
       <div class="dv"></div>
       <div class="r3">
-        <div class="fg"><label data-t="technicianname">Technician name</label><input id="ctech-name" placeholder="Technician full name"></div>
-        <div class="fg"><label data-t="completiontime">Completion time</label><input type="datetime-local" id="cdt"></div>
+        <div class="fg"><label data-t="technicianname">Technician name <span style="color:#A32D2D">*</span></label><input id="ctech-name" placeholder="Technician full name"></div>
+        <div class="fg"><label data-t="completiontime">Completion time <span style="color:#A32D2D">*</span></label><input type="datetime-local" id="cdt"></div>
         <div class="fg"><label data-t="techniciannote">Technician note</label><input id="ctn" placeholder="Any notes..."></div>
       </div>
       <div style="display:flex;align-items:center;gap:6px;margin-top:8px">
@@ -427,7 +427,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     </select>
   </div>
   <div class="cd">
-    <div class="sh" data-t="customer">Customer</div>
+    <div class="sh" data-t="customer">Customer <span style="color:#A32D2D">*</span></div>
     <label style="display:flex;align-items:center;gap:6px;margin-bottom:8px;font-size:12px;color:#888;cursor:pointer">
       <input type="checkbox" id="ncc" onchange="togNC(this.checked)" style="width:auto"> <span data-t="addcustomer">New customer</span>
     </label>
@@ -457,7 +457,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     <div class="r3">
       <div class="fg"><label data-t="branch">Branch</label><select id="ntbr"><option>Nasr City</option><option>Madinaty</option><option>Rehab</option><option>Head Office</option></select></div>
       <div class="fg"><label>Salesperson</label><select id="ntsp"><option>Salah</option><option>Alaa</option><option>Ayman</option><option>Amr Ashraf</option></select></div>
-      <div class="fg"><label data-t="taskdate">Task date</label><input type="date" id="ntdate"></div>
+      <div class="fg"><label data-t="taskdate">Task date <span style="color:#A32D2D">*</span></label><input type="date" id="ntdate"></div>
     </div>
     <div class="fg"><label data-t="description">Description</label><textarea id="ntds" placeholder="Special instructions..."></textarea></div>
   </div>
@@ -1492,29 +1492,36 @@ async function savePay(){
 }
 
 async function saveComp(){
-  const techName=document.getElementById('ctech-name')?.value||'';
+  // Validation - required fields
+  var techName2=document.getElementById('ctech-name')?.value?.trim()||'';
+  var compTime2=document.getElementById('cdt')?.value||'';
+  var compNotes2=document.getElementById('cdn')?.value?.trim()||'';
+  if(!techName2){toast('Technician name is required',true);document.getElementById('ctech-name')?.focus();return;}
+  if(!compTime2){toast('Completion time is required',true);document.getElementById('cdt')?.focus();return;}
+  if(!compNotes2){toast('Work done description is required',true);document.getElementById('cdn')?.focus();return;}
   const{error}=await db.from('tasks').update({
-    completion_notes:document.getElementById('cdn').value,
-    completion_time:document.getElementById('cdt').value,
-    technician_name:techName,
+    completion_notes:compNotes2,
+    completion_time:compTime2,
+    technician_name:techName2,
     technician_note:document.getElementById('ctn').value,
-    customer_confirmed:document.getElementById('cok').checked
+    customer_confirmed:document.getElementById('cok').checked,
+    status:'done'
   }).eq('id',CT.id);
   if(error){toast('Error: '+error.message,true);return;}
-  CT.technician_name=techName;
-  CT.completion_notes=document.getElementById('cdn').value;
-  CT.completion_time=document.getElementById('cdt').value;
-  CT.customer_confirmed=document.getElementById('cok').checked;
-  toast(t('completionsaved'));
+  CT.technician_name=techName2;
+  CT.completion_notes=compNotes2;
+  CT.completion_time=compTime2;
+  CT.status='done';
+  // Update status buttons UI
+  document.querySelectorAll('.sb button').forEach(function(b){b.classList.remove('active');});
+  var doneBtn=document.querySelector('.sb button[data-s="done"]');
+  if(doneBtn)doneBtn.classList.add('active');
+  // Update status badge in header
+  var badge=document.getElementById('task-status-badge');
+  if(badge){badge.className='bx g';badge.textContent='Completed';}
+  toast(t('completionsaved')+' — status set to Completed');
 }
 
-function addPart(){const l=document.getElementById('ptsl');const d=document.createElement('div');d.style.cssText='display:grid;grid-template-columns:1fr 55px 80px 28px;gap:5px;margin-bottom:5px';d.innerHTML='<input placeholder="Part name"><input type="number" placeholder="Qty" min="1"><input type="number" placeholder="Cost (EGP)"><button class="ib" onclick="this.closest(\'div\').remove()">X</button>';l.appendChild(d);}
-function openSubForm(){
-  document.getElementById('sub-form').style.display='block';
-  document.getElementById('sub-date').value=new Date().toISOString().slice(0,10);
-  document.getElementById('sub-desc').value='';
-  document.getElementById('sub-price').value='';
-}
 
 async function saveSubTask(){
   if(!CT)return;
