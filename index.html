@@ -1800,15 +1800,14 @@ function openNT(){
   scid=null;
   document.getElementById('ntb').innerHTML='';
   document.getElementById('ntpt').textContent=LANG==='ar'?POL_AR:POL;
-  // Set default salesperson to current logged-in user
+  // Set default salesperson to current logged-in user (only for salesperson role)
   var spSel=document.getElementById('ntsp');
-  if(spSel&&CU){
+  if(spSel&&CU&&CU.role==='salesperson'){
     var userSP=CU.full_name||CU.username||'';
-    // Match by first name or full name
     var matched=Array.from(spSel.options).find(function(o){
-      return o.value.toLowerCase()===userSP.toLowerCase()||
-             userSP.toLowerCase().startsWith(o.value.toLowerCase())||
-             o.value.toLowerCase().startsWith(userSP.split(' ')[0].toLowerCase());
+      var ov=o.value.toLowerCase();
+      var un=userSP.toLowerCase();
+      return un===ov||un.startsWith(ov)||ov.startsWith(un.split(' ')[0]);
     });
     if(matched)spSel.value=matched.value;
   }
@@ -1921,7 +1920,12 @@ async function addRow(){
   var useTax=document.getElementById('tax-toggle')?.checked!==false;
   var taxStyle=useTax?'':'display:none';
   if(isSales2){
-    if(!INV.length){var ir=await db.from('inventory').select('*');INV=ir.data||[];}
+    if(!INV.length){
+      srchInp.placeholder='Loading...';
+      var ir=await db.from('inventory').select('*');
+      INV=ir.data||[];
+      srchInp.placeholder='Search product...';
+    }
     var tr=document.createElement('tr');
     // Cell 0: search
     var td0=document.createElement('td');td0.style.cssText='position:relative;min-width:220px';
@@ -2092,6 +2096,12 @@ async function loadInv(search,brand){
   if(search)q=q.or(('brand.ilike.%'+(search)+'%,model.ilike.%'+(search)+'%'));
   if(brand)q=q.eq('brand',brand);
   const{data}=await q;INV=data||[];body.innerHTML='';
+  // Calculate sold qty dynamically from task_products (only sales tasks)
+  var soldMap={};
+  var{data:soldData}=await db.from('task_products').select('inventory_id,qty,tasks!inner(type)').eq('tasks.type','sales');
+  (soldData||[]).forEach(function(row){
+    if(row.inventory_id)soldMap[row.inventory_id]=(soldMap[row.inventory_id]||0)+(row.qty||0);
+  });
   if(!data?.length){body.innerHTML='<tr><td colspan="9" style="text-align:center;padding:16px;color:#888">'+t('noproducts')+'</td></tr>';return;}
   const{data:poItems}=await db.from('po_items').select('inventory_id,qty,purchase_orders!inner(status)').eq('purchase_orders.status','pending');
   const incomingMap={};
@@ -2102,7 +2112,7 @@ async function loadInv(search,brand){
     const sb=p.qty===0?'<span class="bx r">'+t('outofstock')+'</span>':p.qty<=p.low_stock?'<span class="bx a">'+t('lowstock')+'</span>':'<span class="bx g">'+t('instock')+'</span>';
     const incomingBadge=incoming>0?('<span class="bx b" style="font-size:10px;margin-left:3px">+'+(incoming)+' incoming</span>'):'';
     const delBtn=can('export')?('<div style="display:flex;gap:4px"><button onclick="editProd(\''+(p.id)+'\',\''+(p.brand)+'\',\''+(p.model)+'\',\''+(p.hp)+'\',\''+(p.unit_type||'')+'\',\''+(p.cooling||'')+'\',\''+(p.ac_type||'')+'\','+(p.qty)+','+(p.price)+','+(p.low_stock)+')" style="padding:3px 8px;font-size:10px;border:1px solid #378ADD;border-radius:5px;background:#E6F1FB;color:#185FA5;cursor:pointer">Edit</button><button onclick="delProd(\''+(p.id)+'\')" style="padding:3px 8px;font-size:10px;border:1px solid #E24B4A;border-radius:5px;background:#FCEBEB;color:#A32D2D;cursor:pointer">Del</button></div>'):'-';
-    tr.innerHTML='<td style="font-weight:700">'+p.brand+' '+p.model+'</td><td><span class="bx gr">'+p.brand+'</span></td><td>'+p.hp+'</td><td style="font-size:11px">'+(p.ac_type||'-')+'</td><td style="font-weight:700;color:'+(p.qty===0?'#A32D2D':p.qty<=p.low_stock?'#854F0B':'#3B6D11')+'">'+p.qty+incomingBadge+'</td><td style="color:#888">'+(p.sold||0)+'</td><td>'+f(p.price)+'</td><td>'+sb+'</td><td>'+delBtn+'</td>';
+    tr.innerHTML='<td style="font-weight:700">'+p.brand+' '+p.model+'</td><td><span class="bx gr">'+p.brand+'</span></td><td>'+p.hp+'</td><td style="font-size:11px">'+(p.ac_type||'-')+'</td><td style="font-weight:700;color:'+(p.qty===0?'#A32D2D':p.qty<=p.low_stock?'#854F0B':'#3B6D11')+'">'+p.qty+incomingBadge+'</td><td style="color:#888">'+(soldMap[p.id]||0)+'</td><td>'+f(p.price)+'</td><td>'+sb+'</td><td>'+delBtn+'</td>';
     body.appendChild(tr);
   });
   document.getElementById('iskus').textContent=data.length;
