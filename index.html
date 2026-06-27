@@ -1887,7 +1887,7 @@ function togNC(c){
 async function cSearch(v){
   const box=document.getElementById('csg');
   if(v.length<2){box.style.display='none';return;}
-  const{data}=await db.from('customers').select('id,full_name,phone,address').or(('full_name.ilike.%'+(v)+'%,phone.ilike.%'+(v)+'%')).limit(6);
+  const{data}=await db.from('customers').select('id,full_name,phone,address,addresses').or(('full_name.ilike.%'+(v)+'%,phone.ilike.%'+(v)+'%')).limit(6);
   if(!data?.length){box.style.display='none';return;}
   box.style.display='block';box.innerHTML='';
   data.forEach(c=>{
