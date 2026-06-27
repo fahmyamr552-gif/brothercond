@@ -1896,6 +1896,8 @@ async function cSearch(v){
         if(t.from_address)addrs.add(t.from_address);
         if(t.to_address)addrs.add(t.to_address);
       });
+      // Also load from addresses JSON
+      try{var addrsJson=JSON.parse(c.addresses||'[]');addrsJson.forEach(function(a){if(a)addrs.add(a);});}catch(e){}
       var addrArr=Array.from(addrs).filter(Boolean);
       if(addrInp&&addrArr.length){
         var histDiv=document.getElementById('nt-addr-history');
@@ -2714,7 +2716,16 @@ function editCustomer(c){
 async function saveEditCustomer(id){
   const name=document.getElementById('ec-name')?.value.trim();
   if(!name){toast('Name required',true);return;}
-  const updates={full_name:name,phone:document.getElementById('ec-phone')?.value,phone2:document.getElementById('ec-phone2')?.value,address:document.getElementById('ec-addr')?.value,id_number:document.getElementById('ec-id')?.value};
+  const addrs=Array.from(document.querySelectorAll('.addr-inp')).map(function(i){return i.value.trim();}).filter(Boolean);
+  const primaryAddr=addrs[0]||'';
+  const updates={
+    full_name:name,
+    phone:document.getElementById('ec-phone')?.value,
+    phone2:document.getElementById('ec-phone2')?.value,
+    address:primaryAddr,
+    addresses:JSON.stringify(addrs),
+    id_number:document.getElementById('ec-id')?.value
+  };
   const{data,error}=await db.from('customers').update(updates).eq('id',id).select().single();
   if(error){toast('Error: '+error.message,true);return;}
   toast(t('customerupdated'));openCD(data);
@@ -2736,14 +2747,68 @@ async function openCD(c){
 }
 
 function openAC(){
-  go('cd',null);document.getElementById('ptitle').textContent=t('newcustomer');document.getElementById('cdname').textContent=t('newcustomer');
-  document.getElementById('cdcard').innerHTML='<div class="r3"><div class="fg"><label data-t="fullname">Full name</label><input id="acn" placeholder="Name"></div><div class="fg"><label>Phone *</label><input id="acp" placeholder="010xxxxxxxx"></div><div class="fg"><label data-t="secondphone">Second phone</label><input id="acp2"></div></div><div class="r2"><div class="fg"><label data-t="address">Address</label><input id="aca" placeholder="Street, city"></div><div class="fg"><label data-t="idpassport">ID / Passport</label><input id="aci"></div></div><div style="display:flex;justify-content:flex-end;margin-top:8px"><button class="btn bp" onclick="saveAC()">&#10003; Save customer</button></div>';
-  document.getElementById('cdtasks').innerHTML='';
+  go('cd',null);
+  document.getElementById('ptitle').textContent=t('newcustomer');
+  document.getElementById('cdname').textContent=t('newcustomer');
+  document.getElementById('cdcard').innerHTML=''
+    +'<div class="r3"><div class="fg"><label data-t="fullname">Full name *</label><input id="acn" placeholder="Name"></div>'
+    +'<div class="fg"><label>Phone *</label><input id="acp" placeholder="010xxxxxxxx"></div>'
+    +'<div class="fg"><label data-t="secondphone">Second phone</label><input id="acp2"></div></div>'
+    +'<div class="fg"><label data-t="idpassport">ID / Passport</label><input id="aci"></div>'
+    +'<div style="margin-top:12px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+        +'<label style="font-size:12px;font-weight:700;color:#555">&#128205; Addresses</label>'
+        +'<button type="button" onclick="addAddrRow()" style="font-size:11px;padding:3px 10px;border:1px solid #1D9E75;border-radius:6px;background:#EAF3DE;color:#1D9E75;cursor:pointer">+ Add address</button>'
+      +'</div>'
+      +'<div id="addr-rows"></div>'
+    +'</div>'
+  // buttons added by DOM below
+  addAddrRow();
+  var btnDiv=document.createElement('div');
+  btnDiv.style.cssText='display:flex;gap:8px;margin-top:14px';
+  var cancelBtn=document.createElement('button');cancelBtn.className='btn bs';cancelBtn.textContent='Cancel';
+  cancelBtn.onclick=function(){go('cust',document.getElementById('ni-cust'));};
+  var saveBtn=document.createElement('button');saveBtn.className='btn bp';saveBtn.textContent='✓ Save customer';
+  saveBtn.onclick=function(){saveAC();};
+  btnDiv.appendChild(cancelBtn);btnDiv.appendChild(saveBtn);
+  document.getElementById('cdcard').appendChild(btnDiv);
 }
+
+function addAddrRow(val){
+  var container=document.getElementById('addr-rows');
+  if(!container)return;
+  var row=document.createElement('div');
+  row.style.cssText='display:flex;gap:6px;margin-bottom:6px;align-items:center';
+  var inp=document.createElement('input');
+  inp.type='text';inp.className='addr-inp';inp.placeholder='e.g. الرحاب مجموعة 2 عماره 80 شقه 3';
+  inp.value=val||'';
+  inp.style.cssText='flex:1;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px';
+  var delBtn=document.createElement('button');
+  delBtn.type='button';delBtn.textContent='✕';
+  delBtn.style.cssText='border:none;background:none;color:#A32D2D;cursor:pointer;font-size:16px;padding:0 4px;line-height:1';
+  delBtn.onclick=function(){
+    if(container.querySelectorAll('.addr-inp').length>1)row.remove();
+    else inp.value='';
+  };
+  row.appendChild(inp);row.appendChild(delBtn);
+  container.appendChild(row);
+  inp.focus();
+}
+
+
 async function saveAC(){
   const nm=document.getElementById('acn')?.value.trim();if(!nm){toast('Name required',true);return;}
-  const{error}=await db.from('customers').insert({full_name:nm,phone:document.getElementById('acp')?.value,phone2:document.getElementById('acp2')?.value,address:document.getElementById('aca')?.value,id_number:document.getElementById('aci')?.value});
-  if(error){toast('Error: '+error.message,true);return;}toast(t('customersaved'));go('cust',document.getElementById('ni-cust'));
+  const addrs=Array.from(document.querySelectorAll('.addr-inp')).map(function(i){return i.value.trim();}).filter(Boolean);
+  const primaryAddr=addrs[0]||'';
+  const{error}=await db.from('customers').insert({
+    full_name:nm,phone:document.getElementById('acp')?.value,
+    phone2:document.getElementById('acp2')?.value,
+    address:primaryAddr,
+    addresses:JSON.stringify(addrs),
+    id_number:document.getElementById('aci')?.value
+  });
+  if(error){toast('Error: '+error.message,true);return;}
+  toast(t('customersaved'));go('cust',document.getElementById('ni-cust'));
 }
 
 async function expCust(){
