@@ -2710,7 +2710,42 @@ async function loadCust(search){
 
 function editCust(){var c=window._editCustData;if(!c)return;editCustomer(c);}
 function editCustomer(c){
-  document.getElementById('cdcard').innerHTML=('<div class="r3" style="margin-bottom:10px"><div class="fg"><label data-t="fullname">Full name</label><input id="ec-name" value="'+(c.full_name||'')+'"></div><div class="fg"><label>Phone *</label><input id="ec-phone" value="'+(c.phone||'')+'"></div><div class="fg"><label data-t="secondphone">Second phone</label><input id="ec-phone2" value="'+(c.phone2||'')+'"></div></div><div class="r2" style="margin-bottom:10px"><div class="fg"><label data-t="address">Address</label><input id="ec-addr" value="'+(c.address||'')+'"></div><div class="fg"><label data-t="idpassport">ID / Passport</label><input id="ec-id" value="'+(c.id_number||'')+'"></div></div><div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn bs" onclick="openCD('+(JSON.stringify(c).replace(/"/g,'"'))+')">Cancel</button><button class="btn bs bp" onclick="saveEditCustomer(\''+(c.id)+'\')">&#10003; Save</button></div>');
+  // Parse existing addresses
+  var addrs=[];
+  try{addrs=JSON.parse(c.addresses||'[]');}catch(e){}
+  if(!addrs.length&&c.address)addrs=[c.address];
+  if(!addrs.length)addrs=[''];
+
+  // Build form HTML (no nested quotes in onclick - use DOM for buttons)
+  document.getElementById('cdcard').innerHTML=''
+    +'<div class="r3" style="margin-bottom:10px">'
+      +'<div class="fg"><label data-t="fullname">Full name *</label><input id="ec-name" value="'+(c.full_name||'')+'"></div>'
+      +'<div class="fg"><label>Phone</label><input id="ec-phone" value="'+(c.phone||'')+'"></div>'
+      +'<div class="fg"><label data-t="secondphone">Second phone</label><input id="ec-phone2" value="'+(c.phone2||'')+'"></div>'
+    +'</div>'
+    +'<div class="fg" style="margin-bottom:10px"><label data-t="idpassport">ID / Passport</label><input id="ec-id" value="'+(c.id_number||'')+'"></div>'
+    +'<div style="margin-bottom:12px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+        +'<label style="font-size:12px;font-weight:700;color:#555">&#128205; Addresses</label>'
+        +'<button type="button" onclick="addAddrRow()" style="font-size:11px;padding:3px 12px;border:1px solid #1D9E75;border-radius:6px;background:#EAF3DE;color:#1D9E75;cursor:pointer;font-weight:600">+ Add address</button>'
+      +'</div>'
+      +'<div id="addr-rows"></div>'
+    +'</div>';
+
+  // Add each existing address as a row
+  addrs.forEach(function(a){addAddrRow(a);});
+
+  // Add action buttons via DOM to avoid quote escaping issues
+  var btnDiv=document.createElement('div');
+  btnDiv.style.cssText='display:flex;gap:8px;justify-content:flex-end;margin-top:10px';
+  var cancelBtn=document.createElement('button');
+  cancelBtn.className='btn bs';cancelBtn.textContent='Cancel';
+  cancelBtn.onclick=function(){openCD(c);};
+  var saveBtn=document.createElement('button');
+  saveBtn.className='btn bp';saveBtn.textContent='✓ Save';
+  saveBtn.onclick=function(){saveEditCustomer(c.id);};
+  btnDiv.appendChild(cancelBtn);btnDiv.appendChild(saveBtn);
+  document.getElementById('cdcard').appendChild(btnDiv);
 }
 
 async function saveEditCustomer(id){
