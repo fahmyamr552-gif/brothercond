@@ -447,10 +447,10 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
         <div class="av" id="ncav">AH</div>
         <div><div style="font-weight:700" id="ncnm">—</div><div style="font-size:11px;color:#888" id="ncph">—</div></div>
         </div>
-        <div style="position:relative">
-          <label style="font-size:11px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:.3px;margin-bottom:3px;display:block">&#128205; Task address (optional - if different from customer's default)</label>
-          <input id="nt-task-address" placeholder="Enter address for this task..." style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box" autocomplete="off">
-          <div id="nt-addr-history" style="display:none;position:fixed;background:#fff;border:1px solid #ccc;border-radius:8px;z-index:9999;max-height:200px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.15);min-width:300px"></div>
+        <div>
+          <label style="font-size:11px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:.3px;margin-bottom:6px;display:block">&#128205; Task address</label>
+          <div id="nt-addr-block-inner" style="margin-bottom:6px"></div>
+          <input id="nt-task-address" placeholder="Or type a new address..." style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px;box-sizing:border-box;color:#666" autocomplete="off">
         </div>
         <button class="btn bs" style="margin-left:auto" onclick="clrC()">X</button>
       </div>
@@ -851,6 +851,12 @@ async function loadDash(){
   }
 }
 
+function selectEoiAddr(btn){
+  var addr=btn.dataset.addr||btn.textContent;
+  document.querySelectorAll('#eoi-addr-btns button').forEach(function(b){b.style.borderColor='#ddd';b.style.background='#f9f9f6';});
+  btn.style.borderColor='#1D9E75';btn.style.background='#EAF3DE';
+  var inp=document.getElementById('eoi-task-addr');if(inp)inp.value=addr;
+}
 function openEditOrderInfo(){
   if(!CT)return;
   var isOwnerOrAdmin=CU&&(CU.role==='owner'||CU.role==='admin');
@@ -878,7 +884,20 @@ function openEditOrderInfo(){
   html+='<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">Task date</label><input type="date" id="eoi-dt" value="'+(CT.date||'')+'" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div>';
   html+='</div>';
   html+='<div style="margin-bottom:12px"><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">Description</label><textarea id="eoi-ds" rows="3" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px;resize:vertical;box-sizing:border-box">'+(CT.description||'')+'</textarea></div>';
-  html+='<div style="margin-bottom:12px"><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">&#128205; Task address</label><input id="eoi-task-addr" value="'+(CT.address||'')+'" placeholder="Enter address for this task..." style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div>';
+  // Build address picker from customer's saved addresses
+  var custAddrs2=[];
+  try{var caj=JSON.parse((CT.cust&&CT.cust.addresses)||'[]');custAddrs2=caj.filter(Boolean);}catch(e){}
+  if((CT.cust&&CT.cust.address)&&!custAddrs2.includes(CT.cust.address))custAddrs2.unshift(CT.cust.address);
+  html+='<div style="margin-bottom:12px"><label style="font-size:11px;color:#888;display:block;margin-bottom:6px">&#128205; Task address</label>';
+  if(custAddrs2.length>0){
+    html+='<div id="eoi-addr-btns" style="margin-bottom:6px">';
+    custAddrs2.forEach(function(addr,i){
+      var isSelected=(CT.address===addr)||(i===0&&!CT.address);
+      html+='<button type="button" data-addr="'+addr.replace(/"/g,'&quot;')+'" onclick="selectEoiAddr(this)" style="width:100%;text-align:left;padding:8px 12px;border:1px solid '+(isSelected?'#1D9E75':'#ddd')+';border-radius:7px;background:'+(isSelected?'#EAF3DE':'#f9f9f6')+';font-size:13px;cursor:pointer;margin-bottom:5px;direction:rtl">'+addr+'</button>';
+    });
+    html+='</div>';
+  }
+  html+='<input id="eoi-task-addr" value="'+(CT.address||'')+'" placeholder="Or type a different address..." style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:12px;box-sizing:border-box;color:#666"></div>';
   if(CT.type==='uninstall'||CT.type==='installation'||CT.type==='uninstall_install'){
     html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;padding:10px;background:#f5f9ff;border-radius:8px">';
     html+='<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">&#128205; Uninstall from address</label><input id="eoi-addr-from" value="'+(CT.from_address||'')+'" placeholder="Address..." style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div>';
@@ -1884,43 +1903,36 @@ async function cSearch(v){
       document.getElementById('sct').style.display='flex';
       document.getElementById('csg').style.display='none';
       document.getElementById('cqi').value='';
-      // Pre-fill task address with customer default
-      var addrInp=document.getElementById('nt-task-address');
-      if(addrInp)addrInp.value=c.address||'';
-      // Load address history from past tasks
-      var{data:pastTasks}=await db.from('tasks').select('address,from_address,to_address,date,type').eq('customer_id',c.id).not('address','is',null).order('created_at',{ascending:false}).limit(10);
-      var addrs=new Set();
-      if(c.address)addrs.add(c.address);
-      (pastTasks||[]).forEach(function(t){
-        if(t.address)addrs.add(t.address);
-        if(t.from_address)addrs.add(t.from_address);
-        if(t.to_address)addrs.add(t.to_address);
-      });
-      // Also load from addresses JSON
-      try{var addrsJson=JSON.parse(c.addresses||'[]');addrsJson.forEach(function(a){if(a)addrs.add(a);});}catch(e){}
-      var addrArr=Array.from(addrs).filter(Boolean);
-      if(addrInp&&addrArr.length){
-        var histDiv=document.getElementById('nt-addr-history');
-        addrInp.onfocus=function(){
-          if(!addrArr.length)return;
-          var rect=addrInp.getBoundingClientRect();
-          histDiv.style.top=(rect.bottom+4)+'px';
-          histDiv.style.left=rect.left+'px';
-          histDiv.style.width=rect.width+'px';
-          histDiv.innerHTML='<div style="padding:6px 10px;font-size:10px;color:#888;font-weight:700;text-transform:uppercase">Previous addresses</div>';
-          addrArr.forEach(function(addr){
-            var item=document.createElement('div');
-            item.style.cssText='padding:7px 12px;cursor:pointer;font-size:12px;border-top:1px solid #f0f0e8';
-            item.textContent=addr;
-            item.onmouseenter=function(){this.style.background='#f0f9f4';};
-            item.onmouseleave=function(){this.style.background='';};
-            item.onmousedown=function(e){e.preventDefault();addrInp.value=addr;histDiv.style.display='none';};
-            histDiv.appendChild(item);
+      // Build complete address list: saved addresses + past task addresses
+      var allAddrs=new Set();
+      try{var aj=JSON.parse(c.addresses||'[]');aj.forEach(function(a){if(a)allAddrs.add(a);});}catch(e){}
+      if(c.address)allAddrs.add(c.address);
+      // Show address picker
+      var addrBlock=document.getElementById('nt-addr-block-inner');
+      if(addrBlock){
+        addrBlock.innerHTML='';
+        var addrArr2=Array.from(allAddrs).filter(Boolean);
+        if(addrArr2.length){
+          // Show address buttons for quick selection
+          addrArr2.forEach(function(addr,i){
+            var btn=document.createElement('button');
+            btn.type='button';
+            btn.textContent=addr;
+            btn.style.cssText='width:100%;text-align:left;padding:9px 12px;border:1px solid #ddd;border-radius:8px;background:#f9f9f6;font-size:13px;cursor:pointer;margin-bottom:6px;direction:rtl';
+            if(i===0){btn.style.borderColor='#1D9E75';btn.style.background='#EAF3DE';}
+            btn.onclick=function(){
+              document.querySelectorAll('#nt-addr-block-inner button').forEach(function(b){b.style.borderColor='#ddd';b.style.background='#f9f9f6';});
+              btn.style.borderColor='#1D9E75';btn.style.background='#EAF3DE';
+              document.getElementById('nt-task-address').value=addr;
+            };
+            addrBlock.appendChild(btn);
           });
-          histDiv.style.display='block';
-        };
-        addrInp.onblur=function(){setTimeout(function(){histDiv.style.display='none';},200);};
+        }
       }
+      // Set first address as default
+      var addrInp=document.getElementById('nt-task-address');
+      var firstAddr=Array.from(allAddrs).filter(Boolean)[0]||c.address||'';
+      if(addrInp)addrInp.value=firstAddr;
     };
     box.appendChild(d);
   });
