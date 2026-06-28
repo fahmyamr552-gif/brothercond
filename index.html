@@ -2154,6 +2154,40 @@ async function saveTask(){
   }
   if(!customerName||customerName==='-')customerName=document.getElementById('ncnm')?.textContent||'Unknown';
   const today=document.getElementById('ntdate')?.value||new Date().toISOString().slice(0,10);
+  // ── Duplicate task check ──
+  if(scid&&today){
+    // Check by customer_id AND by customer_name (for tasks without customer_id)
+    var q2=db.from('tasks').select('task_num,status,type').eq('date',today).neq('status','cancel');
+    if(scid){q2=q2.eq('customer_id',scid);}else{q2=q2.eq('customer_name',customerName);}
+    var{data:dupCheck2}=await q2;
+    // Also check by name if id search returned nothing (old tasks without customer_id)
+    if((!dupCheck2||!dupCheck2.length)&&scid&&customerName){
+      var{data:dupCheck2b}=await db.from('tasks').select('task_num,status,type').eq('date',today).eq('customer_name',customerName).neq('status','cancel');
+      dupCheck2=(dupCheck2b||[]);
+    }
+    if(dupCheck2&&dupCheck2.length>0){
+      var confirmed=await new Promise(function(resolve){
+        var ov=document.createElement('div');
+        ov.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center';
+        var bx=document.createElement('div');
+        bx.style.cssText='background:#fff;border-radius:14px;padding:28px;width:460px;max-width:92vw;box-shadow:0 10px 40px rgba(0,0,0,.3)';
+        var lst=dupCheck2.map(function(t){return '<div style="padding:7px 12px;background:#FFF8E1;border-radius:7px;margin-bottom:6px;font-size:12px;border:1px solid #FFD54F"><b>'+t.task_num+'</b> &middot; '+t.type+' &middot; <span style="color:#854F0B;font-weight:600">'+t.status+'</span></div>';}).join('');
+        bx.innerHTML='<div style="font-size:28px;margin-bottom:8px">⚠️</div>'
+          +'<div style="font-size:15px;font-weight:700;color:#7A5000;margin-bottom:6px">Duplicate task warning</div>'
+          +'<div style="font-size:13px;color:#555;margin-bottom:12px">This customer already has <b>'+dupCheck2.length+'</b> task(s) on <b>'+today+'</b>:</div>'
+          +lst
+          +'<div style="font-size:12px;color:#888;margin:14px 0 20px">Do you still want to create a new task for this date?</div>'
+          +'<div style="display:flex;gap:10px;justify-content:flex-end">'
+            +'<button id="dc-no" style="padding:9px 22px;font-size:13px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer;font-weight:600">Cancel</button>'
+            +'<button id="dc-yes" style="padding:9px 22px;font-size:13px;border:none;border-radius:8px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:700">Yes, create task</button>'
+          +'</div>';
+        ov.appendChild(bx);document.body.appendChild(ov);
+        document.getElementById('dc-no').onclick=function(){ov.remove();resolve(false);};
+        document.getElementById('dc-yes').onclick=function(){ov.remove();resolve(true);};
+      });
+      if(!confirmed)return;
+    }
+  }
   var{data:lastTask}=await db.from('tasks').select('task_num').order('created_at',{ascending:false}).limit(1);
   var lastTNum=lastTask&&lastTask.length?lastTask[0].task_num:'#00000';
   var lastNum=parseInt((lastTNum||'#00000').replace(/[^0-9]/g,''))||0;
