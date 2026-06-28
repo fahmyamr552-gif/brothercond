@@ -1537,9 +1537,17 @@ async function savePay(){
   // Determine if this payment needs approval
   var needsApproval=!(can('delete')||can('delete_payment'));
   var approvedVal=!needsApproval;
-  const{data,error}=await db.from('payments').insert({
-    task_id:CT.id,amount:amt,method:method,note:note,approved:approvedVal
-  }).select().single();
+  // Try insert with approved column, fallback if column doesn't exist
+  var insertData={task_id:CT.id,amount:amt,method:method,note:note};
+  try{insertData.approved=approvedVal;}catch(e){}
+  var res1=await db.from('payments').insert(insertData).select().single();
+  var data=res1.data,error=res1.error;
+  // If approved column doesn't exist, retry without it
+  if(error&&error.message&&error.message.includes('approved')){
+    delete insertData.approved;needsApproval=false;
+    var res2=await db.from('payments').insert(insertData).select().single();
+    data=res2.data;error=res2.error;
+  }
   btn.disabled=false;btn.textContent=t('save')+' payment';
   if(error){toast('Error saving payment: '+error.message,true);console.error(error);return;}
   CT.pays.push(data);
