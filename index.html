@@ -447,6 +447,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
         <div class="av" id="ncav">AH</div>
         <div><div style="font-weight:700" id="ncnm">—</div><div style="font-size:11px;color:#888" id="ncph">—</div></div>
         </div>
+        <div id="nt-dup-warn" style="display:none;margin-bottom:4px"></div>
         <div>
           <label style="font-size:11px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:.3px;margin-bottom:6px;display:block">&#128205; Task address</label>
           <div id="nt-addr-block-inner" style="margin-bottom:6px"></div>
@@ -472,7 +473,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     <div class="r3">
       <div class="fg"><label data-t="branch">Branch</label><select id="ntbr"><option>Nasr City</option><option>Madinaty</option><option>Rehab</option><option>Head Office</option></select></div>
       <div class="fg"><label>Salesperson</label><select id="ntsp"><option>Salah</option><option>Alaa</option><option>Ayman</option><option>Heba</option><option>Amr Ashraf</option></select></div>
-      <div class="fg"><label data-t="taskdate">Task date <span style="color:#A32D2D">*</span></label><input type="date" id="ntdate"></div>
+      <div class="fg"><label data-t="taskdate">Task date <span style="color:#A32D2D">*</span></label><input type="date" id="ntdate" onchange="if(scid)checkDupTask(scid,'')"></div>
     </div>
     <div class="fg"><label data-t="description">Description</label><textarea id="ntds" placeholder="Special instructions..."></textarea></div>
   </div>
@@ -1884,6 +1885,36 @@ function togNC(c){
 }
 
 
+
+async function checkDupTask(custId, custName){
+  if(!custId)return;
+  var dateEl=document.getElementById('ntdate');
+  var date=dateEl?dateEl.value:'';
+  var warnEl=document.getElementById('nt-dup-warn');
+  if(!warnEl)return;
+  if(!date){warnEl.style.display='none';return;}
+  // Check existing tasks for this customer
+  var{data:existing}=await db.from('tasks').select('id,task_num,date,status,type').eq('customer_id',custId).neq('status','cancel').order('date',{ascending:false}).limit(20);
+  var sameDateTasks=(existing||[]).filter(function(t){return t.date===date;});
+  var pendingTasks=(existing||[]).filter(function(t){return t.status==='pending'||t.status==='progress';});
+  var msgs=[];
+  if(sameDateTasks.length>0){
+    msgs.push('⚠️ This customer already has '+sameDateTasks.length+' task(s) on '+date+': '+sameDateTasks.map(function(t){return t.task_num+' ('+t.status+')';}).join(', '));
+  }
+  if(pendingTasks.length>0&&sameDateTasks.length===0){
+    msgs.push('ℹ️ This customer has '+pendingTasks.length+' open task(s): '+pendingTasks.slice(0,3).map(function(t){return t.task_num+' ('+t.date+')';}).join(', '));
+  }
+  if(msgs.length>0){
+    warnEl.innerHTML=msgs.map(function(m){
+      var isWarning=m.startsWith('⚠️');
+      return '<div style="padding:8px 12px;border-radius:6px;font-size:12px;font-weight:600;'+(isWarning?'background:#FFF3CD;border:1px solid #F5A623;color:#7A5000':'background:#E8F4FD;border:1px solid #2196F3;color:#1565C0')+'">'+m+'</div>';
+    }).join('');
+    warnEl.style.display='block';
+  }else{
+    warnEl.style.display='none';
+  }
+}
+
 async function cSearch(v){
   const box=document.getElementById('csg');
   if(v.length<2){box.style.display='none';return;}
@@ -1903,6 +1934,7 @@ async function cSearch(v){
       document.getElementById('sct').style.display='flex';
       document.getElementById('csg').style.display='none';
       document.getElementById('cqi').value='';
+      checkDupTask(c.id, c.full_name);
       // Build complete address list: saved addresses + past task addresses
       var allAddrs=new Set();
       try{var aj=JSON.parse(c.addresses||'[]');aj.forEach(function(a){if(a)allAddrs.add(a);});}catch(e){}
