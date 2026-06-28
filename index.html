@@ -2161,6 +2161,120 @@ async function deleteSP(id){
 
 // ── Dispatches ──
 
+
+async function openAssignModal(dispId){
+  var{data:items}=await db.from('dispatch_items').select('*').eq('dispatch_id',dispId);
+  var{data:assignments}=await db.from('dispatch_assignments').select('*').eq('dispatch_id',dispId);
+  var{data:tasks}=await db.from('tasks').select('id,task_num,customer_name,date,type').order('date',{ascending:false}).limit(200);
+  items=items||[];assignments=assignments||[];tasks=tasks||[];
+
+  // Only show parts that have used qty
+  var usable=items.filter(function(it){return Math.max(0,it.qty_out-(it.qty_returned||0))>0;});
+  if(!usable.length){toast('No parts with used quantity to assign',true);return;}
+
+  document.querySelectorAll('.assign-overlay').forEach(function(e){e.remove();});
+  var ov=document.createElement('div');
+  ov.className='assign-overlay';
+  ov.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box';
+  ov.onclick=function(e){if(e.target===ov)ov.remove();};
+
+  var taskOpts=tasks.map(function(t){
+    return '<option value="'+t.id+'" data-num="'+t.task_num+'" data-cust="'+t.customer_name+'">'+t.task_num+' — '+t.customer_name+' ('+t.date+')</option>';
+  }).join('');
+
+  var partOpts=usable.map(function(it){
+    var used=Math.max(0,it.qty_out-(it.qty_returned||0));
+    var assigned=assignments.filter(function(a){return a.dispatch_item_id===it.id;}).reduce(function(s,a){return s+a.qty;},0);
+    var remaining=Math.max(0,used-assigned);
+    return '<option value="'+it.id+'" data-max="'+remaining+'" data-unit="'+it.unit+'" data-cost="'+(it.cost_per_unit||0)+'">'+it.part_name+' ('+remaining+' '+it.unit+' unassigned)</option>';
+  }).join('');
+
+  var box=document.createElement('div');
+  box.style.cssText='background:#fff;border-radius:14px;padding:0;width:560px;max-width:100%;max-height:85vh;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.3);display:flex;flex-direction:column';
+  box.innerHTML=''
+    +'<div style="padding:18px 22px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center">'
+      +'<div style="font-size:16px;font-weight:700">Assign parts to task</div>'
+      +'<button id="am-x" style="border:none;background:none;font-size:22px;cursor:pointer;color:#aaa">&#10005;</button>'
+    +'</div>'
+    +'<div style="padding:20px 22px;overflow-y:auto;flex:1">'
+      +'<div style="margin-bottom:14px">'
+        +'<label style="font-size:11px;color:#888;font-weight:700;text-transform:uppercase;display:block;margin-bottom:5px">Search task</label>'
+        +'<input id="am-search" placeholder="Search by task# or customer name..." style="width:100%;padding:9px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box" oninput="filterAssignTasks(this.value)">'
+      +'</div>'
+      +'<div style="margin-bottom:14px">'
+        +'<label style="font-size:11px;color:#888;font-weight:700;text-transform:uppercase;display:block;margin-bottom:5px">Select task</label>'
+        +'<select id="am-task" size="5" style="width:100%;border:1px solid #ddd;border-radius:8px;font-size:13px;padding:4px">'+taskOpts+'</select>'
+      +'</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">'
+        +'<div><label style="font-size:11px;color:#888;font-weight:700;text-transform:uppercase;display:block;margin-bottom:5px">Part</label>'
+          +'<select id="am-part" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:13px" onchange="updateAmMax()">'+partOpts+'</select></div>'
+        +'<div><label style="font-size:11px;color:#888;font-weight:700;text-transform:uppercase;display:block;margin-bottom:5px">Quantity</label>'
+          +'<input type="number" id="am-qty" min="1" value="1" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box">'
+          +'<div id="am-max-hint" style="font-size:11px;color:#888;margin-top:3px"></div></div>'
+      +'</div>'
+    +'</div>'
+    +'<div style="padding:14px 22px;border-top:1px solid #eee;display:flex;gap:8px;justify-content:flex-end">'
+      +'<button id="am-cancel" class="btn bs">Cancel</button>'
+      +'<button id="am-save" class="btn bp">&#10003; Save assignment</button>'
+    +'</div>';
+  ov.appendChild(box);
+  document.body.appendChild(ov);
+  document.getElementById('am-x').onclick=function(){ov.remove();};
+  document.getElementById('am-cancel').onclick=function(){ov.remove();};
+  // Set max hint
+  updateAmMax();
+  document.getElementById('am-save').onclick=async function(){
+    var taskSel=document.getElementById('am-task');
+    var partSel=document.getElementById('am-part');
+    var qty=parseFloat(document.getElementById('am-qty').value)||0;
+    if(!taskSel.value){toast('Select a task',true);return;}
+    if(!partSel.value){toast('Select a part',true);return;}
+    if(qty<=0){toast('Enter a valid quantity',true);return;}
+    var taskOpt=taskSel.selectedOptions[0];
+    var partOpt=partSel.selectedOptions[0];
+    var maxQty=parseFloat(partOpt.dataset.max)||0;
+    if(qty>maxQty){toast('Only '+maxQty+' '+partOpt.dataset.unit+' unassigned for this part',true);return;}
+    var btn=document.getElementById('am-save');btn.disabled=true;btn.textContent='Saving...';
+    var{error}=await db.from('dispatch_assignments').insert({
+      dispatch_id:dispId,
+      dispatch_item_id:partSel.value,
+      task_id:taskSel.value,
+      task_num:taskOpt.dataset.num,
+      customer_name:taskOpt.dataset.cust,
+      qty:qty,
+      part_name:partOpt.text.split('(')[0].trim(),
+      unit:partOpt.dataset.unit,
+      cost_per_unit:parseFloat(partOpt.dataset.cost)||0
+    });
+    if(error){toast('Error: '+error.message,true);btn.disabled=false;btn.textContent='Save assignment';return;}
+    toast('Assigned!');
+    ov.remove();
+    openDispatch(dispId);
+  };
+}
+
+function filterAssignTasks(q){
+  var sel=document.getElementById('am-task');
+  if(!sel)return;
+  var lower=q.toLowerCase();
+  Array.from(sel.options).forEach(function(o){
+    o.style.display=(!q||o.text.toLowerCase().includes(lower))?'':'none';
+  });
+}
+
+function updateAmMax(){
+  var partSel=document.getElementById('am-part');
+  var hint=document.getElementById('am-max-hint');
+  var qtyInp=document.getElementById('am-qty');
+  if(!partSel||!hint)return;
+  var opt=partSel.selectedOptions[0];
+  if(!opt)return;
+  var max=parseFloat(opt.dataset.max)||0;
+  var unit=opt.dataset.unit||'';
+  hint.textContent='Max: '+max+' '+unit+' unassigned';
+  if(qtyInp&&max>0)qtyInp.max=max;
+}
+
 async function saveReturns(dispId){
   var inputs=document.querySelectorAll('.ret-inp');
   if(!inputs.length){toast('No return fields found',true);return;}
