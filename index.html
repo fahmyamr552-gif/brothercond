@@ -25,7 +25,7 @@ body{font-family:Arial,sans-serif;font-size:13px;background:#f5f5f0;color:#111}
 .tb{background:#fff;border-bottom:1px solid #e0ddd8;padding:10px 18px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
 .tt{font-size:15px;font-weight:700}
 .ct{flex:1;padding:16px;overflow-y:auto}
-.pg{display:none}.pg.on{display:block}
+.pg{display:none}.pg.on{display:block}@keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}.skeleton{background:linear-gradient(90deg,#f0f0e8 25%,#e8e8e0 50%,#f0f0e8 75%);background-size:400px 100%;animation:shimmer 1.5s infinite;border-radius:6px;height:20px;margin-bottom:8px}
 .cd{background:#fff;border:1px solid #e0ddd8;border-radius:10px;padding:16px;margin-bottom:12px}
 .sh{font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px}
 .r2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
@@ -798,6 +798,13 @@ Thanks & Best Regards,`
 const MDL={Carrier:['Xcool Inverter','X-Power Gold','Optimax Edge','Flair Plus'],Midea:['Blanc Inverter','Aurora','Xtreme Save Plus','Mission'],Sharp:['J-Tech Inverter','X-Inverter','AH-AP Series','UV Protect'],Trane:['XR15','4MXW8','TWE Series','XR14'],Haier:['Pearl Plus','Arctic Super Match','Titan Inverter','FLEXIS Plus'],Fresh:['Siwa Inverter','Smart Inverter','Cool Series','Marvel']};
 const ROLES={owner:{l:'Owner',c:'pu',can:['dash','tasks','inv','pur','fin','cust','sup','usr','print','export','delete']},finance:{l:'Finance',c:'g',can:['dash','tasks','inv','pur','fin','cust','sup','print','export','delete_payment']},inventory_manager:{l:'Inventory Manager',c:'b',can:['dash','inv','pur']},admin:{l:'Office admin',c:'b',can:['dash','tasks','inv','pur','fin','cust','sup','print','delete']},salesperson:{l:'Salesperson',c:'te',can:['dash','tasks','cust']},technician:{l:'Technician',c:'gr',can:['tasks']}};
 
+
+// Simple page cache to avoid redundant DB calls
+var _cache={};
+function cacheGet(key){var c=_cache[key];return(c&&Date.now()-c.t<60000)?c.v:null;}
+function cacheSet(key,val){_cache[key]={v:val,t:Date.now()};}
+function cacheClear(key){if(key)delete _cache[key];else _cache={};}
+
 let CU=null,CT=null,scid=null,ssid=null,INV=[],PFO=false,TASK_PAGE=0,TASK_PAGE_SIZE=50,TASK_HAS_MORE=false;
 const f=n=>'EGP '+Math.round(n||0).toLocaleString();
 const ini=n=>(n||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
@@ -1104,7 +1111,7 @@ async function loadTasks(resetPage){
 async function openTask(id){
   try{
     const[tr,tp,tpy]=await Promise.all([
-      db.from('tasks').select('*').eq('id',id).single(),
+      db.from('tasks').select('*,customers(*)').eq('id',id).single(),
       db.from('task_products').select('*').eq('task_id',id),
       db.from('payments').select('*').eq('task_id',id).order('created_at',{ascending:true})
     ]);
@@ -1112,10 +1119,8 @@ async function openTask(id){
     CT=tr.data;
     CT.prods=tp.data||[];
     CT.pays=tpy.data||[];
-    if(CT.customer_id){
-      const cr=await db.from('customers').select('*').eq('id',CT.customer_id).single();
-      CT.cust=cr.data;
-    }
+    CT.cust=CT.customers||null;
+    delete CT.customers;
     go('td',null);
     const S=(id)=>document.getElementById(id);
     const isLocked2=CT.pay_status==='paid'&&!['owner','admin','finance'].includes(CU?.role);
