@@ -2197,8 +2197,10 @@ async function openNewDispatch(){
   overlay.id='disp-modal';
   overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9000;display:flex;align-items:center;justify-content:center';
   overlay.innerHTML='<div style="background:#fff;border-radius:14px;padding:24px;width:640px;max-width:95vw;max-height:92vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.25)">'
-    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">'
-      +'<div style="font-size:16px;font-weight:700">New Dispatch Session</div>'
+    +'<div style="padding:20px 24px;border-bottom:1px solid #e0ddd8"><div style="font-size:17px;font-weight:700">New Dispatch Session</div></div>'
+    +'<div style="padding:20px 24px;overflow-y:auto;flex:1">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0">'
+      +'<div></div>'
       +'<button id="disp-close" style="border:none;background:none;font-size:22px;cursor:pointer">&#10005;</button>'
     +'</div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">'
@@ -2271,117 +2273,99 @@ async function openDispatch(id){
   items=items||[];assignments=assignments||[];
   var isManager=CU&&(CU.role==='inventory_manager'||CU.role==='owner');
   var isApprover=CU&&(CU.role==='owner'||CU.role==='finance');
-  var overlay=document.createElement('div');
-  overlay.id='disp-detail-modal';
-  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9000;display:flex;align-items:center;justify-content:center';
   var statusColor={open:'#854F0B',pending_confirm:'#185FA5',confirmed:'#3B6D11'};
   var statusLabel={open:'Open',pending_confirm:'Pending Approval',confirmed:'Confirmed'};
-  var itemRows=items.map(function(it){
-    var used=it.qty_out-(it.qty_returned||0);
-    var assigned=assignments.filter(function(a){return a.dispatch_item_id===it.id;}).reduce(function(s,a){return s+a.qty;},0);
+  document.querySelectorAll('.disp-overlay').forEach(function(e){e.remove();});
+  var overlay=document.createElement('div');
+  overlay.className='disp-overlay';
+  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box';
+  overlay.onclick=function(e){if(e.target===overlay)overlay.remove();};
+
+  // Build parts rows
+  var itemRowsHtml='';
+  items.forEach(function(it){
+    var used=Math.max(0,it.qty_out-(it.qty_returned||0));
+    var assigned=assignments.filter(function(a){return a.dispatch_item_id===it.id;}).reduce(function(s,a){return s+(a.qty||0);},0);
     var unassigned=Math.max(0,used-assigned);
-    return '<tr><td style="padding:7px 10px;font-weight:600">'+it.part_name+'</td>'
-      +'<td style="padding:7px 10px;text-align:center">'+it.qty_out+' '+it.unit+'</td>'
-      +'<td style="padding:7px 10px;text-align:center">'+(disp.status!=='open'?it.qty_returned:'<input type="number" class="ret-inp" data-id="'+it.id+'" min="0" max="'+it.qty_out+'" value="'+(it.qty_returned||0)+'" style="width:60px;text-align:center;border:1px solid #ddd;border-radius:5px;padding:3px">')+'</td>'
-      +'<td style="padding:7px 10px;text-align:center;font-weight:700;color:'+(unassigned>0?'#A32D2D':'#3B6D11')+'">'+used+'</td>'
-      +'<td style="padding:7px 10px;text-align:center">'+assigned+'</td>'
-      +'<td style="padding:7px 10px;text-align:center;color:'+(unassigned>0?'#A32D2D':'#3B6D11');+';font-weight:700">'+unassigned+'</td>'
+    var usedColor=used>0?'#A32D2D':'#3B6D11';
+    var unassColor=unassigned>0?'#A32D2D':'#3B6D11';
+    var retField=disp.status==='open'
+      ?('<input type="number" class="ret-inp" data-id="'+it.id+'" min="0" max="'+it.qty_out+'" value="'+(it.qty_returned||0)+'" style="width:70px;text-align:center;border:1px solid #ddd;border-radius:6px;padding:5px;font-size:13px">')
+      :'<span style="font-weight:600">'+(it.qty_returned||0)+'</span>';
+    itemRowsHtml+='<tr style="border-bottom:1px solid #f0f0e8">'
+      +'<td style="padding:10px 12px;font-weight:600">'+it.part_name+'</td>'
+      +'<td style="padding:10px 12px;text-align:center;color:#555">'+it.qty_out+' <span style="font-size:11px;color:#888">'+it.unit+'</span></td>'
+      +'<td style="padding:10px 12px;text-align:center">'+retField+'</td>'
+      +'<td style="padding:10px 12px;text-align:center;font-weight:700;color:'+usedColor+'">'+used+'</td>'
+      +'<td style="padding:10px 12px;text-align:center;color:#555">'+assigned+'</td>'
+      +'<td style="padding:10px 12px;text-align:center;font-weight:700;color:'+unassColor+'">'+unassigned+'</td>'
       +'</tr>';
-  }).join('');
-  // Assignments section
+  });
+
+  // Build assignments section
   var assignHtml='';
   if(assignments.length){
-    var aRows=assignments.map(function(a){return '<tr><td style="padding:5px 8px">'+a.task_num+'</td><td style="padding:5px 8px">'+a.customer_name+'</td><td style="padding:5px 8px">'+a.part_name+'</td><td style="padding:5px 8px;text-align:center">'+a.qty+'</td><td style="padding:5px 8px;text-align:right">EGP '+(a.qty*a.cost_per_unit).toLocaleString()+'</td>'+(isManager&&disp.status==='open'?'<td><button onclick="removeAssignment(\''+a.id+'\',\''+id+'\')" style="font-size:10px;color:#A32D2D;border:none;background:none;cursor:pointer">&#10005;</button></td>':'')+'</tr>';}).join('');
-    assignHtml='<div style="margin-top:14px"><div style="font-size:13px;font-weight:700;margin-bottom:8px">Parts assigned to tasks</div>'
-      +'<div class="tw"><table style="width:100%;font-size:12px;border-collapse:collapse"><thead><tr style="background:#f9f9f6"><th style="padding:5px 8px;text-align:left">Task#</th><th style="padding:5px 8px;text-align:left">Customer</th><th style="padding:5px 8px;text-align:left">Part</th><th style="padding:5px 8px;text-align:center">Qty</th><th style="padding:5px 8px;text-align:right">Cost</th>'+(isManager&&disp.status==='open'?'<th></th>':'')+'</tr></thead><tbody>'+aRows+'</tbody></table></div>'
-      +'</div>';
+    var aRows=assignments.map(function(a){
+      var cost=a.qty*(a.cost_per_unit||0);
+      return '<tr style="border-bottom:1px solid #f0f0e8">'
+        +'<td style="padding:7px 10px;font-weight:600;color:#1D9E75">'+a.task_num+'</td>'
+        +'<td style="padding:7px 10px">'+a.customer_name+'</td>'
+        +'<td style="padding:7px 10px">'+a.part_name+'</td>'
+        +'<td style="padding:7px 10px;text-align:center">'+a.qty+' '+a.unit+'</td>'
+        +'<td style="padding:7px 10px;text-align:right;color:#854F0B">'+(cost>0?'EGP '+cost.toLocaleString():'-')+'</td>'
+        +(isManager&&disp.status==='open'?'<td style="padding:7px 10px"><button data-aid="'+a.id+'" onclick="removeAssignment(this.dataset.aid,\''+id+'\')" style="border:none;background:none;color:#A32D2D;cursor:pointer;font-size:16px;line-height:1">&#10005;</button></td>':'')
+        +'</tr>';
+    }).join('');
+    assignHtml='<div style="margin-top:20px">'
+      +'<div style="font-size:13px;font-weight:700;margin-bottom:8px;color:#333">Parts assigned to tasks</div>'
+      +'<div style="border:1px solid #e0ddd8;border-radius:8px;overflow:hidden">'
+      +'<table style="width:100%;border-collapse:collapse;font-size:12px">'
+      +'<thead><tr style="background:#f9f9f6"><th style="padding:8px 10px;text-align:left">Task#</th><th style="padding:8px 10px;text-align:left">Customer</th><th style="padding:8px 10px;text-align:left">Part</th><th style="padding:8px 10px;text-align:center">Qty</th><th style="padding:8px 10px;text-align:right">Cost</th>'+(isManager&&disp.status==='open'?'<th></th>':'')+'</tr></thead>'
+      +'<tbody>'+aRows+'</tbody></table></div></div>';
   }
+
+  // Action buttons
   var actionBtns='';
   if(isManager&&disp.status==='open'){
-    actionBtns='<button onclick="saveReturns(\''+id+'\')" style="padding:8px 16px;font-size:12px;border:1px solid #185FA5;border-radius:8px;background:#E8F4FD;color:#185FA5;cursor:pointer;font-weight:600">Save returns</button>'
-      +' <button onclick="openAssignModal(\''+id+'\')" style="padding:8px 16px;font-size:12px;border:1px solid #1D9E75;border-radius:8px;background:#EAF3DE;color:#1D9E75;cursor:pointer;font-weight:600">&#128205; Assign to tasks</button>'
-      +' <button onclick="submitForApproval(\''+id+'\')" style="padding:8px 16px;font-size:12px;border:none;border-radius:8px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:700">Submit for approval</button>';
+    actionBtns='<button onclick="saveReturns(\''+id+'\')" style="padding:9px 16px;font-size:12px;border:1px solid #185FA5;border-radius:8px;background:#E8F4FD;color:#185FA5;cursor:pointer;font-weight:600">&#8635; Save returns</button>'
+      +' <button onclick="openAssignModal(\''+id+'\')" style="padding:9px 16px;font-size:12px;border:1px solid #854F0B;border-radius:8px;background:#FFF8E1;color:#854F0B;cursor:pointer;font-weight:600">&#128205; Assign to tasks</button>'
+      +' <button onclick="submitForApproval(\''+id+'\')" style="padding:9px 16px;font-size:12px;border:none;border-radius:8px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:700">&#10003; Submit for approval</button>';
   }
   if(isApprover&&disp.status==='pending_confirm'){
-    actionBtns='<button onclick="approveDispatch(\''+id+'\')" style="padding:8px 20px;font-size:13px;border:none;border-radius:8px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:700">&#10003; Approve & Confirm</button>';
+    actionBtns='<button onclick="approveDispatch(\''+id+'\')" style="padding:9px 20px;font-size:13px;border:none;border-radius:8px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:700">&#10003; Approve & Confirm</button>';
   }
-  overlay.innerHTML='<div style="background:#fff;border-radius:14px;padding:24px;width:720px;max-width:95vw;max-height:92vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.25)">'
-    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
-      +'<div><div style="font-size:16px;font-weight:700">Dispatch — '+disp.technician_name+'</div><div style="font-size:12px;color:#888">'+disp.date+' &middot; '+disp.created_by+'</div></div>'
-      +'<div style="display:flex;align-items:center;gap:10px"><span style="font-size:11px;padding:3px 12px;border-radius:6px;font-weight:700;background:'+(statusColor[disp.status]||'#888')+'22;color:'+(statusColor[disp.status]||'#888')+'">'+( statusLabel[disp.status]||disp.status)+'</span><button id="dd-close" style="border:none;background:none;font-size:22px;cursor:pointer">&#10005;</button></div>'
-    +'</div>'
-    +'<div class="tw"><table style="width:100%;font-size:12px;border-collapse:collapse"><thead><tr style="background:#f9f9f6"><th style="padding:7px 10px;text-align:left">Part</th><th style="padding:7px 10px;text-align:center">Dispatched</th><th style="padding:7px 10px;text-align:center">Returned</th><th style="padding:7px 10px;text-align:center">Used</th><th style="padding:7px 10px;text-align:center">Assigned</th><th style="padding:7px 10px;text-align:center">Unassigned</th></tr></thead><tbody>'+itemRows+'</tbody></table></div>'
-    +assignHtml
-    +'<div style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end;align-items:center">'
-      +'<button id="dd-cancel" style="padding:8px 16px;font-size:12px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer">Close</button>'
-      +actionBtns
-    +'</div>'
-  +'</div>';
+
+  var html='<div style="background:#fff;border-radius:14px;padding:0;width:760px;max-width:96vw;max-height:90vh;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.25);display:flex;flex-direction:column">';
+  // Header
+  html+='<div style="padding:20px 24px;border-bottom:1px solid #e0ddd8;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">';
+  html+='<div><div style="font-size:17px;font-weight:700">Dispatch — '+disp.technician_name+'</div>';
+  html+='<div style="font-size:12px;color:#888;margin-top:2px">'+disp.date+' &middot; Created by '+disp.created_by+(disp.notes?' &middot; '+disp.notes:'')+'</div></div>';
+  html+='<div style="display:flex;align-items:center;gap:10px">';
+  html+='<span style="font-size:11px;padding:4px 12px;border-radius:6px;font-weight:700;background:'+(statusColor[disp.status]||'#888')+'22;color:'+(statusColor[disp.status]||'#888')+'">'+(statusLabel[disp.status]||disp.status)+'</span>';
+  html+='<button id="dd-close" style="border:none;background:none;font-size:24px;cursor:pointer;color:#888;line-height:1">&#10005;</button>';
+  html+='</div></div>';
+  // Body (scrollable)
+  html+='<div style="padding:20px 24px;overflow-y:auto;flex:1">';
+  // Parts table
+  html+='<div style="font-size:13px;font-weight:700;margin-bottom:10px;color:#333">Parts dispatched</div>';
+  html+='<div style="border:1px solid #e0ddd8;border-radius:8px;overflow:hidden;margin-bottom:4px">';
+  html+='<table style="width:100%;border-collapse:collapse;font-size:13px">';
+  html+='<thead><tr style="background:#f9f9f6"><th style="padding:10px 12px;text-align:left;font-weight:700;color:#555">Part</th><th style="padding:10px 12px;text-align:center;font-weight:700;color:#555">Dispatched</th><th style="padding:10px 12px;text-align:center;font-weight:700;color:#555">Returned</th><th style="padding:10px 12px;text-align:center;font-weight:700;color:#555">Used</th><th style="padding:10px 12px;text-align:center;font-weight:700;color:#555">Assigned</th><th style="padding:10px 12px;text-align:center;font-weight:700;color:#555">Unassigned</th></tr></thead>';
+  html+='<tbody>'+itemRowsHtml+'</tbody></table></div>';
+  html+=assignHtml;
+  html+='</div>';
+  // Footer
+  html+='<div style="padding:16px 24px;border-top:1px solid #e0ddd8;display:flex;gap:8px;justify-content:flex-end;flex-shrink:0;background:#fafaf8">';
+  html+='<button id="dd-cancel" style="padding:9px 18px;font-size:13px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer">Close</button>';
+  html+=actionBtns;
+  html+='</div></div>';
+
+  overlay.innerHTML=html;
   document.body.appendChild(overlay);
   document.getElementById('dd-close').onclick=function(){overlay.remove();};
   document.getElementById('dd-cancel').onclick=function(){overlay.remove();};
 }
 
-async function saveReturns(dispId){
-  var inps=document.querySelectorAll('.ret-inp');
-  for(var i=0;i<inps.length;i++){
-    var inp=inps[i];
-    var itemId=inp.dataset.id;
-    var val=parseFloat(inp.value)||0;
-    await db.from('dispatch_items').update({qty_returned:val}).eq('id',itemId);
-  }
-  toast('Returns saved!');
-  document.getElementById('disp-detail-modal').remove();
-  openDispatch(dispId);
-}
-
-async function submitForApproval(dispId){
-  var unassigned=await checkUnassigned(dispId);
-  if(unassigned>0){
-    if(!confirm(unassigned+' unit(s) are used but not assigned to any task. Submit anyway?'))return;
-  }
-  await db.from('dispatches').update({status:'pending_confirm'}).eq('id',dispId);
-  toast('Submitted for approval!');
-  document.getElementById('disp-detail-modal').remove();
-  loadDispatches();
-}
-
-async function checkUnassigned(dispId){
-  var{data:items}=await db.from('dispatch_items').select('*').eq('dispatch_id',dispId);
-  var{data:assignments}=await db.from('dispatch_assignments').select('*').eq('dispatch_id',dispId);
-  var total=0;
-  (items||[]).forEach(function(it){
-    var used=it.qty_out-(it.qty_returned||0);
-    var assigned=(assignments||[]).filter(function(a){return a.dispatch_item_id===it.id;}).reduce(function(s,a){return s+a.qty;},0);
-    total+=Math.max(0,used-assigned);
-  });
-  return total;
-}
-
-async function approveDispatch(dispId){
-  // Deduct inventory and update tasks
-  var{data:items}=await db.from('dispatch_items').select('*').eq('dispatch_id',dispId);
-  var{data:assignments}=await db.from('dispatch_assignments').select('*').eq('dispatch_id',dispId);
-  // Deduct from spare_parts inventory
-  for(var i=0;i<(items||[]).length;i++){
-    var it=items[i];
-    var used=it.qty_out-(it.qty_returned||0);
-    if(used>0&&it.part_id){
-      var{data:sp}=await db.from('spare_parts').select('qty').eq('id',it.part_id).single();
-      if(sp)await db.from('spare_parts').update({qty:Math.max(0,(sp.qty||0)-used)}).eq('id',it.part_id);
-    }
-  }
-  await db.from('dispatches').update({status:'confirmed'}).eq('id',dispId);
-  toast('Dispatch confirmed! Inventory updated.');
-  document.getElementById('disp-detail-modal').remove();
-  loadDispatches();
-}
-
-async function removeAssignment(assignId,dispId){
-  await db.from('dispatch_assignments').delete().eq('id',assignId);
-  document.getElementById('disp-detail-modal').remove();
-  openDispatch(dispId);
-}
 
 async function openAssignModal(dispId){
   var{data:items}=await db.from('dispatch_items').select('*').eq('dispatch_id',dispId);
