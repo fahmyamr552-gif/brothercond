@@ -1407,8 +1407,6 @@ function renderPays(){
       var dateStr=p.created_at?new Date(p.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):'';
       var timeStr=p.created_at?new Date(p.created_at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'';
       var isOwner=can('delete')||can('delete_payment');
-      var isApproved=p.approved!==false;
-      var canConfirm=!isApproved&&isOwner;
       var isApproved=p.approved!==false; // default true if column doesn't exist yet
       var canConfirm=!isApproved&&isOwner;
       var d=document.createElement('div');
@@ -1528,7 +1526,7 @@ async function savePay(){
   const note=document.getElementById('pn').value.trim();
   // Calculate before saving
   const totalAmt=CT.prods.reduce((a,p)=>a+p.qty*p.price,0);
-  const paidSoFar=CT.pays.reduce((a,p)=>a+p.amount,0);
+  const paidSoFar=CT.pays.filter(function(p){return p.approved!==false;}).reduce(function(a,p){return a+p.amount;},0);
   const remAmt=totalAmt-paidSoFar;
   // Warn if overpayment
   if(amt>remAmt&&remAmt>0){
@@ -1536,23 +1534,32 @@ async function savePay(){
   }
   const btn=document.getElementById('pm-save-btn');
   btn.disabled=true;btn.textContent=t('loadin');
+  // Determine if this payment needs approval
+  var needsApproval=!(can('delete')||can('delete_payment'));
+  var approvedVal=!needsApproval;
   const{data,error}=await db.from('payments').insert({
-    task_id:CT.id,amount:amt,method,note
+    task_id:CT.id,amount:amt,method:method,note:note,approved:approvedVal
   }).select().single();
   btn.disabled=false;btn.textContent=t('save')+' payment';
   if(error){toast('Error saving payment: '+error.message,true);console.error(error);return;}
   CT.pays.push(data);
-  // Auto-update pay_status using updated totals
-  const newPaid=CT.pays.reduce((a,p)=>a+p.amount,0);
+  // Only count APPROVED payments toward pay_status
+  const newPaid=CT.pays.filter(function(p){return p.approved!==false;}).reduce(function(a,p){return a+p.amount;},0);
   let newStatus='unpaid';
   if(newPaid>=totalAmt&&totalAmt>0)newStatus='paid';
   else if(newPaid>0)newStatus='downpayment';
-  await db.from('tasks').update({pay_status:newStatus}).eq('id',CT.id);
-  CT.pay_status=newStatus;
-  document.getElementById('pst').value=newStatus;
+  if(!needsApproval){
+    await db.from('tasks').update({pay_status:newStatus}).eq('id',CT.id);
+    CT.pay_status=newStatus;
+    document.getElementById('pst').value=newStatus;
+  }
   closePayModal();
   renderPays();
-  toast('Payment of '+f(amt)+' saved');
+  if(needsApproval){
+    toast('Payment recorded — waiting for finance confirmation');
+  }else{
+    toast('Payment of '+f(amt)+' saved');
+  }
 }
 
 async function saveComp(){
