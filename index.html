@@ -454,6 +454,12 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
           <div id="nt-addr-block-inner" style="margin-bottom:6px"></div>
           <input id="nt-task-address" placeholder="Or type a new address..." style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px;box-sizing:border-box;color:#666" autocomplete="off">
         </div>
+        <div id="nt-addr-block" style="display:none;margin-top:8px;width:100%">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div><label style="font-size:11px;color:#888;font-weight:600;display:block;margin-bottom:3px">From address</label><input id="nt-addr-from" placeholder="Uninstall from..." style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;box-sizing:border-box"></div>
+            <div><label style="font-size:11px;color:#888;font-weight:600;display:block;margin-bottom:3px">To address</label><input id="nt-addr-to" placeholder="Install to..." style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;box-sizing:border-box"></div>
+          </div>
+        </div>
         <button class="btn bs" style="margin-left:auto" onclick="clrC()">X</button>
       </div>
     </div>
@@ -1060,7 +1066,7 @@ async function loadTasks(resetPage){
     var body=document.getElementById('tlist');
     if(TASK_PAGE===0)body.innerHTML='';
     // Remove old load-more button if present
-    var oldMore=document.getElementById('load-more-btn');
+    var oldMore=document.getElementById('load-more');
     if(oldMore)oldMore.remove();
     if(!pageData.length&&TASK_PAGE===0){
       body.innerHTML='<div style="padding:20px;text-align:center;color:#888">'+t('notasksfound')+'</div>';
@@ -1094,7 +1100,7 @@ async function loadTasks(resetPage){
       body.appendChild(moreBtn);
     }
     // Page info
-    var infoEl=document.getElementById('task-page-info');
+    var infoEl=document.getElementById('tpinfo');
     if(!infoEl){
       infoEl=document.createElement('div');
       infoEl.id='task-page-info';
@@ -1251,10 +1257,6 @@ async function openTask(id){
     setV('pst',CT.pay_status||'unpaid');
     if(CT.due_date){
       setV('pdd',CT.due_date);
-      setD('pdue','');
-      set('pduev',CT.due_date);
-    } else {
-      setD('pdue','none');
     }
     // Show/hide down payment section
     const ps=CT.pay_status||'unpaid';
@@ -1416,7 +1418,7 @@ function onPS(){
 async function saveDue(){
   const d=document.getElementById('pdd').value;
   if(CT){CT.due_date=d;await db.from('tasks').update({due_date:d}).eq('id',CT.id);
-  if(d){document.getElementById('pdue').style.display='';document.getElementById('pduev').textContent=d;}}
+  if(d){document.getElementById('prm').style.display='';document.getElementById('prm').textContent='Due: '+d;}}
 }
 
 function calcPR(){
@@ -1671,7 +1673,7 @@ async function saveComp(){
   var doneBtn=document.querySelector('.sb button[data-s="done"]');
   if(doneBtn)doneBtn.classList.add('active');
   // Update status badge in header
-  var badge=document.getElementById('task-status-badge');
+  var badge=document.getElementById('pst');
   if(badge){badge.className='bx g';badge.textContent='Completed';}
   toast(t('completionsaved')+' — status set to Completed');
 }
@@ -2751,7 +2753,7 @@ function posDD(){var rect=srchInp.getBoundingClientRect();dd.style.top=(rect.bot
 
 function addPOR(){
   if(!INV.length){db.from('inventory').select('*').then(function(r){INV=r.data||[];addPOR();});return;}
-  var body=document.getElementById('porb');if(!body)return;
+  var body=document.getElementById('potb');if(!body)return;
   var tr=document.createElement('tr');
   var opts=INV.map(function(p){return '<option value="'+p.id+'" data-stock="'+p.qty+'">'+p.brand+' '+p.model+' '+p.hp+' '+(p.unit_type||'')+' '+(p.cooling||'')+' '+(p.ac_type||'')+'</option>';}).join('');
   tr.innerHTML='<td><select style="width:100%;font-size:12px;padding:4px" onchange="var o=this.selectedOptions[0];this.closest(\'tr\').querySelector(\'.po-stock\').textContent=o?o.dataset.stock+\' in stock\':\'\'" >'+opts+'</select></td>'
@@ -2921,14 +2923,14 @@ async function loadInv(search,brand){
 }
 
 function updMdl(){
-  var br=document.getElementById('nbr')?.value||'';
-  var md=document.getElementById('nmd')?.value||'';
-  var hp=document.getElementById('nhp')?.value||'';
-  var ut=document.getElementById('nut')?.value||'';
-  var co=document.getElementById('nco')?.value||'';
-  var at=document.getElementById('nat')?.value||'';
+  var br=document.getElementById('npbr')?.value||'';
+  var md=document.getElementById('npmd')?.value||'';
+  var hp=document.getElementById('nphp')?.value||'';
+  var ut=document.getElementById('nurol')?.value||'';
+  var co=document.getElementById('npco')?.value||'';
+  var at=document.getElementById('npac')?.value||'';
   var parts=[br,md,hp,ut,co,at].filter(Boolean);
-  var el=document.getElementById('ngnm');if(el)el.value=parts.join(' ');
+  var el=document.getElementById('npgn');if(el)el.value=parts.join(' ');
 }
 
 function bldN(){updMdl();}
@@ -2939,27 +2941,27 @@ function editProd(p){
   set('nbr',p.brand);set('nmd',p.model);set('nhp',p.hp);set('nut',p.unit_type);
   set('nco',p.cooling);set('nat',p.ac_type);set('niq',p.qty);set('nup',p.price);
   set('nuc',p.cost);set('nla',p.low_stock_alert||1);
-  var el=document.getElementById('ngnm');if(el)el.value=p.brand+' '+p.model+' '+p.hp;
-  var hidEl=document.getElementById('np-edit-id');if(!hidEl){hidEl=document.createElement('input');hidEl.type='hidden';hidEl.id='np-edit-id';document.getElementById('pg-np')?.appendChild(hidEl);}
+  var el=document.getElementById('npgn');if(el)el.value=p.brand+' '+p.model+' '+p.hp;
+  var hidEl=document.getElementById('npeid');if(!hidEl){hidEl=document.createElement('input');hidEl.type='hidden';hidEl.id='np-edit-id';document.getElementById('pg-np')?.appendChild(hidEl);}
   hidEl.value=p.id;
 }
 
 async function saveProd(){
-  var br=document.getElementById('nbr')?.value?.trim();
-  var md=document.getElementById('nmd')?.value?.trim();
-  var hp=document.getElementById('nhp')?.value?.trim();
+  var br=document.getElementById('npbr')?.value?.trim();
+  var md=document.getElementById('npmd')?.value?.trim();
+  var hp=document.getElementById('nphp')?.value?.trim();
   if(!br||!md||!hp){toast('Fill brand, model and capacity',true);return;}
-  var pid=document.getElementById('np-edit-id')?.value;
-  var data={brand:br,model:md,hp:hp,unit_type:document.getElementById('nut')?.value,cooling:document.getElementById('nco')?.value,ac_type:document.getElementById('nat')?.value,qty:parseInt(document.getElementById('niq')?.value)||0,price:parseFloat(document.getElementById('nup')?.value)||0,cost:parseFloat(document.getElementById('nuc')?.value)||0,low_stock_alert:parseInt(document.getElementById('nla')?.value)||1};
+  var pid=document.getElementById('npeid')?.value;
+  var data={brand:br,model:md,hp:hp,unit_type:document.getElementById('nurol')?.value,cooling:document.getElementById('npco')?.value,ac_type:document.getElementById('npac')?.value,qty:parseInt(document.getElementById('npqt')?.value)||0,price:parseFloat(document.getElementById('nupw')?.value)||0,cost:parseFloat(document.getElementById('nppr')?.value)||0,low_stock_alert:parseInt(document.getElementById('nplw')?.value)||1};
   var{error}=pid?await db.from('inventory').update(data).eq('id',pid):await db.from('inventory').insert(data);
   if(error){toast('Error: '+error.message,true);return;}
   toast(pid?t('productupdated'):t('productsaved'));
-  document.getElementById('np-edit-id').value='';
+  document.getElementById('npeid').value='';
   go('inv',document.getElementById('ni-inv'));
 }
 
 async function loadPur(){
-  var body=document.getElementById('polist');
+  var body=document.getElementById('pob');
   if(!body)return;
   body.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:#888">'+t('loadin')+'</td></tr>';
   var{data:pos}=await db.from('purchase_orders').select('*').order('created_at',{ascending:false});
@@ -2993,15 +2995,15 @@ async function loadPur(){
 
 function openNewPO(){
   go('npo',null);
-  document.getElementById('porb').innerHTML='';
+  document.getElementById('potb').innerHTML='';
   document.getElementById('potot').textContent='EGP 0';
   addPOR();
 }
 
 async function savePO(){
-  var supId=document.getElementById('posup')?.value;
-  var supNm=document.getElementById('posup')?.selectedOptions[0]?.text||'-';
-  var date=document.getElementById('podate')?.value||new Date().toISOString().slice(0,10);
+  var supId=document.getElementById('ssn')?.value;
+  var supNm=document.getElementById('ssn')?.selectedOptions[0]?.text||'-';
+  var date=document.getElementById('pod')?.value||new Date().toISOString().slice(0,10);
   var rows=document.querySelectorAll('#porb tr');
   if(!rows.length){toast('Add at least one product',true);return;}
   var items=[];
@@ -3018,7 +3020,7 @@ async function savePO(){
   var lastPN=lastPO&&lastPO.length?lastPO[0].po_num:'PO-00000';
   var lastPNum=parseInt((lastPN||'PO-00000').replace(/[^0-9]/g,''))||0;
   var poNum='PO-'+String(lastPNum+1).padStart(5,'0');
-  var{data:po,error}=await db.from('purchase_orders').insert({po_num:poNum,supplier_id:supId||null,supplier_name:supNm,date:date,total:tot,status:'pending',item_count:items.length,notes:document.getElementById('ponotes')?.value,expected_delivery:document.getElementById('podel')?.value}).select().single();
+  var{data:po,error}=await db.from('purchase_orders').insert({po_num:poNum,supplier_id:supId||null,supplier_name:supNm,date:date,total:tot,status:'pending',item_count:items.length,notes:document.getElementById('pon')?.value,expected_delivery:document.getElementById('podl')?.value}).select().single();
   if(error){toast('Error: '+error.message,true);return;}
   var poItems=items.map(function(it){return{po_id:po.id,inventory_id:it.inventory_id,qty:it.qty,price:it.price};});
   await db.from('po_items').insert(poItems);
@@ -3171,7 +3173,7 @@ async function loadFinStats(){
 async function finTab(type,btn){
   document.querySelectorAll('.tab').forEach(function(b){b.classList.remove('on');});
   if(btn)btn.classList.add('on');
-  var body=document.getElementById('ftlist');if(!body)return;
+  var body=document.getElementById('fcont');if(!body)return;
   body.innerHTML='<div style="padding:20px;text-align:center;color:#888">'+t('loadin')+'</div>';
   // All transactions + type-filtered tabs
   if(type==='all'||type==='sales'||type==='maintenance'||type==='installation'||type==='uninstall'||type==='pull'||type==='inspection'||type==='workshop'){
@@ -3434,7 +3436,7 @@ async function loadUsr(){
 }
 
 async function saveUsr(){
-  var un=document.getElementById('nuun')?.value.trim();var pw=document.getElementById('nupw')?.value;var fn=document.getElementById('nufn')?.value.trim();var ro=document.getElementById('nurol')?.value;var br=document.getElementById('nubr')?.value;
+  var un=document.getElementById('nuu')?.value.trim();var pw=document.getElementById('nupw')?.value;var fn=document.getElementById('nunm')?.value.trim();var ro=document.getElementById('nurol')?.value;var br=document.getElementById('nubr')?.value;
   if(!un||!pw||!fn){toast('Fill all required fields',true);return;}
   if(pw.length<6){toast('Password must be at least 6 characters',true);return;}
   var{error}=await db.from('users').insert({username:un,password:pw,full_name:fn,role:ro,branch:br,active:true});
