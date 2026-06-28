@@ -891,7 +891,17 @@ function go(pg,el){
   if(pg==='fin'){loadFinStats();finTab('all',document.querySelector('.tab.on')||document.querySelector('.tab'));}
   if(pg==='cust')loadCust();
   if(pg==='sup')loadSup();
-  if(pg==='disp')loadDispatches();
+  if(pg==='disp'){
+    loadDispatches();
+    // Add New Dispatch button to top right for inventory_manager and owner
+    if(CU&&(CU.role==='inventory_manager'||CU.role==='owner')){
+      var dispBtn=document.createElement('button');
+      dispBtn.className='btn bs bp';
+      dispBtn.textContent='+ New Dispatch';
+      dispBtn.onclick=function(){openNewDispatch();};
+      ta.appendChild(dispBtn);
+    }
+  }
   if(pg==='usr')loadUsr();
 }
 
@@ -2430,8 +2440,8 @@ async function loadDispatches(){
       +'</div>';
   }
   var rows=(pendingSection+otherDisps.map(dispCard).join(''));
-  var newBtn=CU.role==='inventory_manager'||CU.role==='owner'
-    ?'<button onclick="openNewDispatch()" style="padding:8px 18px;font-size:13px;border:none;border-radius:8px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:600;margin-bottom:16px">+ New Dispatch</button>':'' ;
+  var newBtn=(CU.role==='inventory_manager'||CU.role==='owner')
+    ?('<button onclick="openNewDispatch()" style="padding:8px 18px;font-size:13px;border:none;border-radius:8px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:700">+ New Dispatch</button>'):'';
   body.innerHTML='<div style="padding:20px">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">'
       +'<div style="font-size:18px;font-weight:700">Dispatch Sessions</div>'
@@ -3498,7 +3508,29 @@ async function saveUsr(){
 async function togUsr(id,active){
   await db.from('users').update({active:active}).eq('id',id);
   toast(active?t('active'):t('inactive'));loadUsr();
-}</script>
+}
+
+// Session restore on page load
+(function(){
+  try{
+    var saved=localStorage.getItem('bc_user');
+    if(saved){
+      CU=JSON.parse(saved);
+      document.getElementById('ls').style.display='none';
+      document.getElementById('app').classList.remove('h');
+      document.getElementById('sname').textContent=CU.full_name;
+      document.getElementById('srole').textContent=ROLES[CU.role]?.l||CU.role;
+      document.getElementById('sbranch').textContent=CU.branch||'';
+      applyRole();
+      go('dash',document.getElementById('ni-dash'));
+      // Preload inventory in background
+      setTimeout(function(){
+        if(!INV.length)db.from('inventory').select('*').order('brand').then(function(r){INV=r.data||[];});
+      },1500);
+    }
+  }catch(e){console.error('Session restore error:',e);}
+})();
+</script>
 </body>
 </html>
 <script>
