@@ -347,6 +347,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
       <div class="tr"><span class="tl" data-t="subtotal">Subtotal</span><span class="tv" id="vsub">EGP 0</span></div>
       <div class="tr" style="padding-top:0"><span class="tl">Tax (14%)</span><span class="tv" id="vtax">EGP 0</span></div>
       <div class="tr" style="border-top:1px solid #e8e8e0"><span class="tl" style="font-weight:700" data-t="grandtotal">Grand total</span><span class="tv" style="color:#1D9E75;font-weight:700" id="vgr">EGP 0</span></div>
+      <div id="sp-used-block" style="display:none;margin-top:10px;padding:10px 14px;background:#FFF8E1;border-radius:8px;border:1px solid #FFD54F;font-size:12px"></div>
     </div>
     <div class="cd" id="plc" style="display:none"><div class="sh" data-t="termsandpolicy">Terms & offer policy</div><div style="font-size:11px;color:#666;line-height:1.7" id="plt" style="white-space:pre-wrap"></div></div>
   </div>
@@ -1127,6 +1128,12 @@ async function openTask(id){
     CT.pays=tpy.data||[];
     CT.cust=CT.customers||null;
     delete CT.customers;
+    // Load spare parts used in this task (confirmed dispatches only)
+    var spUsedRes=await db.from('dispatch_assignments').select('part_name,qty,unit,cost_per_unit,dispatches(status,date,technician_name)').eq('task_id',CT.id);
+    CT.spUsed=(spUsedRes.data||[]).filter(function(a){return a.dispatches&&a.dispatches.status==='confirmed';});
+    // Load spare parts used in this task
+    var{data:spUsed}=await db.from('dispatch_assignments').select('*,dispatches(status,date,technician_name)').eq('task_id',CT.id);
+    CT.spUsed=(spUsed||[]).filter(function(a){return a.dispatches&&a.dispatches.status==='confirmed';});
     go('td',null);
     const S=(id)=>document.getElementById(id);
     const isLocked2=CT.pay_status==='paid'&&!['owner','admin','finance'].includes(CU?.role);
@@ -2113,6 +2120,7 @@ async function loadSpareParts(search){
     +'<th style="padding:8px 10px;text-align:left">Part name</th>'
     +'<th style="padding:8px 10px;text-align:center">Unit</th>'
     +'<th style="padding:8px 10px;text-align:center">Stock</th>'
+    +'<th style="padding:8px 10px;text-align:center">Used</th>'
     +'<th style="padding:8px 10px;text-align:right">Cost/unit</th>'
     +'<th style="padding:8px 10px;text-align:center">Low alert</th>'
     +'<th style="padding:8px 10px">Action</th>'
@@ -2328,7 +2336,38 @@ async function submitForApproval(dispId){
   loadDispatches();
 }
 
+
+async function cancelDispatch(dispId){
+  if(!can('delete')&&!can('delete_payment')){toast('No permission',true);return;}
+  if(!confirm('Cancel this dispatch? If already confirmed, inventory will be restored.'))return;
+  // Get dispatch status and items
+  var{data:disp}=await db.from('dispatches').select('status').eq('id',dispId).single();
+  if(!disp)return;
+  // If confirmed, restore inventory
+  if(disp.status==='confirmed'){
+    var{data:assignments}=await db.from('dispatch_assignments').select('*,dispatch_items(part_id)').eq('dispatch_id',dispId);
+    for(var i=0;i<(assignments||[]).length;i++){
+      var a=assignments[i];
+      var partId=a.dispatch_items?.part_id;
+      if(partId){
+        var{data:sp}=await db.from('spare_parts').select('qty').eq('id',partId).single();
+        if(sp){await db.from('spare_parts').update({qty:(sp.qty||0)+a.qty}).eq('id',partId);}
+      }
+    }
+    toast('Inventory restored');
+  }
+  await db.from('dispatch_assignments').delete().eq('dispatch_id',dispId);
+  await db.from('dispatch_items').delete().eq('dispatch_id',dispId);
+  await db.from('dispatches').delete().eq('id',dispId);
+  document.querySelectorAll('.disp-overlay').forEach(function(e){e.remove();});
+  toast('Dispatch cancelled and deleted');
+  loadDispatches();
+}
+
 async function approveDispatch(dispId){
+  // Prevent double approval
+  var{data:checkDisp}=await db.from('dispatches').select('status').eq('id',dispId).single();
+  if(checkDisp&&checkDisp.status==='confirmed'){toast('Already confirmed!',true);return;}
   if(!confirm('Approve this dispatch? Inventory will be deducted.'))return;
   // Get assignments and deduct inventory
   var{data:assignments}=await db.from('dispatch_assignments').select('*').eq('dispatch_id',dispId);
@@ -2558,6 +2597,13 @@ async function openDispatch(id){
     submitBtn.innerHTML='&#10003; Submit for approval';submitBtn.className='btn bp';
     submitBtn.onclick=function(){submitForApproval(id);};
     ftr.appendChild(saveBtn);ftr.appendChild(assignBtn);ftr.appendChild(submitBtn);
+  }
+  if(isApprover&&(disp.status==='pending_confirm'||disp.status==='confirmed'||disp.status==='open')){
+    var cancelDispBtn=document.createElement('button');
+    cancelDispBtn.innerHTML='&#10005; Cancel & Delete';cancelDispBtn.className='btn bs';
+    cancelDispBtn.style.cssText='border-color:#A32D2D;color:#A32D2D;margin-right:auto';
+    cancelDispBtn.onclick=function(){cancelDispatch(id);};
+    ftr.insertBefore(cancelDispBtn,ftr.firstChild);
   }
   if(isApprover&&disp.status==='pending_confirm'){
     var approveBtn=document.createElement('button');
