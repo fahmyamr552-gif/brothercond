@@ -160,12 +160,12 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
 <!-- TASKS LIST -->
 <div class="pg" id="pg-tasks">
   <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
-    <input placeholder="Search..." data-t-ph="search" style="flex:1;min-width:140px" id="tq" oninput="loadTasks()">
-    <select style="width:130px" id="tft" onchange="loadTasks()">
+    <input placeholder="Search..." data-t-ph="search" style="flex:1;min-width:140px" id="tq" oninput="_loadTasksRunning=false;loadTasks()">
+    <select style="width:130px" id="tft" onchange="_loadTasksRunning=false;loadTasks()">
       <option value="" data-t="alltypes">All types</option>
       <option>sales</option><option>maintenance</option><option>installation</option><option>uninstall</option>
     </select>
-    <select style="width:120px" id="tfb" onchange="loadTasks()">
+    <select style="width:120px" id="tfb" onchange="_loadTasksRunning=false;loadTasks()">
       <option value="" data-t="allbranches">All branches</option>
       <option>Nasr City</option><option>Madinaty</option><option>Rehab</option><option>Head Office</option>
     </select>
@@ -173,13 +173,13 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
   <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
     <div style="display:flex;align-items:center;gap:5px;font-size:12px;color:#888">
       <label style="color:#888;white-space:nowrap">From:</label>
-      <input type="date" id="tfd" onchange="loadTasks()" style="width:140px;font-size:12px;padding:5px 8px">
+      <input type="date" id="tfd" onchange="_loadTasksRunning=false;loadTasks()" style="width:140px;font-size:12px;padding:5px 8px">
     </div>
     <div style="display:flex;align-items:center;gap:5px;font-size:12px;color:#888">
       <label style="color:#888;white-space:nowrap">To:</label>
-      <input type="date" id="ttd" onchange="loadTasks()" style="width:140px;font-size:12px;padding:5px 8px">
+      <input type="date" id="ttd" onchange="_loadTasksRunning=false;loadTasks()" style="width:140px;font-size:12px;padding:5px 8px">
     </div>
-    <select style="width:120px;font-size:12px;padding:5px 8px" id="tfs" onchange="loadTasks()">
+    <select style="width:120px;font-size:12px;padding:5px 8px" id="tfs" onchange="_loadTasksRunning=false;loadTasks()">
       <option value="" data-t="allstatuses">All statuses</option>
       <option value="pending">Pending</option>
       <option value="progress">In progress</option>
@@ -1034,7 +1034,10 @@ function openEditOrderInfo(){
   };
 }
 
+var _loadTasksRunning=false;
 async function loadTasks(resetPage){
+  if(_loadTasksRunning)return;
+  _loadTasksRunning=true;
   try{
     if(resetPage!==false)TASK_PAGE=0;
     const q=document.getElementById('tq')?.value.toLowerCase()||'';
@@ -1112,6 +1115,7 @@ async function loadTasks(resetPage){
     infoEl.textContent='Showing '+(TASK_PAGE*TASK_PAGE_SIZE+1)+' - '+showing+(TASK_HAS_MORE?' of many':' tasks');
     if(TASK_PAGE===0&&!TASK_HAS_MORE)infoEl.textContent=pageData.length+' task'+(pageData.length===1?'':'s');
   }catch(e){console.error('loadTasks error:',e);}
+  finally{_loadTasksRunning=false;}
 }
 
 
