@@ -2083,9 +2083,7 @@ async function loadSpareParts(search){
   var body=document.getElementById('sp-list');
   if(!body)return;
   body.innerHTML='<div style="padding:20px;text-align:center;color:#888">Loading...</div>';
-  var q=db.from('spare_parts').select('*').order('name');
-  if(search)q=q.ilike('name','%'+search+'%');
-  var{data:parts}=await q;
+  var{data:parts}=await db.from('spare_parts').select('*').order('name');
   parts=parts||[];
   // Stats
   var tot=parts.length;
@@ -2193,9 +2191,7 @@ async function loadDispatches(){
 async function openNewDispatch(){
   // Get technicians from users
   var{data:techs}=await db.from('users').select('id,full_name,username').eq('active',true).in('role',['technician','salesperson','admin']);
-  var q=db.from('spare_parts').select('*').order('name');
-  if(search)q=q.ilike('name','%'+search+'%');
-  var{data:parts}=await q;
+  var{data:parts}=await db.from('spare_parts').select('*').order('name');
   techs=techs||[];parts=parts||[];
   var techOpts=techs.map(function(t){return '<option value="'+t.full_name+'">'+t.full_name+'</option>';}).join('');
   var overlay=document.createElement('div');
