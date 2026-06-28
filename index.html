@@ -3150,6 +3150,42 @@ async function finTab(type,btn){
   if(btn)btn.classList.add('on');
   var body=document.getElementById('ftlist');if(!body)return;
   body.innerHTML='<div style="padding:20px;text-align:center;color:#888">'+t('loadin')+'</div>';
+  // All transactions + type-filtered tabs
+  if(type==='all'||type==='sales'||type==='maintenance'||type==='installation'||type==='uninstall'||type==='pull'||type==='inspection'||type==='workshop'){
+    var typeFilter=type==='all'?null:type;
+    var{data:ftasks}=await db.from('tasks').select('id,task_num,customer_name,type,branch,date,pay_status').order('date',{ascending:false});
+    ftasks=ftasks||[];
+    if(typeFilter)ftasks=ftasks.filter(function(t){return t.type===typeFilter;});
+    var tids=ftasks.map(function(t){return t.id;});
+    var fpays=[],fprods=[];
+    if(tids.length){
+      var pr1=await db.from('payments').select('task_id,amount,approved').in('task_id',tids);
+      var pr2=await db.from('task_products').select('task_id,qty,price').in('task_id',tids);
+      fpays=pr1.data||[];fprods=pr2.data||[];
+    }
+    var rows=ftasks.map(function(tk){
+      var grand=fprods.filter(function(p){return p.task_id===tk.id;}).reduce(function(a,p){return a+p.qty*p.price;},0);
+      var paid=fpays.filter(function(p){return p.task_id===tk.id&&p.approved!==false;}).reduce(function(a,p){return a+p.amount;},0);
+      var rem=Math.max(0,grand-paid);
+      var psColor={paid:'#3B6D11',downpayment:'#854F0B',unpaid:'#A32D2D'}[tk.pay_status]||'#888';
+      var psLabel={paid:'Paid in full',downpayment:'Partial',unpaid:'Unpaid'}[tk.pay_status]||tk.pay_status;
+      return '<tr data-tid="'+tk.id+'" onclick="openTask(this.dataset.tid)" style="cursor:pointer;border-bottom:1px solid #f0f0e8" onmouseover="this.style.background=\'#f9f9f6\'" onmouseout="this.style.background=\'\'">'
+        +'<td style="padding:10px 12px;font-weight:700;color:#1D9E75">'+tk.task_num+'</td>'
+        +'<td style="padding:10px 12px;font-weight:600">'+tk.customer_name+'</td>'
+        +'<td style="padding:10px 12px;color:#888;font-size:12px">'+tk.type+'</td>'
+        +'<td style="padding:10px 12px;color:#888;font-size:12px">'+tk.branch+'</td>'
+        +'<td style="padding:10px 12px;color:#888;font-size:12px">'+tk.date+'</td>'
+        +'<td style="padding:10px 12px;font-weight:700;text-align:right">'+(grand>0?f(grand):'-')+'</td>'
+        +'<td style="padding:10px 12px;color:#3B6D11;text-align:right">'+(paid>0?f(paid):'-')+'</td>'
+        +'<td style="padding:10px 12px;color:#A32D2D;text-align:right">'+(rem>0?f(rem):'-')+'</td>'
+        +'<td style="padding:10px 12px"><span style="font-size:11px;padding:2px 8px;border-radius:10px;font-weight:700;background:'+psColor+'22;color:'+psColor+'">'+psLabel+'</span></td>'
+        +'</tr>';
+    }).join('');
+    body.innerHTML='<table style="width:100%;border-collapse:collapse;font-size:13px">'
+      +'<thead><tr style="background:#f5f5f0"><th style="padding:10px 12px;text-align:left">Task#</th><th style="padding:10px 12px;text-align:left">Customer</th><th style="padding:10px 12px;text-align:left">Type</th><th style="padding:10px 12px;text-align:left">Branch</th><th style="padding:10px 12px;text-align:left">Date</th><th style="padding:10px 12px;text-align:right">Total</th><th style="padding:10px 12px;text-align:right">Paid</th><th style="padding:10px 12px;text-align:right">Remaining</th><th style="padding:10px 12px;text-align:left">Status</th></tr></thead>'
+      +'<tbody>'+rows+'</tbody></table>';
+    return;
+  }
   if(type==='expenses'){
     var poRes=await db.from('purchase_orders').select('*').order('created_at',{ascending:false});
     var ppRes=await db.from('po_payments').select('*').order('created_at',{ascending:true});
