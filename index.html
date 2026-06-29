@@ -897,7 +897,7 @@ function go(pg,el){
     if(CU&&(CU.role==='inventory_manager'||CU.role==='owner')){
       var dispBtn=document.createElement('button');
       dispBtn.className='btn bs bp';
-      dispBtn.textContent='+ New Dispatch';
+      dispBtn.textContent=td('+ New Dispatch');
       dispBtn.onclick=function(){openNewDispatch();};
       ta.appendChild(dispBtn);
     }
@@ -1005,7 +1005,7 @@ function openEditOrderInfo(){
     html+='<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="eoi-tax"'+(CT.use_tax!==false?' checked':'')+' style="width:auto"> Include 14% tax</label></div>';
   }
   html+='<div style="display:flex;gap:8px;justify-content:flex-end">';
-  html+='<button id="eoi-cancel" style="padding:8px 18px;font-size:12px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer">Cancel</button>';
+  html+='<button id="eoi-cancel" style="padding:8px 18px;font-size:12px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer">'+td('Cancel')+'</button>';
   html+='<button id="eoi-save" style="padding:8px 18px;font-size:12px;border:1px solid #1D9E75;border-radius:8px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:600">Save changes</button>';
   html+='</div></div>';
   overlay.innerHTML=html;
@@ -1359,7 +1359,7 @@ function openEditProds(){
   var footer=document.createElement('div');
   footer.style.cssText='display:flex;gap:8px;justify-content:flex-end';
   var cancelBtn=document.createElement('button');
-  cancelBtn.textContent='Cancel';
+  cancelBtn.textContent=td('Cancel');
   cancelBtn.style.cssText='padding:8px 16px;font-size:12px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer';
   cancelBtn.onclick=function(){overlay.remove();};
   var saveBtn=document.createElement('button');
@@ -1952,7 +1952,7 @@ function doPrint(){
   if(CT.pays.length>0){
     html+='<div style="margin-bottom:18px">';
     html+='<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;color:#333">Payments Received</div>';
-    html+='<table class="pay-table"><thead><tr><th>Method</th><th>Note</th><th style="text-align:right">Date</th><th style="text-align:right">Amount</th></tr></thead><tbody>'+payRows+'</tbody></table>';
+    html+='<table class="pay-table"><thead><tr><th>Method</th><th>Note</th><th style="text-align:right">'+td('Date')+'</th><th style="text-align:right">Amount</th></tr></thead><tbody>'+payRows+'</tbody></table>';
     html+='<div style="display:flex;justify-content:flex-end;gap:24px;margin-top:7px;font-size:11px;font-weight:700">';
     html+='<span>Paid: <span style="color:#2d7a2d">'+Math.round(pd).toLocaleString()+' L.E</span></span>';
     if(rem>0)html+='<span>Remaining: <span style="color:#c0392b">'+Math.round(rem).toLocaleString()+' L.E</span></span>';
@@ -2265,7 +2265,7 @@ async function openAssignModal(dispId){
       +'</div>'
     +'</div>'
     +'<div style="padding:14px 22px;border-top:1px solid #eee;display:flex;gap:8px;justify-content:flex-end">'
-      +'<button id="am-cancel" class="btn bs">Cancel</button>'
+      +'<button id="am-cancel" class="btn bs">'+td('Cancel')+'</button>'
       +'<button id="am-save" class="btn bp">&#10003; Save assignment</button>'
     +'</div>';
   ov.appendChild(box);
@@ -2297,7 +2297,7 @@ async function openAssignModal(dispId){
       unit:partOpt.dataset.unit,
       cost_per_unit:parseFloat(partOpt.dataset.cost)||0
     });
-    if(error){toast('Error: '+error.message,true);btn.disabled=false;btn.textContent='Save assignment';return;}
+    if(error){toast('Error: '+error.message,true);btn.disabled=false;btn.textContent=td('Save assignment');return;}
     toast('Assigned!');
     ov.remove();
     openDispatch(dispId);
@@ -2427,6 +2427,44 @@ async function approveDispatch(dispId){
   loadDispatches();
 }
 
+
+var DISP_AR={
+  'New Dispatch Session':'جلسة توزيع جديدة',
+  'Technician *':'الفني *',
+  '-- Select technician --':'-- اختر الفني --',
+  'Date':'التاريخ',
+  'Notes (optional)':'ملاحظات (اختياري)',
+  'e.g. Morning dispatch for 3 jobs':'مثال: توزيع صباحي لـ 3 مهام',
+  'Parts dispatched':'القطع الموزعة',
+  '+ Add part':'+ إضافة قطعة',
+  'Cancel':'إلغاء',
+  'Create Dispatch':'إنشاء التوزيع',
+  'Dispatch Sessions':'جلسات التوزيع',
+  '+ New Dispatch':'+ توزيع جديد',
+  'Open':'مفتوح',
+  'Confirmed':'مؤكد',
+  'Pending Approval':'في انتظار الموافقة',
+  'Parts':'القطع',
+  'Assigned to tasks':'مخصص للمهام',
+  'Dispatched':'موزع',
+  'Returned':'مرتجع',
+  'Used':'مستخدم',
+  'Save returns':'حفظ المرتجعات',
+  'Assign to tasks':'تخصيص للمهام',
+  'Submit for approval':'إرسال للموافقة',
+  'Approve & Confirm':'موافقة وتأكيد',
+  'Cancel & Delete':'إلغاء وحذف',
+  'Close':'إغلاق',
+  'Assign parts to task':'تخصيص قطع للمهمة',
+  'Search task':'بحث عن مهمة',
+  'Search by task# or customer name...':'ابحث برقم المهمة أو اسم العميل...',
+  'Select task':'اختر المهمة',
+  'Part':'القطعة',
+  'Quantity':'الكمية',
+  'Save assignment':'حفظ التخصيص'
+};
+function td(s){return LANG==='ar'?(DISP_AR[s]||s):s;}
+
 async function loadDispatches(){
   var body=document.getElementById('disp-content');
   if(!body)return;
@@ -2436,7 +2474,7 @@ async function loadDispatches(){
   var{data:disps}=await db.from('dispatches').select('*').order('created_at',{ascending:false}).limit(50);
   disps=disps||[];
   var statusColor={open:'#854F0B',pending_confirm:'#185FA5',confirmed:'#3B6D11'};
-  var statusLabel={open:'Open',pending_confirm:'Pending Approval',confirmed:'Confirmed'};
+  var statusLabel={open:td('Open'),pending_confirm:td('Pending Approval'),confirmed:td('Confirmed')};
   var isApprover=CU&&(CU.role==='owner'||CU.role==='finance');
   var pendingDisps=disps.filter(function(d){return d.status==='pending_confirm';});
   var otherDisps=disps.filter(function(d){return d.status!=='pending_confirm';});
@@ -2465,7 +2503,7 @@ async function loadDispatches(){
     ?('<button onclick="openNewDispatch()" style="padding:8px 18px;font-size:13px;border:none;border-radius:8px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:700">+ New Dispatch</button>'):'';
   body.innerHTML='<div style="padding:20px">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">'
-      +'<div style="font-size:18px;font-weight:700">Dispatch Sessions</div>'
+      +'<div style="font-size:18px;font-weight:700">'+td('Dispatch Sessions')+'</div>'
       +newBtn
     +'</div>'
     +(rows||'<div style="padding:20px;text-align:center;color:#888">No dispatches yet.</div>')
@@ -2486,22 +2524,22 @@ var techOpts='<option value="">-- Select technician --</option>'+allTechs.map(fu
   overlay.id='disp-modal';
   overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9000;display:flex;align-items:center;justify-content:center';
   overlay.innerHTML='<div style="background:#fff;border-radius:14px;padding:24px;width:640px;max-width:95vw;max-height:92vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.25)">'
-    +'<div style="padding:20px 24px;border-bottom:1px solid #e0ddd8"><div style="font-size:17px;font-weight:700">New Dispatch Session</div></div>'
+    +'<div style="padding:20px 24px;border-bottom:1px solid #e0ddd8"><div style="font-size:17px;font-weight:700">'+td('New Dispatch Session')+'</div></div>'
     +'<div style="padding:20px 24px;overflow-y:auto;flex:1">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0">'
       +'<div></div>'
       +'<button id="disp-close" style="border:none;background:none;font-size:22px;cursor:pointer">&#10005;</button>'
     +'</div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">'
-      +'<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">Technician *</label><select id="disp-tech" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px">'+techOpts+'</select></div>'
-      +'<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">Date</label><input type="date" id="disp-date" value="'+new Date().toISOString().slice(0,10)+'" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div>'
+      +'<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">'+td('Technician *')+'</label><select id="disp-tech" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px">'+techOpts+'</select></div>'
+      +'<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">'+td('Date')+'</label><input type="date" id="disp-date" value="'+new Date().toISOString().slice(0,10)+'" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div>'
     +'</div>'
-    +'<div style="margin-bottom:14px"><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">Notes (optional)</label><input id="disp-notes" placeholder="e.g. Morning dispatch for 3 jobs" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div>'
-    +'<div style="margin-bottom:6px;display:flex;justify-content:space-between;align-items:center"><div style="font-size:13px;font-weight:700">Parts dispatched</div><button onclick="addDispItem()" style="font-size:11px;padding:3px 12px;border:1px solid #1D9E75;border-radius:6px;background:#EAF3DE;color:#1D9E75;cursor:pointer">+ Add part</button></div>'
+    +'<div style="margin-bottom:14px"><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">'+td('Notes (optional)')+'</label><input id="disp-notes" placeholder="e.g. Morning dispatch for 3 jobs" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div>'
+    +'<div style="margin-bottom:6px;display:flex;justify-content:space-between;align-items:center"><div style="font-size:13px;font-weight:700">'+td('Parts dispatched')+'</div><button onclick="addDispItem()" style="font-size:11px;padding:3px 12px;border:1px solid #1D9E75;border-radius:6px;background:#EAF3DE;color:#1D9E75;cursor:pointer">'+td('+ Add part')+'</button></div>'
     +'<div id="disp-items" style="margin-bottom:16px"></div>'
     +'<div style="display:flex;gap:8px;justify-content:flex-end">'
-      +'<button id="disp-cancel-btn" style="padding:9px 20px;font-size:13px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer">Cancel</button>'
-      +'<button onclick="saveNewDispatch()" style="padding:9px 20px;font-size:13px;border:none;border-radius:8px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:700">Create Dispatch</button>'
+      +'<button id="disp-cancel-btn" style="padding:9px 20px;font-size:13px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer">'+td('Cancel')+'</button>'
+      +'<button onclick="saveNewDispatch()" style="padding:9px 20px;font-size:13px;border:none;border-radius:8px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:700">'+td('Create Dispatch')+'</button>'
     +'</div>'
   +'</div>';
   document.body.appendChild(overlay);
@@ -2588,7 +2626,7 @@ async function openDispatch(id){
   var isManager=CU&&(CU.role==='inventory_manager'||CU.role==='owner');
   var isApprover=CU&&(CU.role==='owner'||CU.role==='finance');
   var statusColor={open:'#854F0B',pending_confirm:'#185FA5',confirmed:'#3B6D11'};
-  var statusLabel={open:'Open',pending_confirm:'Pending Approval',confirmed:'Confirmed'};
+  var statusLabel={open:td('Open'),pending_confirm:td('Pending Approval'),confirmed:td('Confirmed')};
   document.querySelectorAll('.disp-overlay').forEach(function(e){e.remove();});
   var overlay=document.createElement('div');
   overlay.className='disp-overlay';
@@ -2647,7 +2685,7 @@ async function openDispatch(id){
   var ftr=document.createElement('div');
   ftr.style.cssText='padding:14px 22px;border-top:1px solid #eee;display:flex;gap:8px;justify-content:flex-end;flex-shrink:0';
   var closeBtn=document.createElement('button');
-  closeBtn.textContent='Close';closeBtn.className='btn bs';closeBtn.onclick=function(){overlay.remove();};
+  closeBtn.textContent=td('Close');closeBtn.className='btn bs';closeBtn.onclick=function(){overlay.remove();};
   ftr.appendChild(closeBtn);
   if(isManager&&disp.status==='open'){
     var saveBtn=document.createElement('button');
@@ -2959,7 +2997,7 @@ async function saveTask(){
         ov.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center';
         var bx=document.createElement('div');bx.style.cssText='background:#fff;border-radius:14px;padding:28px;width:460px;max-width:92vw;box-shadow:0 10px 40px rgba(0,0,0,.3)';
         var lst=dupCheck2.map(function(t){return '<div style="padding:7px 12px;background:#FFF8E1;border-radius:7px;margin-bottom:6px;font-size:12px;border:1px solid #FFD54F"><b>'+t.task_num+'</b> &middot; '+(t.date||'-')+' &middot; '+t.type+' &middot; <span style="color:#854F0B;font-weight:600">'+t.status+'</span></div>';}).join('');
-        bx.innerHTML='<div style="font-size:28px;margin-bottom:8px">⚠️</div><div style="font-size:15px;font-weight:700;color:#7A5000;margin-bottom:6px">Pending tasks warning</div><div style="font-size:13px;color:#555;margin-bottom:12px">This customer has <b>'+dupCheck2.length+'</b> open task(s):</div>'+lst+'<div style="font-size:12px;color:#888;margin:14px 0 20px">Do you still want to create a new task?</div><div style="display:flex;gap:10px;justify-content:flex-end"><button id="dc-no" style="padding:9px 22px;font-size:13px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer;font-weight:600">Cancel</button><button id="dc-yes" style="padding:9px 22px;font-size:13px;border:none;border-radius:8px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:700">Yes, create task</button></div>';
+        bx.innerHTML='<div style="font-size:28px;margin-bottom:8px">⚠️</div><div style="font-size:15px;font-weight:700;color:#7A5000;margin-bottom:6px">Pending tasks warning</div><div style="font-size:13px;color:#555;margin-bottom:12px">This customer has <b>'+dupCheck2.length+'</b> open task(s):</div>'+lst+'<div style="font-size:12px;color:#888;margin:14px 0 20px">Do you still want to create a new task?</div><div style="display:flex;gap:10px;justify-content:flex-end"><button id="dc-no" style="padding:9px 22px;font-size:13px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer;font-weight:600">'+td('Cancel')+'</button><button id="dc-yes" style="padding:9px 22px;font-size:13px;border:none;border-radius:8px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:700">Yes, create task</button></div>';
         ov.appendChild(bx);document.body.appendChild(ov);
         document.getElementById('dc-no').onclick=function(){ov.remove();resolve(false);};
         document.getElementById('dc-yes').onclick=function(){ov.remove();resolve(true);};
@@ -3221,12 +3259,12 @@ async function openPODetail(poId){
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><div style="font-size:16px;font-weight:700">'+po.po_num+'</div><button id="pod-close" style="border:none;background:none;font-size:22px;cursor:pointer">&#10005;</button></div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px;font-size:12px">'
       +'<div><div style="color:#888">Supplier</div><div style="font-weight:700">'+(po.supplier_name||'-')+'</div></div>'
-      +'<div><div style="color:#888">Date</div><div style="font-weight:700">'+po.date+'</div></div>'
+      +'<div><div style="color:#888">'+td('Date')+'</div><div style="font-weight:700">'+po.date+'</div></div>'
       +'<div><div style="color:#888">Status</div><div style="font-weight:700">'+po.status+'</div></div>'
     +'</div>'
     +'<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px"><thead><tr style="background:#f9f9f6"><th style="padding:7px 10px;text-align:left">Product</th><th style="padding:7px 10px;text-align:center">Qty</th><th style="padding:7px 10px;text-align:right">Unit cost</th><th style="padding:7px 10px;text-align:right">Total</th></tr></thead><tbody>'+iRows+'</tbody></table>'
     +'<div style="text-align:right;font-size:13px;font-weight:700;margin-bottom:14px">PO Total: '+f(po.total)+' | Paid: '+f(paidSoFar)+' | Owed: '+f(owed)+'</div>'
-    +(pRows?'<div style="margin-bottom:14px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">Payments</div><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f9f9f6"><th style="padding:5px 8px;text-align:left">Amount</th><th style="padding:5px 8px;text-align:left">Method</th><th style="padding:5px 8px;text-align:left">Note</th><th style="padding:5px 8px;text-align:left">Date</th>'+(can('delete')||can('delete_payment')?'<th></th>':'')+'</tr></thead><tbody>'+pRows+'</tbody></table></div>':'')
+    +(pRows?'<div style="margin-bottom:14px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">Payments</div><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f9f9f6"><th style="padding:5px 8px;text-align:left">Amount</th><th style="padding:5px 8px;text-align:left">Method</th><th style="padding:5px 8px;text-align:left">Note</th><th style="padding:5px 8px;text-align:left">'+td('Date')+'</th>'+(can('delete')||can('delete_payment')?'<th></th>':'')+'</tr></thead><tbody>'+pRows+'</tbody></table></div>':'')
     +'<div style="margin-bottom:14px;background:#f9f9f6;border-radius:8px;padding:12px"><div style="font-size:12px;font-weight:700;margin-bottom:8px">Record payment to supplier</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px"><input type="number" id="pop-amt" placeholder="Amount" style="padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px"><select id="pop-meth" style="padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px"><option>Cash</option><option>Bank transfer</option><option>Cheque</option><option>Instapay</option></select></div><input id="pop-note" placeholder="Note (optional)" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box;margin-bottom:8px"><button onclick="savePOPayment(\''+poId+'\')" style="padding:7px 16px;font-size:12px;border:none;border-radius:7px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:600">Save payment</button></div>'
     +(po.status==='pending'||po.status==='partial'?'<button onclick="markDelivered(\''+poId+'\')" style="padding:8px 16px;font-size:12px;border:none;border-radius:8px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:600;margin-bottom:8px">'+t('markdelivered')+'</button> ':'' )
     +'<div style="text-align:right"><button id="pod-cancel" style="padding:8px 16px;font-size:12px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer">Close</button></div>'
@@ -3302,7 +3340,7 @@ async function returnProducts(poId){
   items.forEach(function(it){var inv=invMap[it.inventory_id]||{name:'Unknown',qty:0};var prevRet=alreadyReturned[it.id]||0;var maxNow=Math.max(0,Math.min(it.qty-prevRet,inv.qty));var allRet=prevRet>=it.qty;html+='<tr><td style="padding:7px 10px'+(allRet?';opacity:.5':'')+'">'+inv.name+(allRet?' <span style="font-size:10px;color:#A32D2D">(fully returned)</span>':'')+'</td><td style="padding:7px 10px;text-align:center;color:#888">'+it.qty+'</td><td style="padding:7px 10px;text-align:center;color:#A32D2D;font-weight:700">'+prevRet+'</td><td style="padding:7px 10px;text-align:center">'+(allRet?'<span style="color:#888;font-size:11px">done</span>':'<input type="number" id="ret-'+it.id+'" value="0" min="0" max="'+maxNow+'" style="width:60px;text-align:center;border:1px solid #ccc;border-radius:5px;padding:3px"> / '+maxNow)+'</td></tr>';});
   html+='</tbody></table>';
   html+='<div style="margin-bottom:12px"><label style="font-size:12px;color:#888">Return reason</label><input id="ret-reason" placeholder="e.g. Defective..." style="width:100%;padding:7px;border:1px solid #ccc;border-radius:7px;font-size:12px;box-sizing:border-box;margin-top:4px"></div>';
-  html+='<div style="display:flex;gap:8px;justify-content:flex-end"><button id="ret-cancel" style="padding:8px 16px;font-size:12px;border:1px solid #ccc;border-radius:7px;background:#fff;cursor:pointer">Cancel</button><button id="ret-save" style="padding:8px 16px;font-size:12px;border:1px solid #E24B4A;border-radius:7px;background:#E24B4A;color:#fff;cursor:pointer;font-weight:600">Confirm return</button></div>';
+  html+='<div style="display:flex;gap:8px;justify-content:flex-end"><button id="ret-cancel" style="padding:8px 16px;font-size:12px;border:1px solid #ccc;border-radius:7px;background:#fff;cursor:pointer">'+td('Cancel')+'</button><button id="ret-save" style="padding:8px 16px;font-size:12px;border:1px solid #E24B4A;border-radius:7px;background:#E24B4A;color:#fff;cursor:pointer;font-weight:600">Confirm return</button></div>';
   html+='</div>';
   overlay.innerHTML=html;document.body.appendChild(overlay);
   document.getElementById('ret-close').onclick=function(){overlay.remove();};
@@ -3382,7 +3420,7 @@ async function finTab(type,btn){
         +'</tr>';
     }).join('');
     body.innerHTML='<table style="width:100%;border-collapse:collapse;font-size:13px">'
-      +'<thead><tr style="background:#f5f5f0"><th style="padding:10px 12px;text-align:left">Task#</th><th style="padding:10px 12px;text-align:left">Customer</th><th style="padding:10px 12px;text-align:left">Type</th><th style="padding:10px 12px;text-align:left">Branch</th><th style="padding:10px 12px;text-align:left">Date</th><th style="padding:10px 12px;text-align:right">Total</th><th style="padding:10px 12px;text-align:right">Paid</th><th style="padding:10px 12px;text-align:right">Remaining</th><th style="padding:10px 12px;text-align:left">Status</th></tr></thead>'
+      +'<thead><tr style="background:#f5f5f0"><th style="padding:10px 12px;text-align:left">Task#</th><th style="padding:10px 12px;text-align:left">Customer</th><th style="padding:10px 12px;text-align:left">Type</th><th style="padding:10px 12px;text-align:left">Branch</th><th style="padding:10px 12px;text-align:left">'+td('Date')+'</th><th style="padding:10px 12px;text-align:right">Total</th><th style="padding:10px 12px;text-align:right">Paid</th><th style="padding:10px 12px;text-align:right">Remaining</th><th style="padding:10px 12px;text-align:left">Status</th></tr></thead>'
       +'<tbody>'+rows+'</tbody></table>';
     return;
   }
@@ -3405,9 +3443,9 @@ async function finTab(type,btn){
     poPays.forEach(function(p){var po=pos.find(function(o){return o.id===p.po_id;});payRows+='<tr style="border-bottom:1px solid #f0f0e8"><td style="padding:7px 10px;font-weight:700">'+f(p.amount)+'</td><td style="padding:7px 10px">'+p.method+'</td><td style="padding:7px 10px">'+(po?sn9[po.supplier_id]||po.supplier_name||'-':'-')+'</td><td style="padding:7px 10px">'+(po?po.po_num:'')+'</td><td style="padding:7px 10px;color:#888">'+(p.note||'-')+'</td><td style="padding:7px 10px">'+(p.created_at?new Date(p.created_at).toLocaleDateString('en-GB'):'')+'</td></tr>';});
     body.innerHTML='<div class="r3" style="margin-bottom:14px"><div class="sc"><div class="sl">Total PO value</div><div class="sv">'+f(totalPOV)+'</div></div><div class="sc"><div class="sl" style="color:#3B6D11">Paid to suppliers</div><div class="sv" style="color:#3B6D11">'+f(totalPaid)+'</div></div><div class="sc"><div class="sl" style="color:#A32D2D">Still owed</div><div class="sv" style="color:#A32D2D">'+f(Math.max(0,totalPOV-totalPaid))+'</div></div></div>'
       +'<div style="font-weight:700;margin-bottom:8px">Purchase Orders</div>'
-      +'<div class="tw" style="margin-bottom:16px"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f9f9f6"><th style="padding:8px 10px;text-align:left">PO#</th><th style="padding:8px 10px;text-align:left">Supplier</th><th style="padding:8px 10px;text-align:left">Date</th><th style="padding:8px 10px;text-align:left">Items</th><th style="padding:8px 10px;text-align:left">PO Total</th><th style="padding:8px 10px;text-align:left">Paid</th><th style="padding:8px 10px;text-align:left">Owed</th><th style="padding:8px 10px;text-align:left">Status</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
+      +'<div class="tw" style="margin-bottom:16px"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f9f9f6"><th style="padding:8px 10px;text-align:left">PO#</th><th style="padding:8px 10px;text-align:left">Supplier</th><th style="padding:8px 10px;text-align:left">'+td('Date')+'</th><th style="padding:8px 10px;text-align:left">Items</th><th style="padding:8px 10px;text-align:left">PO Total</th><th style="padding:8px 10px;text-align:left">Paid</th><th style="padding:8px 10px;text-align:left">Owed</th><th style="padding:8px 10px;text-align:left">Status</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
       +'<div style="font-weight:700;margin-bottom:8px">Payments to Suppliers</div>'
-      +'<div class="tw"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f9f9f6"><th style="padding:7px 10px;text-align:left">Amount</th><th style="padding:7px 10px;text-align:left">Method</th><th style="padding:7px 10px;text-align:left">Supplier</th><th style="padding:7px 10px;text-align:left">PO#</th><th style="padding:7px 10px;text-align:left">Note</th><th style="padding:7px 10px;text-align:left">Date</th></tr></thead><tbody>'+payRows+'</tbody></table></div>'
+      +'<div class="tw"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f9f9f6"><th style="padding:7px 10px;text-align:left">Amount</th><th style="padding:7px 10px;text-align:left">Method</th><th style="padding:7px 10px;text-align:left">Supplier</th><th style="padding:7px 10px;text-align:left">PO#</th><th style="padding:7px 10px;text-align:left">Note</th><th style="padding:7px 10px;text-align:left">'+td('Date')+'</th></tr></thead><tbody>'+payRows+'</tbody></table></div>'
       +'<div style="text-align:right;font-weight:700;color:#A32D2D;margin-top:8px">Total paid out: '+f(totalPaid)+'</div>';
     return;
   }
@@ -3421,7 +3459,7 @@ async function finTab(type,btn){
     var outstanding=tasks2.filter(function(t){var g=grand2(t.id);return g>0&&paid2(t.id)<g;}).map(function(t){var g=grand2(t.id);var p=paid2(t.id);return{...t,grand:g,paid:p,rem:g-p};}).sort(function(a,b){return b.rem-a.rem;});
     if(!outstanding.length){body.innerHTML='<div style="padding:20px;text-align:center;color:#888">No outstanding payments.</div>';return;}
     var rows2=outstanding.map(function(t){return '<tr style="border-bottom:1px solid #f0f0e8;cursor:pointer" onclick="openTask(\''+t.id+'\')"><td style="padding:8px 10px;color:#1D9E75;font-weight:700">'+t.task_num+'</td><td style="padding:8px 10px">'+t.customer_name+'</td><td style="padding:8px 10px">'+t.date+'</td><td style="padding:8px 10px">'+t.type+'</td><td style="padding:8px 10px;font-weight:700">'+f(t.grand)+'</td><td style="padding:8px 10px;color:#3B6D11">'+f(t.paid)+'</td><td style="padding:8px 10px;color:#A32D2D;font-weight:700">'+f(t.rem)+'</td></tr>';}).join('');
-    body.innerHTML='<div class="tw"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f9f9f6"><th style="padding:8px 10px;text-align:left">Task#</th><th style="padding:8px 10px;text-align:left">Customer</th><th style="padding:8px 10px;text-align:left">Date</th><th style="padding:8px 10px;text-align:left">Type</th><th style="padding:8px 10px;text-align:left">Total</th><th style="padding:8px 10px;text-align:left">Paid</th><th style="padding:8px 10px;text-align:left">Remaining</th></tr></thead><tbody>'+rows2+'</tbody></table></div>';
+    body.innerHTML='<div class="tw"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f9f9f6"><th style="padding:8px 10px;text-align:left">Task#</th><th style="padding:8px 10px;text-align:left">Customer</th><th style="padding:8px 10px;text-align:left">'+td('Date')+'</th><th style="padding:8px 10px;text-align:left">Type</th><th style="padding:8px 10px;text-align:left">Total</th><th style="padding:8px 10px;text-align:left">Paid</th><th style="padding:8px 10px;text-align:left">Remaining</th></tr></thead><tbody>'+rows2+'</tbody></table></div>';
     return;
   }
   // Sales / Maintenance / Installation / Uninstall / All
@@ -3442,7 +3480,7 @@ async function finTab(type,btn){
   var rows3=tasks3.map(function(tk){var g=grand3(tk.id);var p=paid3(tk.id);var rem=Math.max(0,g-p);return '<tr style="border-bottom:1px solid #f0f0e8;cursor:pointer" onclick="openTask(\''+tk.id+'\')"><td style="padding:8px 10px;color:#1D9E75;font-weight:700">'+tk.task_num+'</td><td style="padding:8px 10px">'+tk.customer_name+'</td><td style="padding:8px 10px">'+tk.type+'</td><td style="padding:8px 10px">'+tk.branch+'</td><td style="padding:8px 10px">'+tk.date+'</td><td style="padding:8px 10px;font-weight:700">'+f(g)+'</td><td style="padding:8px 10px;color:#3B6D11">'+f(p)+'</td><td style="padding:8px 10px;color:#A32D2D">'+f(rem)+'</td><td style="padding:8px 10px"><span style="font-size:11px;color:'+(psColor[tk.pay_status]||'#888')+';font-weight:700">'+(psMap[tk.pay_status]||tk.pay_status||'-')+'</span></td></tr>';}).join('');
   var tlLabel={all:t('allsales'),sales:t('sales'),maintenance:t('maintenance'),installation:t('installation'),uninstall:t('uninstall')}[type]||type;
   body.innerHTML=(!rows3?'<div style="padding:20px;text-align:center;color:#888">No transactions.</div>':'')
-    +'<div class="tw"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f9f9f6"><th style="padding:8px 10px;text-align:left">Task#</th><th style="padding:8px 10px;text-align:left">Customer</th><th style="padding:8px 10px;text-align:left">Type</th><th style="padding:8px 10px;text-align:left">Branch</th><th style="padding:8px 10px;text-align:left">Date</th><th style="padding:8px 10px;text-align:left">Total</th><th style="padding:8px 10px;text-align:left">Paid</th><th style="padding:8px 10px;text-align:left">Remaining</th><th style="padding:8px 10px;text-align:left">Status</th></tr></thead><tbody>'+rows3+'</tbody></table></div>';
+    +'<div class="tw"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f9f9f6"><th style="padding:8px 10px;text-align:left">Task#</th><th style="padding:8px 10px;text-align:left">Customer</th><th style="padding:8px 10px;text-align:left">Type</th><th style="padding:8px 10px;text-align:left">Branch</th><th style="padding:8px 10px;text-align:left">'+td('Date')+'</th><th style="padding:8px 10px;text-align:left">Total</th><th style="padding:8px 10px;text-align:left">Paid</th><th style="padding:8px 10px;text-align:left">Remaining</th><th style="padding:8px 10px;text-align:left">Status</th></tr></thead><tbody>'+rows3+'</tbody></table></div>';
 }
 
 async function loadCust(search){
@@ -3503,7 +3541,7 @@ async function openAC(){
     +'<div style="margin-top:12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><label style="font-size:12px;font-weight:700;color:#555">&#128205; Addresses</label><button type="button" onclick="addAddrRow()" style="font-size:11px;padding:3px 10px;border:1px solid #1D9E75;border-radius:6px;background:#EAF3DE;color:#1D9E75;cursor:pointer">+ Add address</button></div><div id="addr-rows"></div></div>';
   addAddrRow();
   var btnDiv=document.createElement('div');btnDiv.style.cssText='display:flex;gap:8px;margin-top:14px';
-  var cancelBtn=document.createElement('button');cancelBtn.className='btn bs';cancelBtn.textContent='Cancel';cancelBtn.onclick=function(){go('cust',document.getElementById('ni-cust'));};
+  var cancelBtn=document.createElement('button');cancelBtn.className='btn bs';cancelBtn.textContent=td('Cancel');cancelBtn.onclick=function(){go('cust',document.getElementById('ni-cust'));};
   var saveBtn=document.createElement('button');saveBtn.className='btn bp';saveBtn.textContent='✓ Save customer';saveBtn.onclick=function(){saveAC();};
   btnDiv.appendChild(cancelBtn);btnDiv.appendChild(saveBtn);cdcard.appendChild(btnDiv);
 }
@@ -3535,7 +3573,7 @@ function editCustomer(c){
     +'<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><label style="font-size:12px;font-weight:700;color:#555">&#128205; Addresses</label><button type="button" onclick="addAddrRow()" style="font-size:11px;padding:3px 12px;border:1px solid #1D9E75;border-radius:6px;background:#EAF3DE;color:#1D9E75;cursor:pointer;font-weight:600">+ Add address</button></div><div id="addr-rows"></div></div>';
   addrs.forEach(function(a){addAddrRow(a);});
   var btnDiv=document.createElement('div');btnDiv.style.cssText='display:flex;gap:8px;justify-content:flex-end;margin-top:10px';
-  var cancelBtn=document.createElement('button');cancelBtn.className='btn bs';cancelBtn.textContent='Cancel';cancelBtn.onclick=function(){openCD(c);};
+  var cancelBtn=document.createElement('button');cancelBtn.className='btn bs';cancelBtn.textContent=td('Cancel');cancelBtn.onclick=function(){openCD(c);};
   var saveBtn=document.createElement('button');saveBtn.className='btn bp';saveBtn.textContent='✓ Save';saveBtn.onclick=function(){saveEditCustomer(c.id);};
   btnDiv.appendChild(cancelBtn);btnDiv.appendChild(saveBtn);cdcard.appendChild(btnDiv);
 }
@@ -3577,7 +3615,7 @@ function openAS(){
   sdcard.innerHTML='<div class="r2" style="margin-bottom:10px"><div class="fg"><label>Name *</label><input id="asn" placeholder="Supplier name"></div><div class="fg"><label data-t="phone">Phone</label><input id="asp"></div></div>'
     +'<div class="r2" style="margin-bottom:10px"><div class="fg"><label data-t="address">Address</label><input id="asa"></div><div class="fg"><label data-t="taxnumber">Tax number</label><input id="ast"></div></div>';
   var btnDiv=document.createElement('div');btnDiv.style.cssText='display:flex;gap:8px;margin-top:14px';
-  var cancelBtn=document.createElement('button');cancelBtn.className='btn bs';cancelBtn.textContent='Cancel';cancelBtn.onclick=function(){go('sup',document.getElementById('ni-sup'));};
+  var cancelBtn=document.createElement('button');cancelBtn.className='btn bs';cancelBtn.textContent=td('Cancel');cancelBtn.onclick=function(){go('sup',document.getElementById('ni-sup'));};
   var saveBtn=document.createElement('button');saveBtn.className='btn bp';saveBtn.textContent='✓ Save supplier';saveBtn.onclick=function(){saveAS();};
   btnDiv.appendChild(cancelBtn);btnDiv.appendChild(saveBtn);sdcard.appendChild(btnDiv);
 }
