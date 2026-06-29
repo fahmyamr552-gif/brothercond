@@ -2812,7 +2812,7 @@ function editProd(p){
 }
 
 async function loadPur(){
-  var body=document.getElementById('polist');
+  var body=document.getElementById('pob');
   if(!body)return;
   body.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:#888">'+t('loadin')+'</td></tr>';
   var{data:pos}=await db.from('purchase_orders').select('*').order('created_at',{ascending:false});
@@ -3048,7 +3048,7 @@ async function loadFinStats(){
 async function finTab(type,btn){
   document.querySelectorAll('.tab').forEach(function(b){b.classList.remove('on');});
   if(btn)btn.classList.add('on');
-  var body=document.getElementById('ftlist');if(!body)return;
+  var body=document.getElementById('fcont');if(!body)return;
   body.innerHTML='<div style="padding:20px;text-align:center;color:#888">'+t('loadin')+'</div>';
   if(type==='expenses'){
     var poRes=await db.from('purchase_orders').select('*').order('created_at',{ascending:false});
