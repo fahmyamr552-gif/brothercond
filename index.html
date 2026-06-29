@@ -2478,7 +2478,7 @@ async function openNewDispatch(){
   var{data:parts}=await db.from('spare_parts').select('*').order('name');
   techs=techs||[];parts=parts||[];
   // Add fixed technicians + users with technician role
-var fixedTechs=['Alaa Khaled','Hussein','Mohamed Adel'];
+var fixedTechs=['محمود عبد الرازق','محمد عمر','محمد مصطفي','يحيي تيجاني','محمود محمد'];
 var dbTechs=techs.map(function(t){return t.full_name;});
 var allTechs=[...new Set([...fixedTechs,...dbTechs])].filter(Boolean);
 var techOpts='<option value="">-- Select technician --</option>'+allTechs.map(function(n){return '<option value="'+n+'">'+n+'</option>';}).join('');
@@ -2782,6 +2782,24 @@ function onPS2(sel){
   }
 }
 
+function recalcAllRows(){
+  var useTax=document.getElementById('tax-toggle')?.checked===true;
+  document.querySelectorAll('#ntb tr').forEach(function(tr){
+    var priceInp=tr.querySelector('td:nth-child(3) input');
+    if(priceInp)calcR(priceInp);
+  });
+  ntRec();
+}
+
+function clrC(){
+  scid=null;
+  var sct=document.getElementById('sct');if(sct)sct.style.display='none';
+  var cqi=document.getElementById('cqi');if(cqi)cqi.value='';
+  var inner=document.getElementById('nt-addr-block-inner');if(inner)inner.innerHTML='';
+  var taddr=document.getElementById('nt-task-address');if(taddr)taddr.value='';
+  var dupWarn=document.getElementById('nt-dup-warn');if(dupWarn)dupWarn.style.display='none';
+}
+
 async function addRow(){
   var type2=document.getElementById('ntt').value;
   var isSales2=type2==='sales';
@@ -2978,57 +2996,6 @@ async function saveTask(){
         if(invRow)await db.from('inventory').update({qty:(invRow.qty||0)-rr.qty}).eq('id',rr.pid);
       }
     }
-  }
-  // Auto-create installation task for sales orders with template parts
-  if(task.type==='sales'){
-    try{
-      // Get brands from sold products
-      var soldInvIds=taskRows.filter(function(r){return r.pid;}).map(function(r){return r.pid;});
-      if(soldInvIds.length&&INV.length){
-        var soldItems=taskRows.filter(function(r){return r.pid;});
-        var brandQtyMap={};
-        soldItems.forEach(function(r){
-          var inv=INV.find(function(p){return p.id===r.pid;});
-          if(inv&&inv.brand){brandQtyMap[inv.brand]=(brandQtyMap[inv.brand]||0)+(r.qty||0);}
-        });
-        var soldBrands=Object.keys(brandQtyMap);
-        if(soldBrands.length){
-          var{data:templates}=await db.from('install_templates').select('*').in('brand',soldBrands);
-          if(templates&&templates.length){
-            // Get sequential task number for installation task
-            var{data:lastTask}=await db.from('tasks').select('task_num').order('created_at',{ascending:false}).limit(1).single();
-            var lastNum=lastTask?parseInt((lastTask.task_num||'0').replace(/\D/g,''))||0:0;
-            var instNum=String(lastNum+1).padStart(5,'0');
-            var{data:instTask,error:instErr}=await db.from('tasks').insert({
-              task_num:'#'+instNum,
-              customer_id:newTask.customer_id,
-              customer_name:newTask.customer_name,
-              type:'installation',
-              branch:task.branch,
-              salesperson:task.salesperson,
-              date:task.date,
-              status:'pending',
-              pay_status:'unpaid',
-              description:'تركيب - مرتبط بطلب البيع '+newTask.task_num,
-              use_tax:false
-            }).select().single();
-            if(!instErr&&instTask){
-              var instProds=[];
-              soldBrands.forEach(function(brand){
-                var qty=brandQtyMap[brand]||1;
-                templates.filter(function(t){return t.brand===brand;}).forEach(function(t){
-                  instProds.push({task_id:instTask.id,name:t.part_name+'('+brand+')',qty:t.qty_per_ac*qty,price:0});
-                });
-              });
-              if(instProds.length)await db.from('task_products').insert(instProds);
-              toast(t('taskcreated')+' + تم إنشاء مهمة تركيب '+instTask.task_num+' تلقائياً');
-              go('tasks',document.getElementById('ni-tasks'));
-              return;
-            }
-          }
-        }
-      }
-    }catch(autoErr){console.error('Auto installation error:',autoErr);}
   }
   // Auto-create installation task for sales orders
   if(task.type==='sales'){
