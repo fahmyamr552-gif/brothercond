@@ -3015,10 +3015,10 @@ async function saveTask(){
             var lastN=lastT?parseInt((lastT.task_num||'0').replace(/[^0-9]/g,''))||0:0;
             var instNum='#'+String(lastN+1).padStart(5,'0');
             var{data:instTask,error:instE}=await db.from('tasks').insert({
-              task_num:instNum,customer_id:newTask.customer_id,customer_name:newTask.customer_name,
+              task_num:instNum,customer_id:task.customer_id,customer_name:task.customer_name,
               type:'installation',branch:task.branch,salesperson:task.salesperson,date:task.date,
               status:'pending',pay_status:'unpaid',use_tax:false,
-              description:'تركيب - مرتبط بـ '+newTask.task_num
+              description:'تركيب - مرتبط بـ '+task.task_num
             }).select().single();
             if(!instE&&instTask){
               var iProds=[];
@@ -3029,7 +3029,7 @@ async function saveTask(){
                 });
               });
               if(iProds.length)await db.from('task_products').insert(iProds);
-              toast('تم إنشاء مهمة البيع '+newTask.task_num+' + مهمة التركيب '+instTask.task_num+' تلقائياً');
+              toast('تم إنشاء مهمة البيع '+task.task_num+' + مهمة التركيب '+instTask.task_num+' تلقائياً');
               go('tasks',document.getElementById('ni-tasks'));
               return;
             }
