@@ -3598,6 +3598,31 @@ async function openCD(c){
   }
 }
 
+
+function recalcAllRows(){
+  var useTax=document.getElementById('tax-toggle')?.checked===true;
+  document.querySelectorAll('.th-before').forEach(function(th){th.style.display=useTax?'':'none';});
+  var thTotal=document.querySelector('.th-total');
+  if(thTotal)thTotal.textContent=useTax?'Total (14%)':'Total';
+  document.querySelectorAll('#ntb tr').forEach(function(tr){
+    var ptTd=tr.querySelector('.pt')?tr.querySelector('.pt').closest('td'):null;
+    if(ptTd)ptTd.style.display=useTax?'':'none';
+    var priceInp=tr.querySelector('td:nth-child(3) input');
+    if(priceInp)calcR(priceInp);
+  });
+  ntRec();
+}
+
+function clrC(){
+  scid=null;
+  var sct=document.getElementById('sct');if(sct)sct.style.display='none';
+  var cqi=document.getElementById('cqi');if(cqi)cqi.value='';
+  var inner=document.getElementById('nt-addr-block-inner');if(inner)inner.innerHTML='';
+  var taddr=document.getElementById('nt-task-address');if(taddr)taddr.value='';
+  var addrBlock=document.getElementById('nt-addr-block');if(addrBlock)addrBlock.style.display='none';
+  var dupWarn=document.getElementById('nt-dup-warn');if(dupWarn)dupWarn.style.display='none';
+}
+
 }</script>
 </body>
 </html>
