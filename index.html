@@ -2477,7 +2477,11 @@ async function openNewDispatch(){
   var{data:techs}=await db.from('users').select('id,full_name,username').eq('active',true).in('role',['technician','salesperson','admin']);
   var{data:parts}=await db.from('spare_parts').select('*').order('name');
   techs=techs||[];parts=parts||[];
-  var techOpts=techs.map(function(t){return '<option value="'+t.full_name+'">'+t.full_name+'</option>';}).join('');
+  // Add fixed technicians + users with technician role
+var fixedTechs=['Alaa Khaled','Hussein','Mohamed Adel'];
+var dbTechs=techs.map(function(t){return t.full_name;});
+var allTechs=[...new Set([...fixedTechs,...dbTechs])].filter(Boolean);
+var techOpts='<option value="">-- Select technician --</option>'+allTechs.map(function(n){return '<option value="'+n+'">'+n+'</option>';}).join('');
   var overlay=document.createElement('div');
   overlay.id='disp-modal';
   overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9000;display:flex;align-items:center;justify-content:center';
@@ -2510,10 +2514,10 @@ async function openNewDispatch(){
 
 function addDispItem(){
   var parts=window._dispParts||[];
-  var opts=parts.map(function(p){return '<option value="'+p.id+'" data-cost="'+p.cost+'" data-unit="'+p.unit+'">'+p.name+' ('+p.unit+')</option>';}).join('');
+  var opts=parts.map(function(p){return '<option value="'+p.id+'" data-cost="'+p.cost+'" data-unit="'+p.unit+'" data-stock="'+p.qty+'">'+p.name+' ('+p.unit+') - Stock: '+p.qty+'</option>';}).join('');
   var container=document.getElementById('disp-items');
   var row=document.createElement('div');
-  row.style.cssText='display:grid;grid-template-columns:1fr 80px 80px 30px;gap:6px;margin-bottom:6px;align-items:center';
+  row.style.cssText='display:grid;grid-template-columns:1fr 80px 80px 30px;gap:6px;margin-bottom:10px;align-items:center';
   row.innerHTML='<select class="disp-part-sel" style="padding:6px;border:1px solid #ddd;border-radius:6px;font-size:12px">'+opts+'</select>'
     +'<input type="number" class="disp-qty-out" placeholder="Qty" min="1" value="1" style="padding:6px;border:1px solid #ddd;border-radius:6px;font-size:12px;text-align:center">'
     +'<div class="disp-unit-lbl" style="font-size:11px;color:#888;text-align:center">pcs</div>'
@@ -2522,7 +2526,32 @@ function addDispItem(){
   // Update unit label when part changes
   var sel=row.querySelector('.disp-part-sel');
   var unitLbl=row.querySelector('.disp-unit-lbl');
-  sel.onchange=function(){var o=sel.selectedOptions[0];unitLbl.textContent=o?o.dataset.unit:'';};
+  var qtyInp=row.querySelector('.disp-qty-out');
+  sel.onchange=function(){
+    var o=sel.selectedOptions[0];
+    unitLbl.textContent=o?o.dataset.unit:'';
+    // Show stock and set max
+    var stock=parseFloat(o?o.dataset.stock||0:0);
+    var stockInfo=row.querySelector('.disp-stock-info');
+    if(!stockInfo){
+      stockInfo=document.createElement('div');
+      stockInfo.className='disp-stock-info';
+      stockInfo.style.cssText='font-size:10px;color:#888;grid-column:1/-1;margin-top:-4px';
+      row.appendChild(stockInfo);
+    }
+    stockInfo.innerHTML='Stock: <b style="color:'+(stock<=0?'#A32D2D':'#3B6D11')+'">'+stock+'</b> '+(o?o.dataset.unit:'');
+    if(qtyInp){qtyInp.max=stock;if(parseFloat(qtyInp.value)>stock&&stock>0)qtyInp.value=stock;}
+  };
+  if(qtyInp){
+    qtyInp.oninput=function(){
+      var o=sel.selectedOptions[0];
+      var stock=parseFloat(o?o.dataset.stock||0:0);
+      if(stock>0&&parseFloat(this.value)>stock){
+        this.style.borderColor='#A32D2D';
+        this.title='Warning: exceeds stock ('+stock+' available)';
+      }else{this.style.borderColor='#ddd';this.title='';}
+    };
+  }
   sel.onchange();
 }
 
@@ -2949,6 +2978,98 @@ async function saveTask(){
         if(invRow)await db.from('inventory').update({qty:(invRow.qty||0)-rr.qty}).eq('id',rr.pid);
       }
     }
+  }
+  // Auto-create installation task for sales orders with template parts
+  if(task.type==='sales'){
+    try{
+      // Get brands from sold products
+      var soldInvIds=taskRows.filter(function(r){return r.pid;}).map(function(r){return r.pid;});
+      if(soldInvIds.length&&INV.length){
+        var soldItems=taskRows.filter(function(r){return r.pid;});
+        var brandQtyMap={};
+        soldItems.forEach(function(r){
+          var inv=INV.find(function(p){return p.id===r.pid;});
+          if(inv&&inv.brand){brandQtyMap[inv.brand]=(brandQtyMap[inv.brand]||0)+(r.qty||0);}
+        });
+        var soldBrands=Object.keys(brandQtyMap);
+        if(soldBrands.length){
+          var{data:templates}=await db.from('install_templates').select('*').in('brand',soldBrands);
+          if(templates&&templates.length){
+            // Get sequential task number for installation task
+            var{data:lastTask}=await db.from('tasks').select('task_num').order('created_at',{ascending:false}).limit(1).single();
+            var lastNum=lastTask?parseInt((lastTask.task_num||'0').replace(/\D/g,''))||0:0;
+            var instNum=String(lastNum+1).padStart(5,'0');
+            var{data:instTask,error:instErr}=await db.from('tasks').insert({
+              task_num:'#'+instNum,
+              customer_id:newTask.customer_id,
+              customer_name:newTask.customer_name,
+              type:'installation',
+              branch:task.branch,
+              salesperson:task.salesperson,
+              date:task.date,
+              status:'pending',
+              pay_status:'unpaid',
+              description:'تركيب - مرتبط بطلب البيع '+newTask.task_num,
+              use_tax:false
+            }).select().single();
+            if(!instErr&&instTask){
+              var instProds=[];
+              soldBrands.forEach(function(brand){
+                var qty=brandQtyMap[brand]||1;
+                templates.filter(function(t){return t.brand===brand;}).forEach(function(t){
+                  instProds.push({task_id:instTask.id,name:t.part_name+'('+brand+')',qty:t.qty_per_ac*qty,price:0});
+                });
+              });
+              if(instProds.length)await db.from('task_products').insert(instProds);
+              toast(t('taskcreated')+' + تم إنشاء مهمة تركيب '+instTask.task_num+' تلقائياً');
+              go('tasks',document.getElementById('ni-tasks'));
+              return;
+            }
+          }
+        }
+      }
+    }catch(autoErr){console.error('Auto installation error:',autoErr);}
+  }
+  // Auto-create installation task for sales orders
+  if(task.type==='sales'){
+    try{
+      var soldItems=taskRows.filter(function(r){return r.pid;});
+      if(soldItems.length&&INV.length){
+        var brandQtyMap={};
+        soldItems.forEach(function(r){
+          var inv=INV.find(function(p){return p.id===r.pid;});
+          if(inv&&inv.brand)brandQtyMap[inv.brand]=(brandQtyMap[inv.brand]||0)+(r.qty||0);
+        });
+        var soldBrands=Object.keys(brandQtyMap);
+        if(soldBrands.length){
+          var{data:tmpl}=await db.from('install_templates').select('*').in('brand',soldBrands);
+          if(tmpl&&tmpl.length){
+            var{data:lastT}=await db.from('tasks').select('task_num').order('created_at',{ascending:false}).limit(1).single();
+            var lastN=lastT?parseInt((lastT.task_num||'0').replace(/[^0-9]/g,''))||0:0;
+            var instNum='#'+String(lastN+1).padStart(5,'0');
+            var{data:instTask,error:instE}=await db.from('tasks').insert({
+              task_num:instNum,customer_id:newTask.customer_id,customer_name:newTask.customer_name,
+              type:'installation',branch:task.branch,salesperson:task.salesperson,date:task.date,
+              status:'pending',pay_status:'unpaid',use_tax:false,
+              description:'تركيب - مرتبط بـ '+newTask.task_num
+            }).select().single();
+            if(!instE&&instTask){
+              var iProds=[];
+              soldBrands.forEach(function(brand){
+                var qty=brandQtyMap[brand]||1;
+                tmpl.filter(function(t){return t.brand===brand;}).forEach(function(t){
+                  iProds.push({task_id:instTask.id,name:t.part_name,qty:t.qty_per_ac*qty,price:0});
+                });
+              });
+              if(iProds.length)await db.from('task_products').insert(iProds);
+              toast('تم إنشاء مهمة البيع '+newTask.task_num+' + مهمة التركيب '+instTask.task_num+' تلقائياً');
+              go('tasks',document.getElementById('ni-tasks'));
+              return;
+            }
+          }
+        }
+      }
+    }catch(e2){console.error('Auto install error:',e2);}
   }
   toast(t('taskcreated'));go('tasks',document.getElementById('ni-tasks'));
 }
