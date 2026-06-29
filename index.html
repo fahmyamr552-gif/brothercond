@@ -1143,12 +1143,9 @@ async function openTask(id){
     CT.pays=tpy.data||[];
     CT.cust=CT.customers||null;
     delete CT.customers;
-    // Load spare parts used in this task (confirmed dispatches only)
-    var spUsedRes=await db.from('dispatch_assignments').select('part_name,qty,unit,cost_per_unit,dispatches(status,date,technician_name)').eq('task_id',CT.id);
-    CT.spUsed=(spUsedRes.data||[]).filter(function(a){return a.dispatches&&a.dispatches.status==='confirmed';});
-    // Load spare parts used in this task
-    var{data:spUsed}=await db.from('dispatch_assignments').select('*,dispatches(status,date,technician_name)').eq('task_id',CT.id);
-    CT.spUsed=(spUsed||[]).filter(function(a){return a.dispatches&&a.dispatches.status==='confirmed';});
+    // Load spare parts assigned to this task from confirmed dispatches
+    var{data:spUsedData}=await db.from('dispatch_assignments').select('part_name,qty,unit,cost_per_unit,dispatches(status,date)').eq('task_id',CT.id);
+    CT.spUsed=(spUsedData||[]).filter(function(a){return a.dispatches&&a.dispatches.status==='confirmed';});
     go('td',null);
     const S=(id)=>document.getElementById(id);
     const isLocked2=CT.pay_status==='paid'&&!['owner','admin','finance'].includes(CU?.role);
@@ -1262,6 +1259,25 @@ async function openTask(id){
         set('vsub','');set('vtax','');set('vgr',f(sub));
         if(S('vsub')?.closest('.tr'))S('vsub').closest('.tr').style.display='none';
         if(S('vtax')?.closest('.tr'))S('vtax').closest('.tr').style.display='none';
+      }
+      // Render spare parts used
+      var spBlock=document.getElementById('sp-used-block');
+      if(spBlock){
+        if(CT.spUsed&&CT.spUsed.length){
+          var spHtml=CT.spUsed.map(function(a){
+            var cost=a.qty*(a.cost_per_unit||0);
+            return '<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #f5e98a;font-size:12px">'
+              +'<span style="flex:1;font-weight:600">'+a.part_name+'</span>'
+              +'<span style="color:#555">'+a.qty+' '+(a.unit||'')+'</span>'
+              +(cost>0?'<span style="color:#854F0B;font-weight:600">EGP '+f(cost)+'</span>':'')
+              +'</div>';
+          }).join('');
+          var spTotal=CT.spUsed.reduce(function(s,a){return s+a.qty*(a.cost_per_unit||0);},0);
+          spBlock.innerHTML='<div style="font-size:11px;font-weight:700;color:#7A5000;margin-bottom:6px">&#128295; Spare parts used</div>'
+            +spHtml
+            +(spTotal>0?'<div style="text-align:right;font-weight:700;color:#854F0B;margin-top:6px">Total: EGP '+f(spTotal)+'</div>':'');
+          spBlock.style.display='';
+        }else{spBlock.style.display='none';}
       }
       // Show edit products button if not locked
       const editProdBtn=S('edit-prods-btn');
@@ -2111,49 +2127,54 @@ async function loadSpareParts(search){
   var body=document.getElementById('sp-list');
   if(!body)return;
   body.innerHTML='<div style="padding:20px;text-align:center;color:#888">Loading...</div>';
-  var{data:parts}=await db.from('spare_parts').select('*').order('name');
-  parts=parts||[];
+  // Load parts + confirmed dispatch usage in parallel
+  var[partsRes,confirmedDispsRes]=await Promise.all([
+    db.from('spare_parts').select('*').order('name'),
+    db.from('dispatches').select('id').eq('status','confirmed')
+  ]);
+  var parts=partsRes.data||[];
+  var confirmedIds=(confirmedDispsRes.data||[]).map(function(d){return d.id;});
+  // Build used map by part name
+  var usedMap={};
+  if(confirmedIds.length){
+    var{data:asgn}=await db.from('dispatch_assignments').select('part_name,qty').in('dispatch_id',confirmedIds);
+    (asgn||[]).forEach(function(a){if(a.part_name)usedMap[a.part_name]=(usedMap[a.part_name]||0)+(a.qty||0);});
+  }
+  if(search)parts=parts.filter(function(p){return p.name.toLowerCase().includes(search.toLowerCase());});
   // Stats
   var tot=parts.length;
   var low=parts.filter(function(p){return p.qty<=p.low_alert;}).length;
   var spStats=document.getElementById('sp-stats');
   if(spStats)spStats.innerHTML='<div class="sc"><div class="sl">Total parts</div><div class="sv">'+tot+'</div></div>'
     +'<div class="sc"><div class="sl" style="color:#A32D2D">Low stock</div><div class="sv" style="color:#A32D2D">'+low+'</div></div>';
-  if(!parts.length){body.innerHTML='<div style="padding:20px;text-align:center;color:#888">No spare parts yet. Add parts to get started.</div>';return;}
+  if(!parts.length){body.innerHTML='<div style="padding:20px;text-align:center;color:#888">No spare parts yet.</div>';return;}
   var rows=parts.map(function(p){
     var stockColor=p.qty<=0?'#A32D2D':p.qty<=p.low_alert?'#854F0B':'#3B6D11';
-    return '<tr><td style="font-weight:600">'+p.name+'</td>'
-      +'<td style="text-align:center">'+p.unit+'</td>'
-      +'<td style="text-align:center;font-weight:700;color:'+stockColor+'">'+p.qty+'</td>'
-      +'<td style="text-align:right">EGP '+parseFloat(p.cost||0).toLocaleString()+'</td>'
-      +'<td style="text-align:center;color:#888">'+p.low_alert+'</td>'
-      +'<td><button onclick="editSP(\''+p.id+'\')" style="font-size:11px;padding:3px 8px;border:1px solid #1D9E75;border-radius:5px;background:#EAF3DE;color:#1D9E75;cursor:pointer;margin-right:4px">Edit</button>'
-      +(can('delete')?'<button onclick="deleteSP(\''+p.id+'\')" style="font-size:11px;padding:3px 8px;border:1px solid #E24B4A;border-radius:5px;background:#FCEBEB;color:#A32D2D;cursor:pointer">Del</button>':'')
-      +'</td></tr>';
+    var used=usedMap[p.name]||0;
+    var editBtn='<button onclick="editSP(\''+p.id+'\')" class="ib" style="font-size:11px;padding:2px 8px">Edit</button>';
+    var delBtn=can('delete')||CU.role==='inventory_manager'?'<button onclick="deleteSP(\''+p.id+'\')" class="ib r" style="font-size:11px;padding:2px 8px">Del</button>':'';
+    return '<tr style="border-bottom:1px solid #f0f0e8">'
+      +'<td style="padding:10px 12px;font-weight:600">'+p.name+'</td>'
+      +'<td style="padding:10px 12px;text-align:center;color:#888">'+p.unit+'</td>'
+      +'<td style="padding:10px 12px;text-align:center;font-weight:700;color:'+stockColor+'">'+p.qty+'</td>'
+      +'<td style="padding:10px 12px;text-align:center;font-weight:600;color:#854F0B">'+used+'</td>'
+      +'<td style="padding:10px 12px;text-align:right">EGP '+f(p.cost||0)+'</td>'
+      +'<td style="padding:10px 12px;text-align:center;color:#888">'+p.low_alert+'</td>'
+      +'<td style="padding:10px 12px">'+editBtn+' '+delBtn+'</td>'
+      +'</tr>';
   }).join('');
-  body.innerHTML='<table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f9f9f6">'
-    +'<th style="padding:8px 10px;text-align:left">Part name</th>'
-    +'<th style="padding:8px 10px;text-align:center">Unit</th>'
-    +'<th style="padding:8px 10px;text-align:center">Stock</th>'
-    +'<th style="padding:8px 10px;text-align:center">Used</th>'
-    +'<th style="padding:8px 10px;text-align:right">Cost/unit</th>'
-    +'<th style="padding:8px 10px;text-align:center">Low alert</th>'
-    +'<th style="padding:8px 10px">Action</th>'
+  body.innerHTML='<table style="width:100%;border-collapse:collapse;font-size:13px">'
+    +'<thead><tr style="background:#f5f5f0">'
+    +'<th style="padding:10px 12px;text-align:left">Part name</th>'
+    +'<th style="padding:10px 12px;text-align:center">Unit</th>'
+    +'<th style="padding:10px 12px;text-align:center">Stock</th>'
+    +'<th style="padding:10px 12px;text-align:center">Used</th>'
+    +'<th style="padding:10px 12px;text-align:right">Cost/unit</th>'
+    +'<th style="padding:10px 12px;text-align:center">Low alert</th>'
+    +'<th style="padding:10px 12px">Action</th>'
     +'</tr></thead><tbody>'+rows+'</tbody></table>';
 }
 
-function openAddSP(){
-  var modal=document.getElementById('sp-modal');
-  if(!modal)return;
-  document.getElementById('sp-modal-title').textContent='Add spare part';
-  document.getElementById('sp-id').value='';
-  document.getElementById('sp-name').value='';
-  document.getElementById('sp-unit').value='piece';
-  document.getElementById('sp-qty').value='0';
-  document.getElementById('sp-cost').value='0';
-  document.getElementById('sp-low').value='5';
-  modal.style.display='flex';
-}
 
 async function editSP(id){
   var{data:p}=await db.from('spare_parts').select('*').eq('id',id).single();
