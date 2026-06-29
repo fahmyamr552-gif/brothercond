@@ -2168,7 +2168,7 @@ async function loadSpareParts(search){
     +'<th style="padding:10px 12px;text-align:left">Part name</th>'
     +'<th style="padding:10px 12px;text-align:center">Unit</th>'
     +'<th style="padding:10px 12px;text-align:center">Stock</th>'
-    +'<th style="padding:10px 12px;text-align:center">Used</th>'
+    +'<th style="padding:10px 12px;text-align:center">"+(LANG==="ar"?"مستخدم":"Used")+"</th>'
     +'<th style="padding:10px 12px;text-align:right">Cost/unit</th>'
     +'<th style="padding:10px 12px;text-align:center">Low alert</th>'
     +'<th style="padding:10px 12px">Action</th>'
@@ -2364,7 +2364,7 @@ async function submitForApproval(dispId){
     alert('Cannot submit: '+missing.join(', '));
     return;
   }
-  if(!confirm('Submit for approval? You cannot edit after this.'))return;
+  if(!confirm('"+(LANG==="ar"?"إرسال للموافقة":"Submit for approval")+"? You cannot edit after this.'))return;
   var{error}=await db.from('dispatches').update({status:'pending_confirm'}).eq('id',dispId);
   if(error){toast('Error: '+error.message,true);return;}
   toast('Submitted for approval!');
@@ -2611,25 +2611,25 @@ async function openDispatch(id){
   var body=document.createElement('div');
   body.style.cssText='padding:18px 22px;overflow-y:auto;flex:1';
   // Parts section
-  var partsHtml='<div style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Parts</div>';
+  var partsHtml='<div style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">"+(LANG==="ar"?"القطع":"Parts")+"</div>';
   items.forEach(function(it){
     var used=Math.max(0,it.qty_out-(it.qty_returned||0));
     var usedColor=used>0?'#A32D2D':'#3B6D11';
     partsHtml+='<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:#f9f9f6;border:1px solid #eee;border-radius:10px;margin-bottom:8px">'
       +'<div style="flex:1;font-weight:600;font-size:14px">'+it.part_name+'</div>'
-      +'<div style="text-align:center;min-width:80px"><div style="font-size:10px;color:#888;margin-bottom:3px">Dispatched</div><div style="font-weight:700">'+it.qty_out+' '+it.unit+'</div></div>'
-      +'<div style="text-align:center;min-width:90px"><div style="font-size:10px;color:#888;margin-bottom:3px">Returned</div>'
+      +'<div style="text-align:center;min-width:80px"><div style="font-size:10px;color:#888;margin-bottom:3px">"+(LANG==="ar"?"موزع":"Dispatched")+"</div><div style="font-weight:700">'+it.qty_out+' '+it.unit+'</div></div>'
+      +'<div style="text-align:center;min-width:90px"><div style="font-size:10px;color:#888;margin-bottom:3px">"+(LANG==="ar"?"مرتجع":"Returned")+"</div>'
         +(disp.status==='open'
           ?'<input type="number" class="ret-inp" data-id="'+it.id+'" min="0" max="'+it.qty_out+'" value="'+(it.qty_returned||0)+'" style="width:70px;text-align:center;border:1px solid #1D9E75;border-radius:7px;padding:5px;font-size:13px;font-weight:700">'
           :'<div style="font-weight:700">'+(it.qty_returned||0)+' '+it.unit+'</div>')
       +'</div>'
-      +'<div style="text-align:center;min-width:60px"><div style="font-size:10px;color:#888;margin-bottom:3px">Used</div><div style="font-weight:700;color:'+usedColor+'">'+used+' '+it.unit+'</div></div>'
+      +'<div style="text-align:center;min-width:60px"><div style="font-size:10px;color:#888;margin-bottom:3px">"+(LANG==="ar"?"مستخدم":"Used")+"</div><div style="font-weight:700;color:'+usedColor+'">'+used+' '+it.unit+'</div></div>'
     +'</div>';
   });
   // Assignments section
   var assignHtml='';
   if(assignments.length){
-    assignHtml='<div style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;margin:16px 0 10px">Assigned to tasks</div>';
+    assignHtml='<div style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;margin:16px 0 10px">"+(LANG==="ar"?"مخصص للمهام":"Assigned to tasks")+"</div>';
     assignments.forEach(function(a){
       var delBtn=isManager&&disp.status==='open'?'<button data-aid="'+a.id+'" onclick="removeAssignment(this.dataset.aid,\''+id+'\')" style="border:none;background:none;color:#ccc;cursor:pointer;font-size:18px;padding:0;line-height:1;margin-left:8px">&#10005;</button>':'';
       assignHtml+='<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:#fff;border:1px solid #eee;border-radius:8px;margin-bottom:6px;font-size:13px">'
@@ -2651,28 +2651,28 @@ async function openDispatch(id){
   ftr.appendChild(closeBtn);
   if(isManager&&disp.status==='open'){
     var saveBtn=document.createElement('button');
-    saveBtn.innerHTML='&#8635; Save returns';saveBtn.className='btn bs';
+    saveBtn.innerHTML='&#8635; "+(LANG==="ar"?"حفظ المرتجعات":"Save returns")+"';saveBtn.className='btn bs';
     saveBtn.style.cssText='border-color:#185FA5;color:#185FA5;background:#E8F4FD';
     saveBtn.onclick=function(){saveReturns(id);};
     var assignBtn=document.createElement('button');
-    assignBtn.innerHTML='&#128205; Assign to tasks';assignBtn.className='btn bs';
+    assignBtn.innerHTML='&#128205; "+(LANG==="ar"?"تخصيص للمهام":"Assign to tasks")+"';assignBtn.className='btn bs';
     assignBtn.style.cssText='border-color:#854F0B;color:#854F0B;background:#FFF8E1';
     assignBtn.onclick=function(){openAssignModal(id);};
     var submitBtn=document.createElement('button');
-    submitBtn.innerHTML='&#10003; Submit for approval';submitBtn.className='btn bp';
+    submitBtn.innerHTML='&#10003; "+(LANG==="ar"?"إرسال للموافقة":"Submit for approval")+"';submitBtn.className='btn bp';
     submitBtn.onclick=function(){submitForApproval(id);};
     ftr.appendChild(saveBtn);ftr.appendChild(assignBtn);ftr.appendChild(submitBtn);
   }
   if(isApprover&&(disp.status==='pending_confirm'||disp.status==='confirmed'||disp.status==='open')){
     var cancelDispBtn=document.createElement('button');
-    cancelDispBtn.innerHTML='&#10005; Cancel & Delete';cancelDispBtn.className='btn bs';
+    cancelDispBtn.innerHTML='&#10005; "+(LANG==="ar"?"إلغاء وحذف":"Cancel & Delete")+"';cancelDispBtn.className='btn bs';
     cancelDispBtn.style.cssText='border-color:#A32D2D;color:#A32D2D;margin-right:auto';
     cancelDispBtn.onclick=function(){cancelDispatch(id);};
     ftr.insertBefore(cancelDispBtn,ftr.firstChild);
   }
   if(isApprover&&disp.status==='pending_confirm'){
     var approveBtn=document.createElement('button');
-    approveBtn.innerHTML='&#10003; Approve & Confirm';approveBtn.className='btn bp';
+    approveBtn.innerHTML='&#10003; "+(LANG==="ar"?"موافقة وتأكيد":"Approve & Confirm")+"';approveBtn.className='btn bp';
     approveBtn.onclick=function(){approveDispatch(id);};
     ftr.appendChild(approveBtn);
   }
@@ -2784,7 +2784,12 @@ function onPS2(sel){
 
 function recalcAllRows(){
   var useTax=document.getElementById('tax-toggle')?.checked===true;
+  document.querySelectorAll('.th-before').forEach(function(th){th.style.display=useTax?'':'none';});
+  var thTotal=document.querySelector('.th-total');
+  if(thTotal)thTotal.textContent=useTax?'Total (14%)':'Total';
   document.querySelectorAll('#ntb tr').forEach(function(tr){
+    var ptTd=tr.querySelector('.pt')?tr.querySelector('.pt').closest('td'):null;
+    if(ptTd)ptTd.style.display=useTax?'':'none';
     var priceInp=tr.querySelector('td:nth-child(3) input');
     if(priceInp)calcR(priceInp);
   });
@@ -2998,7 +3003,7 @@ async function saveTask(){
     }
   }
   // Auto-create installation task for sales orders
-  if(task.type==='sales'){
+  if(taskType==='sales'||task.type==='sales'||document.getElementById('ntt')?.value==='sales'){
     try{
       var soldItems=taskRows.filter(function(r){return r.pid;});
       if(soldItems.length&&INV.length){
@@ -3293,7 +3298,7 @@ async function returnProducts(poId){
   var html='<div style="background:#fff;border-radius:14px;padding:24px;width:520px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.25)">';
   html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><div style="font-size:15px;font-weight:700;color:#A32D2D">Return products to supplier</div><button id="ret-close" style="border:none;background:none;font-size:22px;cursor:pointer">&#10005;</button></div>';
   html+='<div style="font-size:12px;color:#888;margin-bottom:12px">'+po.po_num+'</div>';
-  html+='<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px"><thead><tr style="background:#f9f9f6"><th style="padding:7px 10px;text-align:left">Product</th><th style="padding:7px 10px;text-align:center">Ordered</th><th style="padding:7px 10px;text-align:center">Returned</th><th style="padding:7px 10px;text-align:center">Return now</th></tr></thead><tbody>';
+  html+='<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px"><thead><tr style="background:#f9f9f6"><th style="padding:7px 10px;text-align:left">Product</th><th style="padding:7px 10px;text-align:center">Ordered</th><th style="padding:7px 10px;text-align:center">"+(LANG==="ar"?"مرتجع":"Returned")+"</th><th style="padding:7px 10px;text-align:center">Return now</th></tr></thead><tbody>';
   items.forEach(function(it){var inv=invMap[it.inventory_id]||{name:'Unknown',qty:0};var prevRet=alreadyReturned[it.id]||0;var maxNow=Math.max(0,Math.min(it.qty-prevRet,inv.qty));var allRet=prevRet>=it.qty;html+='<tr><td style="padding:7px 10px'+(allRet?';opacity:.5':'')+'">'+inv.name+(allRet?' <span style="font-size:10px;color:#A32D2D">(fully returned)</span>':'')+'</td><td style="padding:7px 10px;text-align:center;color:#888">'+it.qty+'</td><td style="padding:7px 10px;text-align:center;color:#A32D2D;font-weight:700">'+prevRet+'</td><td style="padding:7px 10px;text-align:center">'+(allRet?'<span style="color:#888;font-size:11px">done</span>':'<input type="number" id="ret-'+it.id+'" value="0" min="0" max="'+maxNow+'" style="width:60px;text-align:center;border:1px solid #ccc;border-radius:5px;padding:3px"> / '+maxNow)+'</td></tr>';});
   html+='</tbody></table>';
   html+='<div style="margin-bottom:12px"><label style="font-size:12px;color:#888">Return reason</label><input id="ret-reason" placeholder="e.g. Defective..." style="width:100%;padding:7px;border:1px solid #ccc;border-radius:7px;font-size:12px;box-sizing:border-box;margin-top:4px"></div>';
