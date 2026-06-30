@@ -2491,6 +2491,57 @@ async function loadDispatches(){
     +'</div>';
 }
 
+
+// Installation kits - preset part bundles
+var INSTALL_KITS=[
+  {name:'Carrier Installation',parts:[
+    {name:'fisher 8',qty:4},
+    {name:'fisher 10',qty:4},
+    {name:'plastic band',qty:1}
+  ]},
+  {name:'Midea Installation',parts:[
+    {name:'fisher 8',qty:4},
+    {name:'fisher 10',qty:4},
+    {name:'plastic band',qty:1}
+  ]},
+  {name:'General Maintenance',parts:[
+    {name:'copper 1/2',qty:3}
+  ]}
+];
+
+function applyKit(kitIndex){
+  var kit=INSTALL_KITS[kitIndex];
+  if(!kit)return;
+  var parts=window._dispParts||[];
+  var container=document.getElementById('disp-items');
+  if(!container)return;
+  kit.parts.forEach(function(kp){
+    // Find matching part in inventory
+    var match=parts.find(function(p){return p.name.toLowerCase().indexOf(kp.name.toLowerCase())>=0;});
+    if(!match){toast('Part not found in inventory: '+kp.name,true);return;}
+    // Add a row for this part
+    addDispItem();
+    // Set the select to this part
+    var rows=container.querySelectorAll('div[style*="grid-template-columns"]');
+    var lastRow=rows[rows.length-1];
+    if(!lastRow)return;
+    var sel=lastRow.querySelector('.disp-part-sel');
+    var qtyInp=lastRow.querySelector('.disp-qty-out');
+    if(sel){
+      // Find the option with matching part id
+      for(var i=0;i<sel.options.length;i++){
+        if(sel.options[i].text.toLowerCase().indexOf(kp.name.toLowerCase())>=0){
+          sel.selectedIndex=i;
+          sel.onchange();
+          break;
+        }
+      }
+    }
+    if(qtyInp)qtyInp.value=kp.qty;
+  });
+  toast('Kit "'+kit.name+'" applied — '+kit.parts.length+' parts added');
+}
+
 async function openNewDispatch(){
   // Get technicians from users
   var{data:techs}=await db.from('users').select('id,full_name,username').eq('active',true).in('role',['technician','salesperson','admin']);
@@ -2516,7 +2567,7 @@ var techOpts='<option value="">-- Select technician --</option>'+allTechs.map(fu
       +'<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">'+td('Date')+'</label><input type="date" id="disp-date" value="'+new Date().toISOString().slice(0,10)+'" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div>'
     +'</div>'
     +'<div style="margin-bottom:14px"><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">'+td('Notes (optional)')+'</label><input id="disp-notes" placeholder="e.g. Morning dispatch for 3 jobs" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div>'
-    +'<div style="margin-bottom:6px;display:flex;justify-content:space-between;align-items:center"><div style="font-size:13px;font-weight:700">'+td('Parts dispatched')+'</div><button onclick="addDispItem()" style="font-size:11px;padding:3px 12px;border:1px solid #1D9E75;border-radius:6px;background:#EAF3DE;color:#1D9E75;cursor:pointer">'+td('+ Add part')+'</button></div>'
+    +'<div style="margin-bottom:6px;display:flex;justify-content:space-between;align-items:center"><div style="font-size:13px;font-weight:700">'+td('Parts dispatched')+'</div>'      +'<div style="display:flex;gap:6px;align-items:center">'        +'<select id="kit-sel" style="font-size:11px;padding:4px 8px;border:1px solid #854F0B;border-radius:6px;background:#FFF8E1;color:#854F0B">'          +'<option value="">&#9889; Kit...</option>'          +INSTALL_KITS.map(function(k,i){return '<option value="'+i+'">'+k.name+'</option>';}).join('')        +'</select>'        +'<button onclick="var s=document.getElementById(\'kit-sel\');if(s&&s.value!==\'\')applyKit(parseInt(s.value))" style="font-size:11px;padding:4px 10px;border:1px solid #854F0B;border-radius:6px;background:#FFF8E1;color:#854F0B;cursor:pointer">Apply</button>'        +'<button onclick="addDispItem()" style="font-size:11px;padding:3px 12px;border:1px solid #1D9E75;border-radius:6px;background:#EAF3DE;color:#1D9E75;cursor:pointer">'+td('+ Add part')+'</button></div>'
     +'<div id="disp-items" style="margin-bottom:16px"></div>'
     +'<div style="display:flex;gap:8px;justify-content:flex-end">'
       +'<button id="disp-cancel-btn" style="padding:9px 20px;font-size:13px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer">'+td('Cancel')+'</button>'
