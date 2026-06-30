@@ -3538,6 +3538,7 @@ function openAddSP(){
   document.getElementById('sp-cost').value='0';
   document.getElementById('sp-low').value='5';
   modal.style.display='flex';
+}
 
 function showInvTab(tab,btn){
   document.querySelectorAll('[id^="inv-tab-"]').forEach(function(b){b.className='btn bs';b.style.fontSize='12px';});
@@ -3622,8 +3623,7 @@ function clrC(){
   var addrBlock=document.getElementById('nt-addr-block');if(addrBlock)addrBlock.style.display='none';
   var dupWarn=document.getElementById('nt-dup-warn');if(dupWarn)dupWarn.style.display='none';
 }
-
-}</script>
+</script>
 </body>
 </html>
 <script>
