@@ -2141,11 +2141,9 @@ async function deleteSP(id){
 async function openAssignModal(dispId){
   var{data:items}=await db.from('dispatch_items').select('*').eq('dispatch_id',dispId);
   var{data:assignments}=await db.from('dispatch_assignments').select('*').eq('dispatch_id',dispId);
-  var{data:tasks}=await db.from('tasks').select('id,task_num,customer_name,date,type').order('date',{ascending:false}).limit(200);
+  var{data:tasks}=await db.from('tasks').select('id,task_num,customer_name,date,type').order('date',{ascending:false}).limit(300);
   items=items||[];assignments=assignments||[];tasks=tasks||[];
-
-  // Only show parts that have used qty
-  if(!items.length){toast(td('No parts to assign'),true);return;}
+  if(!items.length){toast('No parts in this dispatch',true);return;}
 
   document.querySelectorAll('.assign-overlay').forEach(function(e){e.remove();});
   var ov=document.createElement('div');
@@ -2153,86 +2151,91 @@ async function openAssignModal(dispId){
   ov.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box';
   ov.onclick=function(e){if(e.target===ov)ov.remove();};
 
-  var taskOpts=tasks.map(function(t){
+  var taskOpts='<option value="">-- Select task --</option>'+tasks.map(function(t){
     return '<option value="'+t.id+'" data-num="'+t.task_num+'" data-cust="'+t.customer_name+'">'+t.task_num+' — '+t.customer_name+' ('+t.date+')</option>';
   }).join('');
 
-  var partOpts=items.map(function(it){
+  // Build a row for EACH part
+  var partRows=items.map(function(it){
     var used=Math.max(0,it.qty_out-(it.qty_returned||0));
     var assigned=assignments.filter(function(a){return a.dispatch_item_id===it.id;}).reduce(function(s,a){return s+a.qty;},0);
     var remaining=Math.max(0,used-assigned);
-    var label=it.part_name+' | Used: '+used+' | Assigned: '+assigned+' | Remaining: '+remaining+' '+it.unit;
-    return '<option value="'+it.id+'" data-max="'+remaining+'" data-used="'+used+'" data-assigned="'+assigned+'" data-unit="'+it.unit+'" data-cost="'+(it.cost_per_unit||0)+'">'+label+'</option>';
+    var usedColor=used>0?'#854F0B':'#888';
+    var remColor=remaining>0?'#1D9E75':'#aaa';
+    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f0f0e8">'
+      +'<div style="flex:1;font-weight:600;font-size:13px">'+it.part_name+'</div>'
+      +'<div style="font-size:11px;color:'+usedColor+';min-width:60px">Used: <b>'+used+'</b> '+it.unit+'</div>'
+      +'<div style="font-size:11px;color:'+remColor+';min-width:80px">Left: <b>'+remaining+'</b></div>'
+      +'<input type="number" class="am-part-qty" data-item-id="'+it.id+'" data-unit="'+it.unit+'" data-cost="'+(it.cost_per_unit||0)+'" data-name="'+it.part_name+'" data-max="'+remaining+'" min="0" max="'+remaining+'" value="'+remaining+'" style="width:70px;padding:6px;border:1px solid #ddd;border-radius:7px;font-size:13px;text-align:center">'
+      +'<span style="font-size:11px;color:#888;min-width:40px">'+it.unit+'</span>'
+    +'</div>';
   }).join('');
 
   var box=document.createElement('div');
-  box.style.cssText='background:#fff;border-radius:14px;padding:0;width:560px;max-width:100%;max-height:85vh;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.3);display:flex;flex-direction:column';
+  box.style.cssText='background:#fff;border-radius:14px;padding:0;width:580px;max-width:100%;max-height:88vh;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.3);display:flex;flex-direction:column';
   box.innerHTML=''
-    +'<div style="padding:18px 22px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center">'
+    +'<div style="padding:18px 22px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">'
       +'<div style="font-size:16px;font-weight:700">Assign parts to task</div>'
       +'<button id="am-x" style="border:none;background:none;font-size:22px;cursor:pointer;color:#aaa">&#10005;</button>'
     +'</div>'
-    +'<div style="padding:20px 22px;overflow-y:auto;flex:1">'
-      +'<div style="margin-bottom:14px">'
-        +'<label style="font-size:11px;color:#888;font-weight:700;text-transform:uppercase;display:block;margin-bottom:5px">Search task</label>'
+    +'<div style="padding:18px 22px;overflow-y:auto;flex:1">'
+      // Task search
+      +'<div style="margin-bottom:12px">'
+        +'<label style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:5px">Search task</label>'
         +'<input id="am-search" placeholder="Search by task# or customer name..." style="width:100%;padding:9px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box" oninput="filterAssignTasks(this.value)">'
       +'</div>'
-      +'<div style="margin-bottom:14px">'
-        +'<label style="font-size:11px;color:#888;font-weight:700;text-transform:uppercase;display:block;margin-bottom:5px">Select task</label>'
-        +'<select id="am-task" size="5" style="width:100%;border:1px solid #ddd;border-radius:8px;font-size:13px;padding:4px">'+taskOpts+'</select>'
+      // Task select
+      +'<div style="margin-bottom:16px">'
+        +'<label style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:5px">Select task *</label>'
+        +'<select id="am-task" size="4" style="width:100%;border:1px solid #ddd;border-radius:8px;font-size:13px;padding:4px">'+taskOpts+'</select>'
       +'</div>'
-      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">'
-        +'<div><label style="font-size:11px;color:#888;font-weight:700;text-transform:uppercase;display:block;margin-bottom:5px">Part</label>'
-          +'<select id="am-part" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:13px" onchange="updateAmMax()">'+partOpts+'</select></div>'
-        +'<div><label style="font-size:11px;color:#888;font-weight:700;text-transform:uppercase;display:block;margin-bottom:5px">Quantity</label>'
-          +'<input type="number" id="am-qty" min="1" value="1" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box">'
-          +'<div id="am-max-hint" style="font-size:11px;color:#888;margin-top:3px"></div></div>'
+      // Parts with qty inputs
+      +'<div>'
+        +'<label style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:5px">Parts & quantities</label>'
+        +'<div style="background:#f9f9f6;border:1px solid #eee;border-radius:8px;padding:0 12px">'
+          +partRows
+        +'</div>'
+        +'<div style="font-size:11px;color:#888;margin-top:6px">Set qty to 0 to skip a part</div>'
       +'</div>'
     +'</div>'
-    +'<div style="padding:14px 22px;border-top:1px solid #eee;display:flex;gap:8px;justify-content:flex-end">'
-      +'<button id="am-cancel" class="btn bs">'+td('Cancel')+'</button>'
-      +'<button id="am-save" class="btn bp">&#10003; Save assignment</button>'
+    +'<div style="padding:14px 22px;border-top:1px solid #eee;display:flex;gap:8px;justify-content:flex-end;flex-shrink:0">'
+      +'<button id="am-cancel" class="btn bs">Cancel</button>'
+      +'<button id="am-save" class="btn bp">&#10003; Save assignments</button>'
     +'</div>';
+
   ov.appendChild(box);
   document.body.appendChild(ov);
   document.getElementById('am-x').onclick=function(){ov.remove();};
   document.getElementById('am-cancel').onclick=function(){ov.remove();};
-  // Set max hint
-  updateAmMax();
+
   document.getElementById('am-save').onclick=async function(){
     var taskSel=document.getElementById('am-task');
-    var partSel=document.getElementById('am-part');
-    var qty=parseFloat(document.getElementById('am-qty').value)||0;
-    if(!taskSel.value){toast('Select a task',true);return;}
-    if(!partSel.value){toast('Select a part',true);return;}
-    if(qty<=0){toast('Enter a valid quantity',true);return;}
+    if(!taskSel.value){toast('Select a task first',true);return;}
     var taskOpt=taskSel.selectedOptions[0];
-    var partOpt=partSel.selectedOptions[0];
-    var maxQty=parseFloat(partOpt.dataset.max)||0;
-    var usedQty=parseFloat(partOpt.dataset.used)||0;
-    if(qty>usedQty){toast('Cannot assign more than used quantity ('+usedQty+')',true);return;}
-    if(qty>maxQty&&maxQty>=0){
-      var overConfirm=confirm('Warning: '+qty+' exceeds unassigned remaining ('+maxQty+'). Continue?');
-      if(!overConfirm)return;
-    }
-    var btn=document.getElementById('am-save');btn.disabled=true;btn.textContent='Saving...';
-    var{error}=await db.from('dispatch_assignments').insert({
-      dispatch_id:dispId,
-      dispatch_item_id:partSel.value,
-      task_id:taskSel.value,
-      task_num:taskOpt.dataset.num,
-      customer_name:taskOpt.dataset.cust,
-      qty:qty,
-      part_name:partOpt.text.split('(')[0].trim(),
-      unit:partOpt.dataset.unit,
-      cost_per_unit:parseFloat(partOpt.dataset.cost)||0
+    var taskId=taskSel.value;
+    var taskNum=taskOpt.dataset.num||taskOpt.text.split(' — ')[0];
+    var custName=taskOpt.dataset.cust||taskOpt.text.split(' — ')[1]||'';
+    var qtyInputs=document.querySelectorAll('.am-part-qty');
+    var toSave=[];
+    var errors=[];
+    qtyInputs.forEach(function(inp){
+      var qty=parseFloat(inp.value)||0;
+      if(qty<=0)return; // skip zeros
+      var max=parseFloat(inp.dataset.max)||0;
+      if(qty>max){errors.push(inp.dataset.name+': max is '+max+' '+inp.dataset.unit);}
+      else{toSave.push({dispatch_id:dispId,dispatch_item_id:inp.dataset.itemId,task_id:taskId,task_num:taskNum,customer_name:custName.trim(),qty:qty,part_name:inp.dataset.name,unit:inp.dataset.unit,cost_per_unit:parseFloat(inp.dataset.cost)||0});}
     });
-    if(error){toast('Error: '+error.message,true);btn.disabled=false;btn.textContent=td('Save assignment');return;}
-    toast('Assigned!');
+    if(errors.length){toast('Qty exceeds available: '+errors.join(', '),true);return;}
+    if(!toSave.length){toast('All quantities are 0 — nothing to save',true);return;}
+    var btn=document.getElementById('am-save');btn.disabled=true;btn.textContent='Saving...';
+    var{error}=await db.from('dispatch_assignments').insert(toSave);
+    if(error){toast('Error: '+error.message,true);btn.disabled=false;btn.textContent='Save assignments';return;}
+    toast('Assigned '+toSave.length+' part(s) to '+taskNum);
     ov.remove();
     openDispatch(dispId);
   };
 }
+
 
 function filterAssignTasks(q){
   var sel=document.getElementById('am-task');
