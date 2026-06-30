@@ -2161,7 +2161,8 @@ async function openAssignModal(dispId){
     var used=Math.max(0,it.qty_out-(it.qty_returned||0));
     var assigned=assignments.filter(function(a){return a.dispatch_item_id===it.id;}).reduce(function(s,a){return s+a.qty;},0);
     var remaining=Math.max(0,used-assigned);
-    return '<option value="'+it.id+'" data-max="'+remaining+'" data-unit="'+it.unit+'" data-cost="'+(it.cost_per_unit||0)+'">'+it.part_name+' ('+remaining+' '+it.unit+' unassigned)</option>';
+    var label=it.part_name+' | Used: '+used+' | Assigned: '+assigned+' | Remaining: '+remaining+' '+it.unit;
+    return '<option value="'+it.id+'" data-max="'+remaining+'" data-used="'+used+'" data-assigned="'+assigned+'" data-unit="'+it.unit+'" data-cost="'+(it.cost_per_unit||0)+'">'+label+'</option>';
   }).join('');
 
   var box=document.createElement('div');
@@ -2249,11 +2250,19 @@ function updateAmMax(){
   if(!partSel||!hint)return;
   var opt=partSel.selectedOptions[0];
   if(!opt)return;
-  var max=parseFloat(opt.dataset.max)||0;
+  var remaining=parseFloat(opt.dataset.max)||0;
   var used=parseFloat(opt.dataset.used)||0;
+  var assigned=parseFloat(opt.dataset.assigned)||0;
   var unit=opt.dataset.unit||'';
-  hint.innerHTML='<span style="color:#3B6D11">Used: '+used+'</span> | <span style="color:#1D9E75">Unassigned: '+max+'</span> '+unit;
-  if(qtyInp){qtyInp.max=used;if(parseFloat(qtyInp.value)>used)qtyInp.value=used;}
+  hint.innerHTML=''
+    +'<span style="color:#854F0B;margin-right:8px">Dispatched used: <b>'+used+'</b></span>'
+    +'<span style="color:#1D9E75;margin-right:8px">Already assigned: <b>'+assigned+'</b></span>'
+    +'<span style="color:#185FA5">Still unassigned: <b>'+remaining+'</b></span>'
+    +'<span style="color:#888;margin-left:4px">'+unit+'</span>';
+  if(qtyInp){
+    qtyInp.max=remaining;
+    qtyInp.value=remaining>0?remaining:0;
+  }
 }
 
 async function saveReturns(dispId){
