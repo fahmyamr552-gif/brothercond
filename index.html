@@ -2157,7 +2157,7 @@ async function openAssignModal(dispId){
     return '<option value="'+t.id+'" data-num="'+t.task_num+'" data-cust="'+t.customer_name+'">'+t.task_num+' — '+t.customer_name+' ('+t.date+')</option>';
   }).join('');
 
-  var partOpts=usable.map(function(it){
+  var partOpts=items.map(function(it){
     var used=Math.max(0,it.qty_out-(it.qty_returned||0));
     var assigned=assignments.filter(function(a){return a.dispatch_item_id===it.id;}).reduce(function(s,a){return s+a.qty;},0);
     var remaining=Math.max(0,used-assigned);
