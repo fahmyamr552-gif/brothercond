@@ -2497,12 +2497,16 @@ var INSTALL_KITS=[
   {name:'Carrier Installation',parts:[
     {name:'fisher 8',qty:4},
     {name:'fisher 10',qty:4},
-    {name:'plastic band',qty:1}
+    {name:'plastic band',qty:1},
+    {name:'screw 8',qty:4},
+    {name:'screw 13',qty:4}
   ]},
   {name:'Midea Installation',parts:[
     {name:'fisher 8',qty:4},
     {name:'fisher 10',qty:4},
-    {name:'plastic band',qty:1}
+    {name:'plastic band',qty:1},
+    {name:'screw 8',qty:4},
+    {name:'screw 13',qty:4}
   ]},
   {name:'General Maintenance',parts:[
     {name:'copper 1/2',qty:3}
@@ -2515,31 +2519,36 @@ function applyKit(kitIndex){
   var parts=window._dispParts||[];
   var container=document.getElementById('disp-items');
   if(!container)return;
+  // Clear existing rows first
+  container.innerHTML='';
+  var notFound=[];
   kit.parts.forEach(function(kp){
-    // Find matching part in inventory
-    var match=parts.find(function(p){return p.name.toLowerCase().indexOf(kp.name.toLowerCase())>=0;});
-    if(!match){toast('Part not found in inventory: '+kp.name,true);return;}
-    // Add a row for this part
+    var match=null;
+    for(var i=0;i<parts.length;i++){
+      if(parts[i].name.toLowerCase().indexOf(kp.name.toLowerCase())>=0){match=parts[i];break;}
+    }
+    if(!match){notFound.push(kp.name);return;}
+    // Add row
     addDispItem();
-    // Set the select to this part
     var rows=container.querySelectorAll('div[style*="grid-template-columns"]');
     var lastRow=rows[rows.length-1];
     if(!lastRow)return;
     var sel=lastRow.querySelector('.disp-part-sel');
     var qtyInp=lastRow.querySelector('.disp-qty-out');
     if(sel){
-      // Find the option with matching part id
-      for(var i=0;i<sel.options.length;i++){
-        if(sel.options[i].text.toLowerCase().indexOf(kp.name.toLowerCase())>=0){
-          sel.selectedIndex=i;
-          sel.onchange();
-          break;
+      for(var j=0;j<sel.options.length;j++){
+        if(sel.options[j].text.toLowerCase().indexOf(kp.name.toLowerCase())>=0){
+          sel.selectedIndex=j;sel.onchange();break;
         }
       }
     }
     if(qtyInp)qtyInp.value=kp.qty;
   });
-  toast('Kit "'+kit.name+'" applied — '+kit.parts.length+' parts added');
+  if(notFound.length)toast('Parts not in inventory: '+notFound.join(', '),true);
+  else toast('Kit "'+kit.name+'" loaded — '+kit.parts.length+' parts');
+  // Reset kit selector
+  var kitSel=document.getElementById('kit-sel');
+  if(kitSel)kitSel.value='';
 }
 
 async function openNewDispatch(){
