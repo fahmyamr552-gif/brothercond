@@ -128,6 +128,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     <div class="ni" id="ni-cust" onclick="go('cust',this)">&#9632; <span data-t="customers">Customers</span></div>
     <div class="ni" id="ni-sup" onclick="go('sup',this)">&#9632; <span data-t="suppliers">Suppliers</span></div>
     <div class="ni" id="ni-disp" onclick="go('disp',this)">&#9632; <span>Dispatches</span></div>
+    <div class="ni" id="ni-emp" onclick="go('emp',this)">&#9632; <span>الموظفون</span></div>
     <div class="ni" id="ni-usr" onclick="go('usr',this)">&#9632; <span data-t="users">Users</span></div>
   </div>
   <div class="sf">
@@ -767,6 +768,51 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     </div>
   </div>
 </div>
+<div class="pg" id="pg-emp">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+    <div style="font-size:18px;font-weight:700">الموظفون</div>
+    <button class="btn bp" onclick="openAddEmp()" style="font-size:13px">+ إضافة موظف</button>
+  </div>
+  <div class="cd" style="padding:0;overflow:hidden;margin-bottom:12px">
+    <div id="emp-list"><div style="padding:20px;text-align:center;color:#888">جارٍ التحميل...</div></div>
+  </div>
+  <!-- Add/Edit Employee Modal -->
+  <div id="emp-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.45);z-index:9000;align-items:center;justify-content:center">
+    <div style="background:#fff;border-radius:14px;padding:24px;width:460px;max-width:95vw;box-shadow:0 10px 40px rgba(0,0,0,.25)">
+      <div style="font-size:15px;font-weight:700;margin-bottom:16px" id="emp-modal-title">إضافة موظف</div>
+      <input type="hidden" id="emp-edit-id">
+      <div class="r2" style="margin-bottom:10px">
+        <div class="fg"><label style="font-size:11px;color:#888">الاسم *</label><input id="emp-name" placeholder="الاسم بالكامل"></div>
+        <div class="fg"><label style="font-size:11px;color:#888">رقم الهاتف</label><input id="emp-phone" placeholder="01xxxxxxxxx"></div>
+      </div>
+      <div class="r2" style="margin-bottom:10px">
+        <div class="fg"><label style="font-size:11px;color:#888">الوظيفة *</label>
+          <select id="emp-position" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px">
+            <option value="فني">فني</option>
+            <option value="مساعد فني">مساعد فني</option>
+            <option value="مبيعات">مبيعات</option>
+            <option value="مالية">مالية</option>
+            <option value="مدير مخزن">مدير مخزن</option>
+            <option value="سائق">سائق</option>
+            <option value="أدمن">أدمن</option>
+            <option value="مدير">مدير</option>
+            <option value="أخرى">أخرى</option>
+          </select>
+        </div>
+        <div class="fg"><label style="font-size:11px;color:#888">الفرع</label>
+          <select id="emp-branch" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px">
+            <option>Head Office</option><option>Madinaty</option><option>New Cairo</option><option>Tagammu</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+        <button class="btn bs" onclick="document.getElementById('emp-modal').style.display='none'">إلغاء</button>
+        <button class="btn bp" onclick="saveEmp()">&#10003; حفظ</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="pg" id="pg-usr">
   <div class="cd" style="padding:0;overflow:hidden;margin-bottom:12px"><div id="usrl"></div></div>
   <button class="btn bs bp" onclick="document.getElementById('auf').style.display='block'">+ <span data-t="newuser">Add user</span></button>
@@ -897,6 +943,12 @@ function applyRole(){
     var canDisp=CU&&(CU.role==='inventory_manager'||CU.role==='owner'||CU.role==='finance');
     dispNav.style.display=canDisp?'':'none';
   }
+  // Employees nav - owner and admin only
+  var empNav=document.getElementById('ni-emp');
+  if(empNav){
+    var canEmp=CU&&(CU.role==='owner'||CU.role==='admin');
+    empNav.style.display=canEmp?'':'none';
+  }
 }
 
 function go(pg,el){
@@ -930,6 +982,8 @@ function go(pg,el){
       ta.appendChild(dispBtn);
     }
   }
+  if(pg==='emp')loadEmp();
+  if(pg==='emp')loadEmp();
   if(pg==='usr')loadUsr();
 }
 
@@ -2040,16 +2094,19 @@ function openNT(){
   scid=null;
   document.getElementById('ntb').innerHTML='';
   document.getElementById('ntpt').textContent=LANG==='ar'?POL_AR:POL;
-  // Set default salesperson to current logged-in user (only for salesperson role)
+  // Load salespeople from employees
   var spSel=document.getElementById('ntsp');
-  if(spSel&&CU&&CU.role==='salesperson'){
-    var userSP=CU.full_name||CU.username||'';
-    var matched=Array.from(spSel.options).find(function(o){
-      var ov=o.value.toLowerCase();
-      var un=userSP.toLowerCase();
-      return un===ov||un.startsWith(ov)||ov.startsWith(un.split(' ')[0]);
+  if(spSel){
+    db.from('employees').select('full_name').eq('position','مبيعات').eq('active',true).order('full_name').then(function(res){
+      var sales=res.data||[];
+      spSel.innerHTML='<option value="">-- اختر مندوب --</option>'+sales.map(function(e){return '<option value="'+e.full_name+'">'+e.full_name+'</option>';}).join('');
+      // Auto-select current user if they are a salesperson
+      if(CU&&CU.role==='salesperson'){
+        var userFN=CU.full_name||'';
+        var matched=Array.from(spSel.options).find(function(o){return o.value===userFN;});
+        if(matched)spSel.value=matched.value;
+      }
     });
-    if(matched)spSel.value=matched.value;
   }
   document.getElementById('ntpc').style.display='block';
   document.getElementById('ncc').checked=false;
@@ -2830,17 +2887,15 @@ function applyKit(kitIndex){
 
 async function openNewDispatch(){
   // Get technicians from users
-  var{data:techs}=await db.from('users').select('id,full_name,username').eq('active',true).in('role',['technician','salesperson','admin']);
+  var{data:techs}=await db.from('employees').select('full_name').eq('position','فني').eq('active',true).order('full_name');
   // Default warehouse is مخزن تجمع
   var selWh='مخزن تجمع';
   var{data:parts}=await db.from('spare_parts').select('*').eq('warehouse',selWh).order('name');
   window._dispParts=parts||[];window._dispWarehouse=selWh;
   techs=techs||[];parts=parts||[];
   // Add fixed technicians + users with technician role
-var fixedTechs=['محمود عبد الرازق','محمد عمر','محمد مصطفي','يحيي تيجاني','محمود محمد'];
-var dbTechs=techs.map(function(t){return t.full_name;});
-var allTechs=[...new Set([...fixedTechs,...dbTechs])].filter(Boolean);
-var techOpts='<option value="">-- Select technician --</option>'+allTechs.map(function(n){return '<option value="'+n+'">'+n+'</option>';}).join('');
+var allTechs=(techs||[]).map(function(t){return t.full_name;}).filter(Boolean);
+var techOpts='<option value="">-- اختر الفني --</option>'+allTechs.map(function(n){return '<option value="'+n+'">'+n+'</option>';}).join('');
   var overlay=document.createElement('div');
   overlay.id='disp-modal';
   overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9000;display:flex;align-items:center;justify-content:center';
@@ -3566,6 +3621,112 @@ async function saveAS(){
   var{error}=await db.from('suppliers').insert({name:nm,phone:document.getElementById('asp')?.value,address:document.getElementById('asa')?.value,tax_number:document.getElementById('ast')?.value});
   if(error){toast('Error: '+error.message,true);return;}
   toast(t('suppliersaved'));go('sup',document.getElementById('ni-sup'));
+}
+
+
+async function loadEmp(){
+  var body=document.getElementById('emp-list');
+  if(!body)return;
+  body.innerHTML='<div style="padding:20px;text-align:center;color:#888">جارٍ التحميل...</div>';
+  var{data:emps}=await db.from('employees').select('*').order('full_name');
+  emps=emps||[];
+  if(!emps.length){
+    body.innerHTML='<div style="padding:20px;text-align:center;color:#888">لا يوجد موظفون. أضف موظفاً جديداً.</div>';
+    return;
+  }
+  var posColors={
+    'فني':'#1D9E75','مساعد فني':'#3B6D11','مبيعات':'#185FA5',
+    'مالية':'#854F0B','مدير مخزن':'#6B21A8','سائق':'#374151',
+    'أدمن':'#A32D2D','مدير':'#B45309','أخرى':'#888'
+  };
+  var rows=emps.map(function(e){
+    var pc=posColors[e.position]||'#888';
+    return '<tr style="border-bottom:1px solid #f0f0e8'+(e.active===false?';opacity:.5':'')+'">'
+      +'<td style="padding:10px 14px;font-weight:600">'+e.full_name+'</td>'
+      +'<td style="padding:10px 14px"><span style="font-size:11px;padding:3px 10px;border-radius:10px;background:'+pc+'22;color:'+pc+';font-weight:700">'+e.position+'</span></td>'
+      +'<td style="padding:10px 14px;color:#888;font-size:12px">'+(e.branch||'-')+'</td>'
+      +'<td style="padding:10px 14px;color:#888;font-size:12px">'+(e.phone||'-')+'</td>'
+      +'<td style="padding:10px 14px"><span style="font-size:11px;padding:2px 8px;border-radius:8px;font-weight:700;background:'+(e.active!==false?'#EAF3DE':'#f0f0e8')+';color:'+(e.active!==false?'#1D9E75':'#aaa')+'">'+(e.active!==false?'نشط':'غير نشط')+'</span></td>'
+      +'<td style="padding:10px 14px;display:flex;gap:6px">'
+        +'<button data-id="'+e.id+'" onclick="editEmp(this.dataset.id)" class="ib" style="font-size:11px;padding:2px 8px">تعديل</button>'
+        +'<button data-id="'+e.id+'" data-active="'+(e.active!==false)+'" onclick="toggleEmp(this.dataset.id,this.dataset.active===\'true\')" class="ib" style="font-size:11px;padding:2px 8px">'+(e.active!==false?'تعطيل':'تفعيل')+'</button>'
+      +'</td>'
+    +'</tr>';
+  }).join('');
+  body.innerHTML='<table style="width:100%;border-collapse:collapse;font-size:13px">'
+    +'<thead><tr style="background:#f5f5f0">'
+    +'<th style="padding:10px 14px;text-align:left">الكود</th>'
+    +'<th style="padding:10px 14px;text-align:left">الاسم</th>'
+    +'<th style="padding:10px 14px;text-align:left">الوظيفة</th>'
+    +'<th style="padding:10px 14px;text-align:left">الفرع</th>'
+    +'<th style="padding:10px 14px;text-align:left">الهاتف</th>'
+    +'<th style="padding:10px 14px;text-align:left">الحالة</th>'
+    +'<th style="padding:10px 14px;text-align:left">إجراءات</th>'
+    +'</tr></thead><tbody>'+rows+'</tbody></table>';
+}
+
+function openAddEmp(){
+  document.getElementById('emp-edit-id').value='';
+  document.getElementById('emp-name').value='';
+  document.getElementById('emp-phone').value='';
+  document.getElementById('emp-position').value='فني';
+  document.getElementById('emp-branch').value='Head Office';
+  document.getElementById('emp-modal-title').textContent='إضافة موظف';
+  document.getElementById('emp-modal').style.display='flex';
+}
+
+async function editEmp(id){
+  var{data:e}=await db.from('employees').select('*').eq('id',id).single();
+  if(!e)return;
+  document.getElementById('emp-edit-id').value=e.id;
+  document.getElementById('emp-name').value=e.full_name;
+  document.getElementById('emp-phone').value=e.phone||'';
+  document.getElementById('emp-position').value=e.position;
+  document.getElementById('emp-branch').value=e.branch||'Head Office';
+  document.getElementById('emp-modal-title').textContent='تعديل موظف';
+  document.getElementById('emp-modal').style.display='flex';
+}
+
+async function saveEmp(){
+  var eid=document.getElementById('emp-edit-id').value;
+  var name=document.getElementById('emp-name').value.trim();
+  var phone=document.getElementById('emp-phone').value.trim();
+  var pos=document.getElementById('emp-position').value;
+  var branch=document.getElementById('emp-branch').value;
+  if(!name){toast('أدخل اسم الموظف',true);return;}
+  if(eid){
+    var{error}=await db.from('employees').update({full_name:name,phone:phone,position:pos,branch:branch}).eq('id',eid);
+    if(error){toast('خطأ: '+error.message,true);return;}
+    toast('تم تحديث بيانات الموظف');
+  }else{
+    // Generate emp_id
+    var{data:last}=await db.from('employees').select('emp_id').order('created_at',{ascending:false}).limit(1).single();
+    var lastNum=last?parseInt((last.emp_id||'EMP-000').split('-')[1])||0:0;
+    var newId='EMP-'+String(lastNum+1).padStart(3,'0');
+    var{error}=await db.from('employees').insert({emp_id:newId,full_name:name,phone:phone,position:pos,branch:branch,active:true});
+    if(error){toast('خطأ: '+error.message,true);return;}
+    toast('تم إضافة الموظف '+newId);
+  }
+  document.getElementById('emp-modal').style.display='none';
+  loadEmp();
+}
+
+async function toggleEmp(id,isActive){
+  await db.from('employees').update({active:!isActive}).eq('id',id);
+  toast(isActive?'تم تعطيل الموظف':'تم تفعيل الموظف');
+  loadEmp();
+}
+
+// Get active technicians for dispatch
+async function getActiveTechs(){
+  var{data:emps}=await db.from('employees').select('full_name').eq('position','فني').eq('active',true).order('full_name');
+  return(emps||[]).map(function(e){return e.full_name;});
+}
+
+// Get active salespeople for tasks
+async function getActiveSales(){
+  var{data:emps}=await db.from('employees').select('full_name').eq('position','مبيعات').eq('active',true).order('full_name');
+  return(emps||[]).map(function(e){return e.full_name;});
 }
 
 async function loadUsr(){
