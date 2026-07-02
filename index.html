@@ -738,7 +738,34 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
 
 <!-- USERS -->
 <div class="pg" id="pg-disp">
-  <div style="padding:20px" id="disp-content">Loading...</div>
+  <div style="padding:20px">
+    <!-- Dispatch Tabs -->
+    <div style="display:flex;gap:0;border-bottom:2px solid #eee;margin-bottom:20px">
+      <button id="disp-tab-sessions" class="disp-tab-btn" onclick="showDispTab('sessions')" style="padding:10px 18px;border:none;background:none;cursor:pointer;font-size:13px;border-bottom:2px solid #1D9E75;color:#1D9E75;font-weight:700;margin-bottom:-2px">جلسات التوزيع</button>
+      <button id="disp-tab-custody" class="disp-tab-btn" onclick="showDispTab('custody')" style="padding:10px 18px;border:none;background:none;cursor:pointer;font-size:13px;border-bottom:2px solid transparent;color:#888;margin-bottom:-2px">عهد الفنيين</button>
+      <button id="disp-tab-consumed" class="disp-tab-btn" onclick="showDispTab('consumed')" style="padding:10px 18px;border:none;background:none;cursor:pointer;font-size:13px;border-bottom:2px solid transparent;color:#888;margin-bottom:-2px">المستهلكات</button>
+    </div>
+    <!-- Sessions Tab -->
+    <div id="disp-sessions">
+      <div id="disp-content">Loading...</div>
+    </div>
+    <!-- Custody Tab -->
+    <div id="disp-custody" style="display:none">
+      <div id="custody-view"><div style="padding:20px;text-align:center;color:#888">جارٍ التحميل...</div></div>
+    </div>
+    <!-- Consumed Tab -->
+    <div id="disp-consumed" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div style="font-size:14px;font-weight:700">سجل المستهلكات</div>
+        <div style="display:flex;gap:8px">
+          <input type="date" id="consumed-from" style="padding:6px;border:1px solid #ddd;border-radius:6px;font-size:12px">
+          <input type="date" id="consumed-to" style="padding:6px;border:1px solid #ddd;border-radius:6px;font-size:12px">
+          <button onclick="loadConsumedView()" class="btn bs" style="font-size:12px">بحث</button>
+        </div>
+      </div>
+      <div id="consumed-view"></div>
+    </div>
+  </div>
 </div>
 <div class="pg" id="pg-usr">
   <div class="cd" style="padding:0;overflow:hidden;margin-bottom:12px"><div id="usrl"></div></div>
@@ -2215,6 +2242,8 @@ if(!parts.length){body.innerHTML='<div style="padding:20px;text-align:center;col
       +'<td style="padding:8px 12px;text-align:center"><span style="font-size:11px;padding:2px 8px;border-radius:10px;background:'+(p.warehouse==='مخزن تجمع'?'#E8F4FD':'#EAF3DE')+';color:'+(p.warehouse==='مخزن تجمع'?'#185FA5':'#1D9E75')+';font-weight:600">'+(p.warehouse||'مخزن رئيسي')+'</span></td>'
       +'<td style="padding:10px 12px;text-align:center;color:#888">'+p.unit+'</td>'
       +'<td style="padding:10px 12px;text-align:center;font-weight:700;color:'+stockColor+'">'+p.qty+'</td>'
+      +'<td style="padding:10px 12px;text-align:center;font-weight:600;color:#854F0B">'+(p.custody_qty||0)+'</td>'
+      +'<td style="padding:10px 12px;text-align:center;font-weight:700;color:'+(((p.qty||0)-(p.custody_qty||0))<=0?'#A32D2D':'#3B6D11')+'">'+(Math.max(0,(p.qty||0)-(p.custody_qty||0)))+'</td>'
       +'<td style="padding:10px 12px;text-align:center;font-weight:600;color:#854F0B">'+used+'</td>'
       +'<td style="padding:10px 12px;text-align:right">EGP '+f(p.cost||0)+'</td>'
       +'<td style="padding:10px 12px;text-align:center;color:#888">'+p.low_alert+'</td>'
@@ -2226,8 +2255,10 @@ if(!parts.length){body.innerHTML='<div style="padding:20px;text-align:center;col
     +'<th style="padding:10px 12px;text-align:left">Part name</th>'
     +'<th style="padding:10px 12px;text-align:center">Warehouse</th>'
     +'<th style="padding:10px 12px;text-align:center">Unit</th>'
-    +'<th style="padding:10px 12px;text-align:center">Stock</th>'
-    +'<th style="padding:10px 12px;text-align:center">مستخدم / Used</th>'
+    +'<th style="padding:10px 12px;text-align:center">الإجمالي</th>'
+    +'<th style="padding:10px 12px;text-align:center">عهدة</th>'
+    +'<th style="padding:10px 12px;text-align:center">المتاح</th>'
+    +'<th style="padding:10px 12px;text-align:center">مستخدم</th>'
     +'<th style="padding:10px 12px;text-align:right">Cost/unit</th>'
     +'<th style="padding:10px 12px;text-align:center">Low alert</th>'
     +'<th style="padding:10px 12px">Action</th>'
@@ -2575,6 +2606,24 @@ async function loadDispParts(){
 }
 
 
+
+function onDispTypeChange(){
+  var type=document.querySelector('input[name="disp-type"]:checked')?.value||'عادي';
+  var note=document.getElementById('disp-type-note');
+  if(note){
+    if(type==='عادي')note.textContent='الصرف العادي — يتم خصم المخزون عند الموافقة وتخصيص القطع للعملاء';
+    else if(type==='عهدة')note.textContent='عهدة مستديمة — تُحجز القطع باسم الفني وتُرد في نهاية السنة أو عند الانتهاء';
+    else if(type==='مستهلك')note.textContent='مستهلك — يُخصم المخزون فوراً ويُسجل باسم الفني للمتابعة';
+  }
+  // Show/hide return note for عهدة
+  var submitBtn=document.getElementById('disp-submit');
+  if(submitBtn){
+    if(type==='مستهلك')submitBtn.textContent='✓ تأكيد الصرف (خصم فوري)';
+    else if(type==='عهدة')submitBtn.textContent='✓ تسجيل العهدة';
+    else submitBtn.textContent='✓ إنشاء التوزيع';
+  }
+}
+
 async function reloadDispParts(warehouse){
   window._dispWarehouse=warehouse;
   var{data:parts}=await db.from('spare_parts').select('*').eq('warehouse',warehouse).order('name');
@@ -2585,6 +2634,102 @@ async function reloadDispParts(warehouse){
   }).join('');
   document.querySelectorAll('.disp-part-sel').forEach(function(sel){sel.innerHTML=opts;sel.onchange();});
   toast(warehouse+' selected — '+parts.length+' parts loaded');
+}
+
+
+async function loadCustodyView(){
+  var container=document.getElementById('custody-view');
+  if(!container)return;
+  container.innerHTML='<div style="padding:20px;text-align:center;color:#888">جارٍ التحميل...</div>';
+  // Get all confirmed عهدة dispatches
+  var{data:disps}=await db.from('dispatches').select('*,dispatch_items(*)').eq('dispatch_type','عهدة').eq('status','confirmed');
+  disps=disps||[];
+  if(!disps.length){
+    container.innerHTML='<div style="padding:20px;text-align:center;color:#888">لا توجد عهد مستديمة</div>';
+    return;
+  }
+  // Group by technician
+  var byTech={};
+  disps.forEach(function(d){
+    if(!byTech[d.technician_name])byTech[d.technician_name]=[];
+    (d.dispatch_items||[]).forEach(function(it){
+      byTech[d.technician_name].push({part_name:it.part_name,qty:it.qty_out,unit:it.unit,date:d.date,disp_id:d.id,item_id:it.id,part_id:it.part_id});
+    });
+  });
+  var html=Object.keys(byTech).map(function(tech){
+    var parts=byTech[tech];
+    var partRows=parts.map(function(p){
+      return '<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #f0f0e8;font-size:13px">'
+        +'<span style="flex:1;font-weight:600">'+p.part_name+'</span>'
+        +'<span style="color:#854F0B;font-weight:700">'+p.qty+' '+p.unit+'</span>'
+        +'<span style="color:#888;font-size:11px">منذ '+p.date+'</span>'
+        +'<button data-disp="'+p.disp_id+'" data-part="'+p.part_id+'" data-qty="'+p.qty+'" data-name="'+p.part_name+'" onclick="returnCustody(this)" style="font-size:11px;padding:3px 10px;border:1px solid #1D9E75;border-radius:6px;background:#EAF3DE;color:#1D9E75;cursor:pointer;font-weight:600">استلام &#8617;</button>'
+        +'</div>';
+    }).join('');
+    return '<div style="background:#fff;border:1px solid #eee;border-radius:10px;padding:14px;margin-bottom:10px">'
+      +'<div style="font-size:14px;font-weight:700;color:#333;margin-bottom:10px">&#128100; '+tech+'</div>'
+      +partRows
+      +'</div>';
+  }).join('');
+  container.innerHTML=html;
+}
+
+async function returnCustody(btn){
+  var dispId=btn.dataset.disp;
+  var partId=btn.dataset.part;
+  var qty=parseFloat(btn.dataset.qty)||0;
+  var name=btn.dataset.name;
+  if(!confirm('استلام '+qty+' '+name+' من الفني؟'))return;
+  // Decrease custody_qty
+  var{data:sp}=await db.from('spare_parts').select('custody_qty').eq('id',partId).single();
+  if(sp){
+    var newCustody=Math.max(0,(sp.custody_qty||0)-qty);
+    await db.from('spare_parts').update({custody_qty:newCustody}).eq('id',partId);
+  }
+  // Mark dispatch as returned
+  await db.from('dispatches').update({status:'returned',notes:'تم الاستلام '+new Date().toLocaleDateString('ar-EG')}).eq('id',dispId);
+  toast('✅ تم استلام العهدة وتحديث المخزون');
+  loadCustodyView();
+}
+
+async function loadConsumedView(){
+  var container=document.getElementById('consumed-view');
+  if(!container)return;
+  container.innerHTML='<div style="padding:20px;text-align:center;color:#888">جارٍ التحميل...</div>';
+  var{data:disps}=await db.from('dispatches').select('*,dispatch_items(*)').eq('dispatch_type','مستهلك').eq('status','confirmed').order('date',{ascending:false});
+  disps=disps||[];
+  if(!disps.length){
+    container.innerHTML='<div style="padding:20px;text-align:center;color:#888">لا يوجد سجل مستهلكات</div>';
+    return;
+  }
+  var rows=disps.map(function(d){
+    var parts=(d.dispatch_items||[]).map(function(it){return it.part_name+' ('+it.qty_out+' '+it.unit+')';}).join('، ');
+    return '<tr style="border-bottom:1px solid #f0f0e8">'
+      +'<td style="padding:10px 12px;color:#888;font-size:12px">'+d.date+'</td>'
+      +'<td style="padding:10px 12px;font-weight:600">'+d.technician_name+'</td>'
+      +'<td style="padding:10px 12px">'+parts+'</td>'
+      +'<td style="padding:10px 12px;color:#888;font-size:11px">'+(d.warehouse||'')+'</td>'
+    +'</tr>';
+  }).join('');
+  container.innerHTML='<table style="width:100%;border-collapse:collapse;font-size:13px">'
+    +'<thead><tr style="background:#f5f5f0">'
+    +'<th style="padding:10px 12px;text-align:left">التاريخ</th>'
+    +'<th style="padding:10px 12px;text-align:left">الفني</th>'
+    +'<th style="padding:10px 12px;text-align:left">القطع المستهلكة</th>'
+    +'<th style="padding:10px 12px;text-align:left">المخزن</th>'
+    +'</tr></thead><tbody>'+rows+'</tbody></table>';
+}
+
+function showDispTab(tab){
+  document.querySelectorAll('.disp-tab-btn').forEach(function(b){b.style.borderBottom='2px solid transparent';b.style.color='#888';b.style.fontWeight='400';});
+  document.getElementById('disp-tab-'+tab).style.borderBottom='2px solid #1D9E75';
+  document.getElementById('disp-tab-'+tab).style.color='#1D9E75';
+  document.getElementById('disp-tab-'+tab).style.fontWeight='700';
+  document.getElementById('disp-sessions').style.display=tab==='sessions'?'':'none';
+  document.getElementById('disp-custody').style.display=tab==='custody'?'':'none';
+  document.getElementById('disp-consumed').style.display=tab==='consumed'?'':'none';
+  if(tab==='custody')loadCustodyView();
+  if(tab==='consumed')loadConsumedView();
 }
 
 async function loadDispatches(){
@@ -2706,7 +2851,7 @@ var techOpts='<option value="">-- Select technician --</option>'+allTechs.map(fu
       +'<div></div>'
       +'<button id="disp-close" style="border:none;background:none;font-size:22px;cursor:pointer">&#10005;</button>'
     +'</div>'
-    +'<div style="margin-bottom:12px;padding:10px 14px;background:#FFF8E1;border:1px solid #F5A623;border-radius:8px;display:flex;align-items:center;gap:10px">'  +'<span style="font-size:12px;font-weight:700;color:#7A5000">&#128197; المخزن:</span>'  +'<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;font-weight:600">'    +'<input type="radio" name="disp-wh" value="مخزن تجمع" checked onchange="reloadDispParts(this.value)" style="accent-color:#185FA5"> مخزن تجمع'  +'</label>'  +'<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;font-weight:600">'    +'<input type="radio" name="disp-wh" value="مخزن رئيسي" onchange="reloadDispParts(this.value)" style="accent-color:#1D9E75"> مخزن رئيسي'  +'</label>'+'</div>'+'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">'  +'<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">'+td('Technician *')+'</label><select id="disp-tech" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px">'+techOpts+'</select></div>'
+    +'<div style="margin-bottom:12px;padding:10px 14px;background:#f0f9ff;border:1px solid #b3d9f7;border-radius:8px">'  +'<div style="font-size:11px;font-weight:700;color:#185FA5;margin-bottom:8px">نوع الصرف</div>'  +'<div style="display:flex;gap:16px">'    +'<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;color:#333">'      +'<input type="radio" name="disp-type" value="عادي" checked onchange="onDispTypeChange()" style="accent-color:#1D9E75"> عادي'    +'</label>'    +'<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;color:#333">'      +'<input type="radio" name="disp-type" value="عهدة" onchange="onDispTypeChange()" style="accent-color:#854F0B"> عهدة مستديمة'    +'</label>'    +'<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;color:#333">'      +'<input type="radio" name="disp-type" value="مستهلك" onchange="onDispTypeChange()" style="accent-color:#A32D2D"> مستهلك'    +'</label>'  +'</div>'  +'<div id="disp-type-note" style="font-size:11px;color:#888;margin-top:6px"></div>'+'</div>'+'<div style="margin-bottom:12px;padding:10px 14px;background:#FFF8E1;border:1px solid #F5A623;border-radius:8px;display:flex;align-items:center;gap:10px">'  +'<span style="font-size:12px;font-weight:700;color:#7A5000">&#128197; المخزن:</span>'  +'<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;font-weight:600">'    +'<input type="radio" name="disp-wh" value="مخزن تجمع" checked onchange="reloadDispParts(this.value)" style="accent-color:#185FA5"> مخزن تجمع'  +'</label>'  +'<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;font-weight:600">'    +'<input type="radio" name="disp-wh" value="مخزن رئيسي" onchange="reloadDispParts(this.value)" style="accent-color:#1D9E75"> مخزن رئيسي'  +'</label>'+'</div>'+'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">'  +'<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">'+td('Technician *')+'</label><select id="disp-tech" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px">'+techOpts+'</select></div>'
       +'<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">'+td('Date')+'</label><input type="date" id="disp-date" value="'+new Date().toISOString().slice(0,10)+'" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div>'
     +'</div>'
     +'<div style="margin-bottom:14px"><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">'+td('Notes (optional)')+'</label><input id="disp-notes" placeholder="e.g. Morning dispatch for 3 jobs" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div>'
@@ -2782,25 +2927,60 @@ async function saveNewDispatch(){
   var tech=document.getElementById('disp-tech').value;
   var date=document.getElementById('disp-date').value;
   var notes=document.getElementById('disp-notes').value.trim();
-  if(!tech){toast('Select technician',true);return;}
+  var dispType=document.querySelector('input[name="disp-type"]:checked')?.value||'عادي';
+  var warehouse=document.querySelector('input[name="disp-wh"]:checked')?.value||'مخزن تجمع';
+  if(!tech){toast('اختر الفني',true);return;}
   var rows=Array.from(document.querySelectorAll('#disp-items>div'));
-  if(!rows.length){toast('Add at least one part',true);return;}
+  if(!rows.length){toast('أضف قطعة واحدة على الأقل',true);return;}
   var items=rows.map(function(row){
     var sel=row.querySelector('.disp-part-sel');
     var qtyInp=row.querySelector('.disp-qty-out');
     var partId=sel?sel.value:'';
-    var partOpt=sel?sel.selectedOptions[0]:null;
+    var partOpt=sel&&sel.selectedIndex>0?sel.options[sel.selectedIndex]:null;
     return{part_id:partId,part_name:partOpt?partOpt.text.split('(')[0].trim():'',unit:partOpt?partOpt.dataset.unit:'',qty_out:parseFloat(qtyInp?qtyInp.value:0)||0,qty_returned:0,cost_per_unit:partOpt?parseFloat(partOpt.dataset.cost||0):0};
-  }).filter(function(i){return i.qty_out>0;});
-  if(!items.length){toast('Add at least one part with quantity',true);return;}
-  var{data:disp,error}=await db.from('dispatches').insert({technician_name:tech,date:date,notes:notes,status:'open',created_by:CU.full_name||CU.username,warehouse:(document.querySelector('input[name="disp-wh"]:checked')?.value||'مخزن تجمع')}).select().single();
-  if(error){toast('Error: '+error.message,true);return;}
-  var itemsWithId=items.map(function(i){return Object.assign({},i,{dispatch_id:disp.id});});
-  await db.from('dispatch_items').insert(itemsWithId);
-  document.getElementById('disp-modal').remove();
-  toast('Dispatch session created!');
+  }).filter(function(i){return i.qty_out>0&&i.part_id;});
+  if(!items.length){toast('أضف قطعة بكمية',true);return;}
+  var btn=document.getElementById('disp-submit');
+  if(btn){btn.disabled=true;btn.textContent='جارٍ الحفظ...';}
+  // Create dispatch record
+  var{data:disp,error}=await db.from('dispatches').insert({
+    technician_name:tech,date:date,notes:notes,status:'open',
+    created_by:CU.full_name||CU.username,
+    warehouse:warehouse,
+    dispatch_type:dispType
+  }).select().single();
+  if(error){toast('خطأ: '+error.message,true);if(btn)btn.disabled=false;return;}
+  // Create dispatch items
+  var dispItems=items.map(function(it){return{dispatch_id:disp.id,part_id:it.part_id,part_name:it.part_name,unit:it.unit,qty_out:it.qty_out,qty_returned:0,cost_per_unit:it.cost_per_unit};});
+  var{error:itemErr}=await db.from('dispatch_items').insert(dispItems);
+  if(itemErr){toast('خطأ في حفظ القطع: '+itemErr.message,true);return;}
+  // Handle based on type
+  if(dispType==='مستهلك'){
+    // Deduct stock immediately
+    for(var i=0;i<items.length;i++){
+      var it=items[i];
+      var{data:sp}=await db.from('spare_parts').select('qty').eq('id',it.part_id).single();
+      if(sp)await db.from('spare_parts').update({qty:Math.max(0,(sp.qty||0)-it.qty_out)}).eq('id',it.part_id);
+    }
+    await db.from('dispatches').update({status:'confirmed'}).eq('id',disp.id);
+    toast('✅ تم تسجيل المستهلك وخصم المخزون');
+  } else if(dispType==='عهدة'){
+    // Reserve stock (increase custody_qty)
+    for(var i=0;i<items.length;i++){
+      var it=items[i];
+      var{data:sp}=await db.from('spare_parts').select('qty,custody_qty').eq('id',it.part_id).single();
+      if(sp)await db.from('spare_parts').update({custody_qty:(sp.custody_qty||0)+it.qty_out}).eq('id',it.part_id);
+    }
+    await db.from('dispatches').update({status:'confirmed'}).eq('id',disp.id);
+    toast('✅ تم تسجيل العهدة');
+  } else {
+    toast('✅ تم إنشاء التوزيع');
+  }
+  document.getElementById('disp-modal')?.remove();
+  document.querySelectorAll('.disp-overlay').forEach(function(e){e.remove();});
   loadDispatches();
 }
+
 
 async function openDispatch(id){
   var{data:disp}=await db.from('dispatches').select('*').eq('id',id).single();
