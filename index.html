@@ -2574,6 +2574,19 @@ async function loadDispParts(){
   });
 }
 
+
+async function reloadDispParts(warehouse){
+  window._dispWarehouse=warehouse;
+  var{data:parts}=await db.from('spare_parts').select('*').eq('warehouse',warehouse).order('name');
+  parts=parts||[];
+  window._dispParts=parts;
+  var opts='<option value="">-- اختر قطعة --</option>'+parts.map(function(p){
+    return '<option value="'+p.id+'" data-cost="'+(p.cost||0)+'" data-unit="'+p.unit+'" data-stock="'+p.qty+'">'+p.name+' ('+p.unit+') - Stock: '+p.qty+'</option>';
+  }).join('');
+  document.querySelectorAll('.disp-part-sel').forEach(function(sel){sel.innerHTML=opts;sel.onchange();});
+  toast(warehouse+' selected — '+parts.length+' parts loaded');
+}
+
 async function loadDispatches(){
   var body=document.getElementById('disp-content');
   if(!body)return;
@@ -2673,7 +2686,8 @@ function applyKit(kitIndex){
 async function openNewDispatch(){
   // Get technicians from users
   var{data:techs}=await db.from('users').select('id,full_name,username').eq('active',true).in('role',['technician','salesperson','admin']);
-  var selWh=document.getElementById('disp-warehouse')?.value||'مخزن رئيسي';
+  // Default warehouse is مخزن تجمع
+  var selWh='مخزن تجمع';
   var{data:parts}=await db.from('spare_parts').select('*').eq('warehouse',selWh).order('name');
   window._dispParts=parts||[];window._dispWarehouse=selWh;
   techs=techs||[];parts=parts||[];
@@ -2692,8 +2706,7 @@ var techOpts='<option value="">-- Select technician --</option>'+allTechs.map(fu
       +'<div></div>'
       +'<button id="disp-close" style="border:none;background:none;font-size:22px;cursor:pointer">&#10005;</button>'
     +'</div>'
-    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">'
-      +'<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">'+td('Technician *')+'</label><select id="disp-tech" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px">'+techOpts+'</select></div>'
+    +'<div style="margin-bottom:12px;padding:10px 14px;background:#FFF8E1;border:1px solid #F5A623;border-radius:8px;display:flex;align-items:center;gap:10px">'  +'<span style="font-size:12px;font-weight:700;color:#7A5000">&#128197; المخزن:</span>'  +'<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;font-weight:600">'    +'<input type="radio" name="disp-wh" value="مخزن تجمع" checked onchange="reloadDispParts(this.value)" style="accent-color:#185FA5"> مخزن تجمع'  +'</label>'  +'<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;font-weight:600">'    +'<input type="radio" name="disp-wh" value="مخزن رئيسي" onchange="reloadDispParts(this.value)" style="accent-color:#1D9E75"> مخزن رئيسي'  +'</label>'+'</div>'+'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">'  +'<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">'+td('Technician *')+'</label><select id="disp-tech" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px">'+techOpts+'</select></div>'
       +'<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">'+td('Date')+'</label><input type="date" id="disp-date" value="'+new Date().toISOString().slice(0,10)+'" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div>'
     +'</div>'
     +'<div style="margin-bottom:14px"><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">'+td('Notes (optional)')+'</label><input id="disp-notes" placeholder="e.g. Morning dispatch for 3 jobs" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div>'
@@ -2780,7 +2793,7 @@ async function saveNewDispatch(){
     return{part_id:partId,part_name:partOpt?partOpt.text.split('(')[0].trim():'',unit:partOpt?partOpt.dataset.unit:'',qty_out:parseFloat(qtyInp?qtyInp.value:0)||0,qty_returned:0,cost_per_unit:partOpt?parseFloat(partOpt.dataset.cost||0):0};
   }).filter(function(i){return i.qty_out>0;});
   if(!items.length){toast('Add at least one part with quantity',true);return;}
-  var{data:disp,error}=await db.from('dispatches').insert({technician_name:tech,date:date,notes:notes,status:'open',created_by:CU.full_name||CU.username,warehouse:document.getElementById('disp-warehouse')?.value||'مخزن تجمع'}).select().single();
+  var{data:disp,error}=await db.from('dispatches').insert({technician_name:tech,date:date,notes:notes,status:'open',created_by:CU.full_name||CU.username,warehouse:(document.querySelector('input[name="disp-wh"]:checked')?.value||'مخزن تجمع')}).select().single();
   if(error){toast('Error: '+error.message,true);return;}
   var itemsWithId=items.map(function(i){return Object.assign({},i,{dispatch_id:disp.id});});
   await db.from('dispatch_items').insert(itemsWithId);
