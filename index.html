@@ -3132,8 +3132,13 @@ async function openDispatch(id){
   body.appendChild(pHdr);
   // Part cards
   items.forEach(function(it){
-    var used=Math.max(0,it.qty_out-(it.qty_returned||0));
-    var usedColor=used>0?'#A32D2D':'#3B6D11';
+    var returned=it.qty_returned||0;
+    var used=Math.max(0,it.qty_out-returned);
+    var isEhda=disp.dispatch_type==='عهدة';
+    // For عهدة: used means "still with technician" not consumed
+    // For عادي: used means actually consumed
+    var usedLabel=isEhda?(used>0?'مع الفني':'مُسترد'):'مستخدم';
+    var usedColor=used>0?(isEhda?'#854F0B':'#A32D2D'):'#3B6D11';
     var card=document.createElement('div');
     card.style.cssText='display:flex;align-items:center;gap:12px;padding:12px 14px;background:#f9f9f6;border:1px solid #eee;border-radius:10px;margin-bottom:8px';
     var nameEl='<div style="flex:1;font-weight:600;font-size:14px">'+it.part_name+'</div>';
