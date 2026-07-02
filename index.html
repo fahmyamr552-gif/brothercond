@@ -517,7 +517,8 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
 <div class="pg" id="pg-inv">
   <div style="display:flex;gap:8px;margin-bottom:16px">
     <button id="inv-tab-ac" onclick="showInvTab('ac',this)" class="btn bp" style="font-size:12px">&#127968; AC Units</button>
-    <button id="inv-tab-sp" onclick="showInvTab('sp',this)" class="btn bs" style="font-size:12px">&#128295; Spare Parts</button>
+    <button id="inv-tab-sp1" onclick="showInvTab('sp1',this)" class="btn bs" style="font-size:12px">&#128295; مخزن رئيسي</button>
+    <button id="inv-tab-sp2" onclick="showInvTab('sp2',this)" class="btn bs" style="font-size:12px">&#128295; مخزن تجمع</button>
   </div>
   <div id="inv-ac-section">
   <div class="r3" style="margin-bottom:14px">
@@ -538,6 +539,12 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
   </div><!-- end inv-ac-section -->
   <div id="inv-sp-section" style="display:none">
     <div class="r3" style="margin-bottom:14px" id="sp-stats"></div>
+    <div style="display:flex;gap:6px;margin-bottom:10px">
+      <button onclick="document.getElementById('sp-warehouse-filter').value='';loadSpareParts()" class="btn bs" style="font-size:12px" id="sp-wh-all">الكل</button>
+      <button onclick="document.getElementById('sp-warehouse-filter').value='مخزن رئيسي';loadSpareParts()" class="btn bs" style="font-size:12px" id="sp-wh-main">مخزن رئيسي</button>
+      <button onclick="document.getElementById('sp-warehouse-filter').value='مخزن تجمع';loadSpareParts()" class="btn bs" style="font-size:12px" id="sp-wh-tagammu">مخزن تجمع</button>
+      <input type="hidden" id="sp-warehouse-filter" value="">
+    </div>
     <div style="display:flex;gap:8px;margin-bottom:12px">
       <input placeholder="Search spare parts..." style="flex:1" oninput="loadSpareParts(this.value)" id="sp-search">
       <button class="btn bs bp" onclick="openAddSP()" style="font-size:12px">+ Add part</button>
@@ -545,12 +552,30 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     <div class="cd" style="padding:0;overflow:auto">
       <div id="sp-list">Loading spare parts...</div>
     </div>
+    <!-- Kits Manager -->
+    <div style="margin-top:24px;border-top:2px solid #e0f0e8;padding-top:18px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div style="font-size:14px;font-weight:700">&#9889; Dispatch Kits</div>
+        <div style="display:flex;gap:6px">
+          <input id="new-kit-name" placeholder="Kit name e.g. Carrier Installation" style="padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;width:220px">
+          <button onclick="addKit()" class="btn bp" style="font-size:12px">+ New kit</button>
+        </div>
+      </div>
+      <div id="kits-manager"><div style="color:#888;font-size:13px;padding:10px 0">No kits yet. Add one above.</div></div>
+    </div>
     <!-- Spare Part Modal -->
     <div id="sp-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.45);z-index:9000;align-items:center;justify-content:center">
       <div style="background:#fff;border-radius:14px;padding:24px;width:420px;max-width:95vw;box-shadow:0 10px 40px rgba(0,0,0,.25)">
         <div style="font-size:15px;font-weight:700;margin-bottom:16px" id="sp-modal-title">Add spare part</div>
         <input type="hidden" id="sp-id">
         <div class="fg" style="margin-bottom:10px"><label style="font-size:11px;color:#888">Part name *</label><input id="sp-name" placeholder="e.g. Fisher Size 8"></div>
+        <div class="fg" style="margin-bottom:10px">
+          <label style="font-size:11px;color:#888">Warehouse</label>
+          <select id="sp-warehouse-sel" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px">
+            <option value="مخزن رئيسي">مخزن رئيسي</option>
+            <option value="مخزن تجمع">مخزن تجمع</option>
+          </select>
+        </div>
         <div class="r2" style="margin-bottom:10px">
           <div class="fg"><label style="font-size:11px;color:#888">Unit</label><input id="sp-unit" value="piece" placeholder="piece / box / meter"></div>
           <div class="fg"><label style="font-size:11px;color:#888">Initial qty</label><input type="number" id="sp-qty" value="0" min="0"></div>
@@ -2070,13 +2095,92 @@ async function checkDupTask(custId, custName){
 
 
 
+
+function renderKitsManager(){
+  var container=document.getElementById('kits-manager');
+  if(!container)return;
+  loadKits();
+  if(!INSTALL_KITS.length){
+    container.innerHTML='<div style="color:#888;font-size:13px;padding:10px 0">No kits yet. Add one below.</div>';
+    return;
+  }
+  container.innerHTML=INSTALL_KITS.map(function(kit,ki){
+    var partsHtml=kit.parts.map(function(p,pi){
+      return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f0f0e8;font-size:12px">'
+        +'<span style="flex:1;font-weight:600">'+p.name+'</span>'
+        +'<span style="color:#888;min-width:50px">x'+p.qty+'</span>'
+        +'<button onclick="removeKitPart('+ki+','+pi+')" style="border:none;background:none;color:#ccc;cursor:pointer;font-size:16px;padding:0;line-height:1">&#10005;</button>'
+        +'</div>';
+    }).join('');
+    return '<div style="background:#f9f9f6;border:1px solid #eee;border-radius:10px;padding:14px;margin-bottom:10px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+        +'<div style="font-size:14px;font-weight:700">'+kit.name+'</div>'
+        +'<button onclick="deleteKit('+ki+')" style="font-size:11px;padding:3px 10px;border:1px solid #A32D2D;border-radius:6px;background:#fff;color:#A32D2D;cursor:pointer">Delete kit</button>'
+      +'</div>'
+      +partsHtml
+      +'<div style="margin-top:10px;display:flex;gap:6px">'
+        +'<select id="kit-part-sel-'+ki+'" style="flex:1;padding:6px;border:1px solid #ddd;border-radius:6px;font-size:12px"><option value="">-- add part --</option>'
+          +(window._spList||[]).map(function(sp){return '<option value="'+sp.name+'">'+sp.name+' ('+sp.unit+')</option>';}).join('')
+        +'</select>'
+        +'<input type="number" id="kit-part-qty-'+ki+'" placeholder="qty" min="1" value="1" style="width:60px;padding:6px;border:1px solid #ddd;border-radius:6px;font-size:12px">'
+        +'<button onclick="addKitPart('+ki+')" style="padding:6px 12px;border:none;border-radius:6px;background:#1D9E75;color:#fff;cursor:pointer;font-size:12px;font-weight:600">+ Add</button>'
+      +'</div>'
+    +'</div>';
+  }).join('');
+}
+
+function addKit(){
+  var nameInp=document.getElementById('new-kit-name');
+  if(!nameInp||!nameInp.value.trim()){toast('Enter a kit name',true);return;}
+  loadKits();
+  INSTALL_KITS.push({name:nameInp.value.trim(),parts:[]});
+  saveKits();
+  nameInp.value='';
+  renderKitsManager();
+  toast('Kit added!');
+}
+
+function deleteKit(ki){
+  if(!confirm('Delete this kit?'))return;
+  loadKits();
+  INSTALL_KITS.splice(ki,1);
+  saveKits();
+  renderKitsManager();
+  toast('Kit deleted');
+}
+
+function addKitPart(ki){
+  var sel=document.getElementById('kit-part-sel-'+ki);
+  var qtyInp=document.getElementById('kit-part-qty-'+ki);
+  if(!sel||!sel.value){toast('Select a part',true);return;}
+  var qty=parseFloat(qtyInp?qtyInp.value:1)||1;
+  loadKits();
+  if(!INSTALL_KITS[ki])return;
+  // Check if part already exists in kit - update qty instead
+  var existing=INSTALL_KITS[ki].parts.find(function(p){return p.name===sel.value;});
+  if(existing){existing.qty=qty;}
+  else{INSTALL_KITS[ki].parts.push({name:sel.value,qty:qty});}
+  saveKits();
+  renderKitsManager();
+  toast('Part added to kit');
+}
+
+function removeKitPart(ki,pi){
+  loadKits();
+  if(!INSTALL_KITS[ki])return;
+  INSTALL_KITS[ki].parts.splice(pi,1);
+  saveKits();
+  renderKitsManager();
+}
+
 async function loadSpareParts(search){
   var body=document.getElementById('sp-list');
   if(!body)return;
   body.innerHTML='<div style="padding:20px;text-align:center;color:#888">Loading...</div>';
+  var wh=document.getElementById('sp-warehouse-filter')?.value||'';
   // Load parts + confirmed dispatch usage in parallel
   var[partsRes,confirmedDispsRes]=await Promise.all([
-    db.from('spare_parts').select('*').order('name'),
+    (function(){var q=db.from('spare_parts').select('*').order('name');if(wh)q=q.eq('warehouse',wh);return q;})(),
     db.from('dispatches').select('id').eq('status','confirmed')
   ]);
   var parts=partsRes.data||[];
@@ -2091,10 +2195,16 @@ async function loadSpareParts(search){
   // Stats
   var tot=parts.length;
   var low=parts.filter(function(p){return p.qty<=p.low_alert;}).length;
+  var mainCount=parts.filter(function(p){return (p.warehouse||'مخزن رئيسي')==='مخزن رئيسي';}).length;
+  var tagCount=parts.filter(function(p){return p.warehouse==='مخزن تجمع';}).length;
   var spStats=document.getElementById('sp-stats');
   if(spStats)spStats.innerHTML='<div class="sc"><div class="sl">Total parts</div><div class="sv">'+tot+'</div></div>'
+    +'<div class="sc"><div class="sl" style="color:#1D9E75">مخزن رئيسي</div><div class="sv" style="color:#1D9E75">'+mainCount+'</div></div>'
+    +'<div class="sc"><div class="sl" style="color:#185FA5">مخزن تجمع</div><div class="sv" style="color:#185FA5">'+tagCount+'</div></div>'
     +'<div class="sc"><div class="sl" style="color:#A32D2D">Low stock</div><div class="sv" style="color:#A32D2D">'+low+'</div></div>';
-  if(!parts.length){body.innerHTML='<div style="padding:20px;text-align:center;color:#888">No spare parts yet.</div>';return;}
+  window._spList=parts;
+if(!parts.length){body.innerHTML='<div style="padding:20px;text-align:center;color:#888">No spare parts yet.</div>';return;}
+  window._spList=parts;
   var rows=parts.map(function(p){
     var stockColor=p.qty<=0?'#A32D2D':p.qty<=p.low_alert?'#854F0B':'#3B6D11';
     var used=usedMap[p.name]||0;
@@ -2102,6 +2212,7 @@ async function loadSpareParts(search){
     var delBtn=can('delete')||CU.role==='inventory_manager'?'<button onclick="deleteSP(\''+p.id+'\')" class="ib r" style="font-size:11px;padding:2px 8px">Del</button>':'';
     return '<tr style="border-bottom:1px solid #f0f0e8">'
       +'<td style="padding:10px 12px;font-weight:600">'+p.name+'</td>'
+      +'<td style="padding:8px 12px;text-align:center"><span style="font-size:11px;padding:2px 8px;border-radius:10px;background:'+(p.warehouse==='مخزن تجمع'?'#E8F4FD':'#EAF3DE')+';color:'+(p.warehouse==='مخزن تجمع'?'#185FA5':'#1D9E75')+';font-weight:600">'+(p.warehouse||'مخزن رئيسي')+'</span></td>'
       +'<td style="padding:10px 12px;text-align:center;color:#888">'+p.unit+'</td>'
       +'<td style="padding:10px 12px;text-align:center;font-weight:700;color:'+stockColor+'">'+p.qty+'</td>'
       +'<td style="padding:10px 12px;text-align:center;font-weight:600;color:#854F0B">'+used+'</td>'
@@ -2113,9 +2224,10 @@ async function loadSpareParts(search){
   body.innerHTML='<table style="width:100%;border-collapse:collapse;font-size:13px">'
     +'<thead><tr style="background:#f5f5f0">'
     +'<th style="padding:10px 12px;text-align:left">Part name</th>'
+    +'<th style="padding:10px 12px;text-align:center">Warehouse</th>'
     +'<th style="padding:10px 12px;text-align:center">Unit</th>'
     +'<th style="padding:10px 12px;text-align:center">Stock</th>'
-    +'<th style="padding:10px 12px;text-align:center">"+(LANG==="ar"?"مستخدم":"Used")+"</th>'
+    +'<th style="padding:10px 12px;text-align:center">مستخدم / Used</th>'
     +'<th style="padding:10px 12px;text-align:right">Cost/unit</th>'
     +'<th style="padding:10px 12px;text-align:center">Low alert</th>'
     +'<th style="padding:10px 12px">Action</th>'
@@ -2446,6 +2558,22 @@ var DISP_AR={
 };
 function td(s){return LANG==='ar'?(DISP_AR[s]||s):s;}
 
+
+async function loadDispParts(){
+  var wh=document.getElementById('disp-warehouse')?.value||'مخزن رئيسي';
+  var{data:parts}=await db.from('spare_parts').select('*').eq('warehouse',wh).order('name');
+  parts=parts||[];
+  window._dispParts=parts;window._dispWarehouse=wh;
+  var opts='<option value="">-- اختر قطعة --</option>'+parts.map(function(p){
+    return '<option value="'+p.id+'" data-cost="'+p.cost+'" data-unit="'+p.unit+'" data-stock="'+p.qty+'">'+p.name+' ('+p.unit+') - Stock: '+p.qty+'</option>';
+  }).join('');
+  document.querySelectorAll('.disp-part-sel').forEach(function(sel){
+    var curVal=sel.value;
+    sel.innerHTML=opts;
+    sel.value=curVal;
+  });
+}
+
 async function loadDispatches(){
   var body=document.getElementById('disp-content');
   if(!body)return;
@@ -2493,25 +2621,15 @@ async function loadDispatches(){
 
 
 // Installation kits - preset part bundles
-var INSTALL_KITS=[
-  {name:'Carrier Installation',parts:[
-    {name:'fisher 8',qty:4},
-    {name:'fisher 10',qty:4},
-    {name:'plastic band',qty:1},
-    {name:'screw 8',qty:4},
-    {name:'screw 13',qty:4}
-  ]},
-  {name:'Midea Installation',parts:[
-    {name:'fisher 8',qty:4},
-    {name:'fisher 10',qty:4},
-    {name:'plastic band',qty:1},
-    {name:'screw 8',qty:4},
-    {name:'screw 13',qty:4}
-  ]},
-  {name:'General Maintenance',parts:[
-    {name:'copper 1/2',qty:3}
-  ]}
-];
+var INSTALL_KITS=[];
+function loadKits(){
+  try{var saved=localStorage.getItem('bc_kits');INSTALL_KITS=saved?JSON.parse(saved):[];}
+  catch(e){INSTALL_KITS=[];}
+}
+function saveKits(){
+  try{localStorage.setItem('bc_kits',JSON.stringify(INSTALL_KITS));}catch(e){}
+}
+loadKits();
 
 function applyKit(kitIndex){
   var kit=INSTALL_KITS[kitIndex];
@@ -2554,7 +2672,9 @@ function applyKit(kitIndex){
 async function openNewDispatch(){
   // Get technicians from users
   var{data:techs}=await db.from('users').select('id,full_name,username').eq('active',true).in('role',['technician','salesperson','admin']);
-  var{data:parts}=await db.from('spare_parts').select('*').order('name');
+  var selWh=document.getElementById('disp-warehouse')?.value||'مخزن رئيسي';
+  var{data:parts}=await db.from('spare_parts').select('*').eq('warehouse',selWh).order('name');
+  window._dispParts=parts||[];window._dispWarehouse=selWh;
   techs=techs||[];parts=parts||[];
   // Add fixed technicians + users with technician role
 var fixedTechs=['محمود عبد الرازق','محمد عمر','محمد مصطفي','يحيي تيجاني','محمود محمد'];
@@ -3575,8 +3695,14 @@ function showInvTab(tab,btn){
   var acSec=document.getElementById('inv-ac-section');
   var spSec=document.getElementById('inv-sp-section');
   if(acSec)acSec.style.display=tab==='ac'?'':'none';
-  if(spSec)spSec.style.display=tab==='sp'?'':'none';
-  if(tab==='sp'){loadSpareParts();}
+  if(spSec)spSec.style.display=(tab==='sp1'||tab==='sp2')?'':'none';
+  if(tab==='sp1'){
+    document.getElementById('sp-warehouse-filter').value='مخزن رئيسي';
+    loadSpareParts();setTimeout(renderKitsManager,500);
+  }else if(tab==='sp2'){
+    document.getElementById('sp-warehouse-filter').value='مخزن تجمع';
+    loadSpareParts();setTimeout(renderKitsManager,500);
+  }
 }
 
 async function openCD(c){
