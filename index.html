@@ -2698,11 +2698,11 @@ async function loadCustodyView(){
   var container=document.getElementById('custody-view');
   if(!container)return;
   container.innerHTML='<div style="padding:20px;text-align:center;color:#888">جارٍ التحميل...</div>';
-  // Get all confirmed عهدة dispatches
-  var{data:disps}=await db.from('dispatches').select('*,dispatch_items(*)').eq('dispatch_type','عهدة').eq('status','confirmed');
+  // Get all active عهدة dispatches (confirmed = active, partial = partially returned)
+  var{data:disps}=await db.from('dispatches').select('*,dispatch_items(*)').eq('dispatch_type','عهدة').in('status',['confirmed','partial']).order('date',{ascending:false});
   disps=disps||[];
   if(!disps.length){
-    container.innerHTML='<div style="padding:20px;text-align:center;color:#888">لا توجد عهد مستديمة</div>';
+    container.innerHTML='<div style="padding:20px;text-align:center;color:#888">لا توجد عهد مستديمة نشطة</div>';
     return;
   }
   // Group by technician
@@ -2710,42 +2710,77 @@ async function loadCustodyView(){
   disps.forEach(function(d){
     if(!byTech[d.technician_name])byTech[d.technician_name]=[];
     (d.dispatch_items||[]).forEach(function(it){
-      byTech[d.technician_name].push({part_name:it.part_name,qty:it.qty_out,unit:it.unit,date:d.date,disp_id:d.id,item_id:it.id,part_id:it.part_id});
+      var remaining=it.qty_out-(it.qty_returned||0);
+      if(remaining>0){
+        byTech[d.technician_name].push({part_name:it.part_name,qty_out:it.qty_out,qty_returned:it.qty_returned||0,remaining:remaining,unit:it.unit,date:d.date,disp_id:d.id,item_id:it.id,part_id:it.part_id});
+      }
     });
   });
   var html=Object.keys(byTech).map(function(tech){
     var parts=byTech[tech];
+    if(!parts.length)return '';
+    var totalParts=parts.length;
     var partRows=parts.map(function(p){
-      return '<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #f0f0e8;font-size:13px">'
-        +'<span style="flex:1;font-weight:600">'+p.part_name+'</span>'
-        +'<span style="color:#854F0B;font-weight:700">'+p.qty+' '+p.unit+'</span>'
-        +'<span style="color:#888;font-size:11px">منذ '+p.date+'</span>'
-        +'<button data-disp="'+p.disp_id+'" data-part="'+p.part_id+'" data-qty="'+p.qty+'" data-name="'+p.part_name+'" onclick="returnCustody(this)" style="font-size:11px;padding:3px 10px;border:1px solid #1D9E75;border-radius:6px;background:#EAF3DE;color:#1D9E75;cursor:pointer;font-weight:600">استلام &#8617;</button>'
-        +'</div>';
-    }).join('');
-    return '<div style="background:#fff;border:1px solid #eee;border-radius:10px;padding:14px;margin-bottom:10px">'
-      +'<div style="font-size:14px;font-weight:700;color:#333;margin-bottom:10px">&#128100; '+tech+'</div>'
-      +partRows
+      return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f0f0e8">'
+        +'<div style="flex:1">'
+          +'<div style="font-weight:600;font-size:13px">'+p.part_name+'</div>'
+          +'<div style="font-size:11px;color:#888;margin-top:2px">أُعطي: '+p.qty_out+' | مُرتجع: '+p.qty_returned+' | <b style="color:#854F0B">المتبقي: '+p.remaining+'</b> '+p.unit+'</div>'
+        +'</div>'
+        +'<div style="display:flex;align-items:center;gap:6px">'
+          +'<input type="number" class="custody-ret-qty" data-item="'+p.item_id+'" data-part="'+p.part_id+'" data-remaining="'+p.remaining+'" data-name="'+p.part_name+'" data-unit="'+p.unit+'" min="0" max="'+p.remaining+'" value="'+p.remaining+'" style="width:65px;padding:5px;border:1px solid #ddd;border-radius:6px;font-size:12px;text-align:center">'
+          +'<span style="font-size:11px;color:#888">'+p.unit+'</span>'
+        +'</div>'
       +'</div>';
+    }).join('');
+    var dispId=parts[0].disp_id;
+    return '<div style="background:#fff;border:1px solid #eee;border-radius:10px;padding:16px;margin-bottom:12px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
+        +'<div><span style="font-size:15px;font-weight:700">&#128100; '+tech+'</span><span style="font-size:11px;color:#888;margin-left:8px">'+totalParts+' قطع في العهدة</span></div>'
+        +'<button data-disp="'+dispId+'" data-tech="'+tech+'" onclick="submitCustodyReturn(this)" style="padding:6px 14px;border:none;border-radius:7px;background:#1D9E75;color:#fff;cursor:pointer;font-size:12px;font-weight:700">&#8617; تسجيل الاستلام</button>'
+      +'</div>'
+      +partRows
+    +'</div>';
   }).join('');
-  container.innerHTML=html;
+  container.innerHTML=html||'<div style="padding:20px;text-align:center;color:#888">لا توجد عهد نشطة</div>';
 }
 
-async function returnCustody(btn){
+async function submitCustodyReturn(btn){
   var dispId=btn.dataset.disp;
-  var partId=btn.dataset.part;
-  var qty=parseFloat(btn.dataset.qty)||0;
-  var name=btn.dataset.name;
-  if(!confirm('استلام '+qty+' '+name+' من الفني؟'))return;
-  // Decrease custody_qty
-  var{data:sp}=await db.from('spare_parts').select('custody_qty').eq('id',partId).single();
-  if(sp){
-    var newCustody=Math.max(0,(sp.custody_qty||0)-qty);
-    await db.from('spare_parts').update({custody_qty:newCustody}).eq('id',partId);
+  var tech=btn.dataset.tech;
+  // Collect all qty inputs in this technician's card
+  var card=btn.closest('div[style*="border:1px solid #eee"]');
+  if(!card)return;
+  var inputs=card.querySelectorAll('.custody-ret-qty');
+  var toReturn=[];
+  inputs.forEach(function(inp){
+    var qty=parseFloat(inp.value)||0;
+    if(qty>0)toReturn.push({item_id:inp.dataset.item,part_id:inp.dataset.part,qty:qty,name:inp.dataset.name,unit:inp.dataset.unit,remaining:parseFloat(inp.dataset.remaining)});
+  });
+  if(!toReturn.length){toast('أدخل كمية للاستلام',true);return;}
+  // Validate
+  var overLimit=toReturn.find(function(r){return r.qty>r.remaining;});
+  if(overLimit){toast('الكمية أكبر من المتبقي لـ '+overLimit.name,true);return;}
+  if(!confirm('تأكيد استلام '+toReturn.length+' قطعة من '+tech+'؟'))return;
+  btn.disabled=true;btn.textContent='جارٍ الحفظ...';
+  // Update each dispatch_item qty_returned
+  for(var i=0;i<toReturn.length;i++){
+    var r=toReturn[i];
+    var{data:item}=await db.from('dispatch_items').select('qty_out,qty_returned').eq('id',r.item_id).single();
+    if(item){
+      var newRet=(item.qty_returned||0)+r.qty;
+      await db.from('dispatch_items').update({qty_returned:newRet}).eq('id',r.item_id);
+    }
+    // Decrease custody_qty in spare_parts
+    var{data:sp}=await db.from('spare_parts').select('custody_qty').eq('id',r.part_id).single();
+    if(sp){await db.from('spare_parts').update({custody_qty:Math.max(0,(sp.custody_qty||0)-r.qty)}).eq('id',r.part_id);}
   }
-  // Mark dispatch as returned
-  await db.from('dispatches').update({status:'returned',notes:'تم الاستلام '+new Date().toLocaleDateString('ar-EG')}).eq('id',dispId);
-  toast('✅ تم استلام العهدة وتحديث المخزون');
+  // Check if fully returned - update dispatch status
+  var{data:allItems}=await db.from('dispatch_items').select('qty_out,qty_returned').eq('dispatch_id',dispId);
+  var fullyReturned=(allItems||[]).every(function(it){return (it.qty_returned||0)>=(it.qty_out||0);});
+  var newStatus=fullyReturned?'returned':'partial';
+  var note=fullyReturned?'تم الاستلام الكامل':'تم استلام جزئي - '+new Date().toLocaleDateString('ar-EG');
+  await db.from('dispatches').update({status:newStatus,notes:note}).eq('id',dispId);
+  toast(fullyReturned?'✅ تم استلام العهدة كاملاً':'✅ تم تسجيل الاستلام الجزئي');
   loadCustodyView();
 }
 
@@ -2798,7 +2833,7 @@ async function loadDispatches(){
   var{data:disps}=await db.from('dispatches').select('*').order('created_at',{ascending:false}).limit(50);
   disps=disps||[];
   var statusColor={open:'#854F0B',pending_confirm:'#185FA5',confirmed:'#3B6D11'};
-  var statusLabel={open:td('Open'),pending_confirm:td('Pending Approval'),confirmed:td('Confirmed')};
+  var statusLabel={open:td('Open'),pending_confirm:td('Pending Approval'),confirmed:'مؤكد',partial:'مُستردة جزئياً',returned:'مُستردة كاملاً'};
   var isApprover=CU&&(CU.role==='owner'||CU.role==='finance');
   var pendingDisps=disps.filter(function(d){return d.status==='pending_confirm';});
   var otherDisps=disps.filter(function(d){return d.status!=='pending_confirm';});
@@ -2867,14 +2902,19 @@ function applyKit(kitIndex){
     var rows=container.querySelectorAll('div[style*="grid-template-columns"]');
     var lastRow=rows[rows.length-1];
     if(!lastRow)return;
-    var sel=lastRow.querySelector('.disp-part-sel');
+    var inp=lastRow.querySelector('.disp-part-inp');
+    var idInp=lastRow.querySelector('.disp-part-id');
+    var unitInp=lastRow.querySelector('.disp-part-unit');
+    var costInp=lastRow.querySelector('.disp-part-cost');
+    var unitLbl=lastRow.querySelector('.disp-unit-lbl');
     var qtyInp=lastRow.querySelector('.disp-qty-out');
-    if(sel){
-      for(var j=0;j<sel.options.length;j++){
-        if(sel.options[j].text.toLowerCase().indexOf(kp.name.toLowerCase())>=0){
-          sel.selectedIndex=j;sel.onchange();break;
-        }
-      }
+    if(inp&&match){
+      inp.value=match.name;
+      if(idInp)idInp.value=match.id;
+      if(unitInp)unitInp.value=match.unit;
+      if(costInp)costInp.value=match.cost||0;
+      if(unitLbl)unitLbl.textContent=match.unit;
+      inp.oninput&&inp.oninput();
     }
     if(qtyInp)qtyInp.value=kp.qty;
   });
@@ -2937,45 +2977,65 @@ var techOpts='<option value="">-- اختر الفني --</option>'+allTechs.map(
 
 function addDispItem(){
   var parts=window._dispParts||[];
-  var opts=parts.map(function(p){return '<option value="'+p.id+'" data-cost="'+p.cost+'" data-unit="'+p.unit+'" data-stock="'+p.qty+'">'+p.name+' ('+p.unit+') - Stock: '+p.qty+'</option>';}).join('');
   var container=document.getElementById('disp-items');
+  if(!container)return;
+  var rowId='disp-row-'+Date.now();
+  var listId='disp-list-'+Date.now();
   var row=document.createElement('div');
-  row.style.cssText='display:grid;grid-template-columns:1fr 80px 80px 30px;gap:6px;margin-bottom:10px;align-items:center';
-  row.innerHTML='<select class="disp-part-sel" style="padding:6px;border:1px solid #ddd;border-radius:6px;font-size:12px">'+opts+'</select>'
-    +'<input type="number" class="disp-qty-out" placeholder="Qty" min="1" value="1" style="padding:6px;border:1px solid #ddd;border-radius:6px;font-size:12px;text-align:center">'
-    +'<div class="disp-unit-lbl" style="font-size:11px;color:#888;text-align:center">pcs</div>'
-    +'<button onclick="this.closest(\'div\').remove()" style="border:none;background:none;color:#A32D2D;cursor:pointer;font-size:18px">&#10005;</button>';
+  row.id=rowId;
+  row.style.cssText='margin-bottom:10px;background:#f9f9f6;border:1px solid #eee;border-radius:8px;padding:8px 10px';
+  // Build datalist options
+  var opts=parts.map(function(p){return '<option data-id="'+p.id+'" data-unit="'+p.unit+'" data-stock="'+p.qty+'" data-cost="'+p.cost+'" value="'+p.name+'">'+p.name+' | Stock: '+p.qty+' '+p.unit+'</option>';}).join('');
+  row.innerHTML=''
+    +'<datalist id="'+listId+'">'+opts+'</datalist>'
+    +'<div style="display:grid;grid-template-columns:1fr 80px 60px 30px;gap:8px;align-items:center">'
+      +'<div style="position:relative">'
+        +'<input list="'+listId+'" class="disp-part-inp" placeholder="ابحث عن قطعة..." autocomplete="off" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box">'
+        +'<input type="hidden" class="disp-part-id">'
+        +'<input type="hidden" class="disp-part-unit">'
+        +'<input type="hidden" class="disp-part-cost">'
+      +'</div>'
+      +'<input type="number" class="disp-qty-out" placeholder="الكمية" min="1" value="1" style="padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px;text-align:center">'
+      +'<div class="disp-unit-lbl" style="font-size:12px;color:#888;text-align:center"></div>'
+      +'<button data-row="'+rowId+'" onclick="document.getElementById(this.dataset.row).remove()" style="border:none;background:none;color:#A32D2D;cursor:pointer;font-size:20px;padding:0;line-height:1">&#10005;</button>'
+    +'</div>'
+    +'<div class="disp-stock-info" style="font-size:11px;color:#888;margin-top:4px;padding-left:2px"></div>';
   container.appendChild(row);
-  // Update unit label when part changes
-  var sel=row.querySelector('.disp-part-sel');
+  var inp=row.querySelector('.disp-part-inp');
+  var idInp=row.querySelector('.disp-part-id');
+  var unitInp=row.querySelector('.disp-part-unit');
+  var costInp=row.querySelector('.disp-part-cost');
   var unitLbl=row.querySelector('.disp-unit-lbl');
+  var stockInfo=row.querySelector('.disp-stock-info');
   var qtyInp=row.querySelector('.disp-qty-out');
-  sel.onchange=function(){
-    var o=sel.selectedOptions[0];
-    unitLbl.textContent=o?o.dataset.unit:'';
-    // Show stock and set max
-    var stock=parseFloat(o?o.dataset.stock||0:0);
-    var stockInfo=row.querySelector('.disp-stock-info');
-    if(!stockInfo){
-      stockInfo=document.createElement('div');
-      stockInfo.className='disp-stock-info';
-      stockInfo.style.cssText='font-size:10px;color:#888;grid-column:1/-1;margin-top:-4px';
-      row.appendChild(stockInfo);
+  inp.oninput=function(){
+    var val=this.value;
+    var part=parts.find(function(p){return p.name===val;});
+    if(part){
+      idInp.value=part.id;
+      unitInp.value=part.unit;
+      costInp.value=part.cost||0;
+      unitLbl.textContent=part.unit;
+      var stock=part.qty||0;
+      var avail=Math.max(0,stock-(part.custody_qty||0));
+      stockInfo.innerHTML='المخزون: <b style="color:'+(stock<=0?'#A32D2D':'#3B6D11')+'">'+stock+'</b> | المتاح: <b style="color:'+(avail<=0?'#A32D2D':'#1D9E75')+'">'+avail+'</b> '+part.unit;
+      if(qtyInp){qtyInp.max=avail;}
+      inp.style.borderColor='#1D9E75';
+    }else{
+      idInp.value='';unitLbl.textContent='';stockInfo.textContent='';
+      inp.style.borderColor='#ddd';
     }
-    stockInfo.innerHTML='Stock: <b style="color:'+(stock<=0?'#A32D2D':'#3B6D11')+'">'+stock+'</b> '+(o?o.dataset.unit:'');
-    if(qtyInp){qtyInp.max=stock;if(parseFloat(qtyInp.value)>stock&&stock>0)qtyInp.value=stock;}
   };
-  if(qtyInp){
-    qtyInp.oninput=function(){
-      var o=sel.selectedOptions[0];
-      var stock=parseFloat(o?o.dataset.stock||0:0);
-      if(stock>0&&parseFloat(this.value)>stock){
-        this.style.borderColor='#A32D2D';
-        this.title='Warning: exceeds stock ('+stock+' available)';
-      }else{this.style.borderColor='#ddd';this.title='';}
-    };
-  }
-  sel.onchange();
+  qtyInp.oninput=function(){
+    var part=parts.find(function(p){return p.id===idInp.value;});
+    if(!part)return;
+    var avail=Math.max(0,(part.qty||0)-(part.custody_qty||0));
+    if(parseFloat(this.value)>avail&&avail>0){
+      this.style.borderColor='#A32D2D';
+      this.title='تحذير: الكمية تتجاوز المتاح ('+avail+')';
+    }else{this.style.borderColor='#ddd';this.title='';}
+  };
+  inp.focus();
 }
 
 async function saveNewDispatch(){
@@ -2988,11 +3048,12 @@ async function saveNewDispatch(){
   var rows=Array.from(document.querySelectorAll('#disp-items>div'));
   if(!rows.length){toast('أضف قطعة واحدة على الأقل',true);return;}
   var items=rows.map(function(row){
-    var sel=row.querySelector('.disp-part-sel');
-    var qtyInp=row.querySelector('.disp-qty-out');
-    var partId=sel?sel.value:'';
-    var partOpt=sel&&sel.selectedIndex>0?sel.options[sel.selectedIndex]:null;
-    return{part_id:partId,part_name:partOpt?partOpt.text.split('(')[0].trim():'',unit:partOpt?partOpt.dataset.unit:'',qty_out:parseFloat(qtyInp?qtyInp.value:0)||0,qty_returned:0,cost_per_unit:partOpt?parseFloat(partOpt.dataset.cost||0):0};
+    var partId=row.querySelector('.disp-part-id')?.value||'';
+    var partName=row.querySelector('.disp-part-inp')?.value||'';
+    var unit=row.querySelector('.disp-part-unit')?.value||'';
+    var cost=parseFloat(row.querySelector('.disp-part-cost')?.value||0);
+    var qty=parseFloat(row.querySelector('.disp-qty-out')?.value||0);
+    return{part_id:partId,part_name:partName.split(' | ')[0].trim(),unit:unit,qty_out:qty,qty_returned:0,cost_per_unit:cost};
   }).filter(function(i){return i.qty_out>0&&i.part_id;});
   if(!items.length){toast('أضف قطعة بكمية',true);return;}
   var btn=document.getElementById('disp-submit');
@@ -3046,7 +3107,7 @@ async function openDispatch(id){
   var isManager=CU&&(CU.role==='inventory_manager'||CU.role==='owner');
   var isApprover=CU&&(CU.role==='owner'||CU.role==='finance');
   var statusColor={open:'#854F0B',pending_confirm:'#185FA5',confirmed:'#3B6D11'};
-  var statusLabel={open:td('Open'),pending_confirm:td('Pending Approval'),confirmed:td('Confirmed')};
+  var statusLabel={open:td('Open'),pending_confirm:td('Pending Approval'),confirmed:'مؤكد',partial:'مُستردة جزئياً',returned:'مُستردة كاملاً'};
   document.querySelectorAll('.disp-overlay').forEach(function(e){e.remove();});
   var overlay=document.createElement('div');
   overlay.className='disp-overlay';
