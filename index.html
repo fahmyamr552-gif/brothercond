@@ -2593,6 +2593,7 @@ async function loadDispatches(){
     return '<div data-did="'+d.id+'" onclick="openDispatch(this.dataset.did)" style="'+cardStyle+'">'
       +'<div><div style="font-weight:700;font-size:14px">'+d.technician_name+'</div>'
         +'<div style="font-size:12px;color:#888;margin-top:2px">'+d.date+' &middot; by '+d.created_by+(d.notes?' &middot; '+d.notes:'')+'</div>'
+        +'<div style="margin-top:4px"><span style="font-size:10px;padding:1px 8px;border-radius:8px;font-weight:700;background:'+(d.warehouse==='مخزن رئيسي'?'#EAF3DE':'#E8F4FD')+';color:'+(d.warehouse==='مخزن رئيسي'?'#1D9E75':'#185FA5')+'">'+( d.warehouse||'مخزن تجمع')+'</span></div>'
       +'</div>'
       +'<div style="display:flex;align-items:center;gap:10px">'
         +(isPending&&isApprover?'<span style="font-size:11px;background:#1D9E75;color:#fff;padding:4px 12px;border-radius:6px;font-weight:700;cursor:pointer">✓ Confirm now</span>':'')
@@ -2779,7 +2780,7 @@ async function saveNewDispatch(){
     return{part_id:partId,part_name:partOpt?partOpt.text.split('(')[0].trim():'',unit:partOpt?partOpt.dataset.unit:'',qty_out:parseFloat(qtyInp?qtyInp.value:0)||0,qty_returned:0,cost_per_unit:partOpt?parseFloat(partOpt.dataset.cost||0):0};
   }).filter(function(i){return i.qty_out>0;});
   if(!items.length){toast('Add at least one part with quantity',true);return;}
-  var{data:disp,error}=await db.from('dispatches').insert({technician_name:tech,date:date,notes:notes,status:'open',created_by:CU.full_name||CU.username}).select().single();
+  var{data:disp,error}=await db.from('dispatches').insert({technician_name:tech,date:date,notes:notes,status:'open',created_by:CU.full_name||CU.username,warehouse:document.getElementById('disp-warehouse')?.value||'مخزن تجمع'}).select().single();
   if(error){toast('Error: '+error.message,true);return;}
   var itemsWithId=items.map(function(i){return Object.assign({},i,{dispatch_id:disp.id});});
   await db.from('dispatch_items').insert(itemsWithId);
