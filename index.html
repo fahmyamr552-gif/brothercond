@@ -2268,15 +2268,12 @@ async function loadSpareParts(search){
   // Load parts + confirmed dispatch usage in parallel
   var[partsRes,confirmedDispsRes]=await Promise.all([
     (function(){var q=db.from('spare_parts').select('*').order('name');if(wh)q=q.eq('warehouse',wh);return q;})(),
-    db.from('dispatches').select('id').eq('status','confirmed')
+    db.from('dispatches').select('id,dispatch_type').eq('status','confirmed')
   ]);
   var parts=partsRes.data||[];
-  var confirmedIds=(confirmedDispsRes.data||[]).map(function(d){return d.id;});
-  // Used = sum of parts from confirmed non-عهدة dispatches
+  // Filter out عهدة dispatches in JS - no Arabic in URL
   var usedMap={};
-  // Step 1: get confirmed dispatch IDs excluding عهدة
-  var{data:confDisps}=await db.from('dispatches').select('id').eq('status','confirmed').or('dispatch_type.neq.\u0639\u0647\u062f\u0629,dispatch_type.is.null');
-  var confIds=(confDisps||[]).map(function(d){return d.id;});
+  var confIds=(confirmedDispsRes.data||[]).filter(function(d){return d.dispatch_type!=='\u0639\u0647\u062f\u0629';}).map(function(d){return d.id;});
   if(confIds.length){
     // Step 2: sum dispatch_items for those dispatches by part_id
     var{data:ditems}=await db.from('dispatch_items').select('part_id,qty_out,qty_returned').in('dispatch_id',confIds);
@@ -2303,7 +2300,7 @@ if(!parts.length){body.innerHTML='<div style="padding:20px;text-align:center;col
   window._spList=parts;
   var rows=parts.map(function(p){
     var stockColor=p.qty<=0?'#A32D2D':p.qty<=p.low_alert?'#854F0B':'#3B6D11';
-    var used=usedMap[p.name]||0;
+    var used=usedMap[p.id]||0;
     var editBtn='<button onclick="editSP(\''+p.id+'\')" class="ib" style="font-size:11px;padding:2px 8px">Edit</button>';
     var delBtn=can('delete')||CU.role==='inventory_manager'?'<button onclick="deleteSP(\''+p.id+'\')" class="ib r" style="font-size:11px;padding:2px 8px">Del</button>':'';
     return '<tr style="border-bottom:1px solid #f0f0e8">'
