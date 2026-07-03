@@ -2272,17 +2272,20 @@ async function loadSpareParts(search){
   // Used = sum of parts from confirmed non-عهدة dispatches
   var usedMap={};
   // Step 1: get confirmed dispatch IDs excluding عهدة
-  var{data:confDisps}=await db.from('dispatches').select('id').eq('status','confirmed').or('dispatch_type.neq.عهدة,dispatch_type.is.null');
+  var{data:confDisps}=await db.from('dispatches').select('id').eq('status','confirmed').or('dispatch_type.neq.\u0639\u0647\u062f\u0629,dispatch_type.is.null');
+  console.log('confDisps count:',confDisps?.length);
   var confIds=(confDisps||[]).map(function(d){return d.id;});
   if(confIds.length){
     // Step 2: sum dispatch_items for those dispatches by part_id
     var{data:ditems}=await db.from('dispatch_items').select('part_id,qty_out,qty_returned').in('dispatch_id',confIds);
+    console.log('dispatch_items found:',ditems?.length,ditems);
     (ditems||[]).forEach(function(it){
       if(it.part_id){
         var net=Math.max(0,(it.qty_out||0)-(it.qty_returned||0));
         usedMap[it.part_id]=(usedMap[it.part_id]||0)+net;
       }
     });
+    console.log('usedMap:',usedMap);
   }
   if(search)parts=parts.filter(function(p){return p.name.toLowerCase().includes(search.toLowerCase());});
   // Stats
