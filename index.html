@@ -2301,11 +2301,13 @@ async function loadSpareParts(search){
   window._spList=parts;
 if(!parts.length){body.innerHTML='<div style="padding:20px;text-align:center;color:#888">No spare parts yet.</div>';return;}
   window._spList=parts;
+  console.log('usedMap keys:',Object.keys(usedMap),'values:',Object.values(usedMap));
   var rows=parts.map(function(p){
     var stockColor=p.qty<=0?'#A32D2D':p.qty<=p.low_alert?'#854F0B':'#3B6D11';
     var used=usedMap[p.name]||0;
     var editBtn='<button onclick="editSP(\''+p.id+'\')" class="ib" style="font-size:11px;padding:2px 8px">Edit</button>';
     var delBtn=can('delete')||CU.role==='inventory_manager'?'<button onclick="deleteSP(\''+p.id+'\')" class="ib r" style="font-size:11px;padding:2px 8px">Del</button>':'';
+    if(usedMap[p.id])console.log('MATCH:',p.name,p.id,usedMap[p.id]);
     return '<tr style="border-bottom:1px solid #f0f0e8">'
       +'<td style="padding:10px 12px;font-weight:600">'+p.name+'</td>'
       +'<td style="padding:8px 12px;text-align:center"><span style="font-size:11px;padding:2px 8px;border-radius:10px;background:'+(p.warehouse==='مخزن تجمع'?'#E8F4FD':'#EAF3DE')+';color:'+(p.warehouse==='مخزن تجمع'?'#185FA5':'#1D9E75')+';font-weight:600">'+(p.warehouse||'مخزن رئيسي')+'</span></td>'
