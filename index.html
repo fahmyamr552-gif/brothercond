@@ -2269,11 +2269,24 @@ async function loadSpareParts(search){
   ]);
   var parts=partsRes.data||[];
   var confirmedIds=(confirmedDispsRes.data||[]).map(function(d){return d.id;});
-  // Build used map by part name
+  // Build used map keyed by part_id
   var usedMap={};
+  // 1. عادي dispatches - from dispatch_assignments
   if(confirmedIds.length){
-    var{data:asgn}=await db.from('dispatch_assignments').select('part_name,qty').in('dispatch_id',confirmedIds);
-    (asgn||[]).forEach(function(a){if(a.part_name)usedMap[a.part_name]=(usedMap[a.part_name]||0)+(a.qty||0);});
+    var{data:asgn}=await db.from('dispatch_assignments').select('dispatch_item_id,qty,dispatch_items(part_id)').in('dispatch_id',confirmedIds);
+    (asgn||[]).forEach(function(a){
+      var pid=a.dispatch_items&&a.dispatch_items.part_id;
+      if(pid)usedMap[pid]=(usedMap[pid]||0)+(a.qty||0);
+    });
+  }
+  // 2. مستهلك dispatches - deducted directly from dispatch_items
+  var{data:mustahlikDisps}=await db.from('dispatches').select('id').eq('status','confirmed').eq('dispatch_type','مستهلك');
+  var mustahlikIds=(mustahlikDisps||[]).map(function(d){return d.id;});
+  if(mustahlikIds.length){
+    var{data:consumed}=await db.from('dispatch_items').select('part_id,qty_out').in('dispatch_id',mustahlikIds);
+    (consumed||[]).forEach(function(it){
+      if(it.part_id)usedMap[it.part_id]=(usedMap[it.part_id]||0)+(it.qty_out||0);
+    });
   }
   if(search)parts=parts.filter(function(p){return p.name.toLowerCase().includes(search.toLowerCase());});
   // Stats
