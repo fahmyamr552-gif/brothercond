@@ -3271,16 +3271,22 @@ async function saveNewDispatch(){
     }).select().single();
     if(st.error||!st.data){toast('خطأ في إنشاء الطلب: '+(st.error?.message||''),true);resetBtn();return;}
     // Task products (store pre-tax price)
-    var tProds=items.map(function(it){return{task_id:st.data.id,name:it.part_name,qty:it.qty_out,price:useTax?Math.round(it.unit_price/1.14*100)/100:it.unit_price};});
+    var tProds=items.map(function(it){return{task_id:st.data.id,name:it.part_name,qty:it.qty_out,price:it.unit_price};});
     if(tProds.length)await db.from('task_products').insert(tProds);
     // Payment pending finance approval
     var paidAmt=parseFloat(document.getElementById('ds-paid')?.value)||0;
-    var needsApproval=!(can('delete')||can('delete_payment'));
-    // Only create payment if something was paid
+    // Create payment record - always pending finance approval (approved=false)
     if(paidAmt>0){
-      await db.from('payments').insert({task_id:st.data.id,amount:paidAmt,method:payMethod,date:date,approved:!needsApproval,notes:'بيع مباشر - '+warehouse});
+      await db.from('payments').insert({
+        task_id:st.data.id,
+        amount:paidAmt,
+        method:payMethod,
+        date:date,
+        approved:false,
+        notes:'بيع مباشر - '+warehouse
+      });
     }
-    // Update pay_status based on actual amount paid
+    // Set pay_status based on paid vs total
     var ps2=paidAmt>=totalWithTax&&totalWithTax>0?'paid':paidAmt>0?'downpayment':'unpaid';
     await db.from('tasks').update({pay_status:ps2}).eq('id',st.data.id);
     // Deduct stock
