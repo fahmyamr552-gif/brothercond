@@ -2446,7 +2446,10 @@ async function deleteSP(id){
 async function openAssignModal(dispId){
   var{data:items}=await db.from('dispatch_items').select('*').eq('dispatch_id',dispId);
   var{data:assignments}=await db.from('dispatch_assignments').select('*').eq('dispatch_id',dispId);
-  var{data:tasks}=await db.from('tasks').select('id,task_num,customer_name,date,type').order('date',{ascending:false}).limit(300);
+  var tday=new Date().toISOString().split('T')[0];
+  var{data:todayT}=await db.from('tasks').select('id,task_num,customer_name,date,type,time_slot').eq('date',tday).order('task_num',{ascending:false});
+  var{data:otherT}=await db.from('tasks').select('id,task_num,customer_name,date,type,time_slot').neq('date',tday).order('date',{ascending:false}).limit(150);
+  var tasks=[...(todayT||[]),...(otherT||[])];
   items=items||[];assignments=assignments||[];tasks=tasks||[];
   if(!items.length){toast('No parts in this dispatch',true);return;}
 
