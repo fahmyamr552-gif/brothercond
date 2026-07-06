@@ -1235,28 +1235,27 @@ function sendWhatsApp(){
   if(!phone){toast('لا يوجد رقم هاتف للعميل',true);return;}
   if(phone.startsWith('0'))phone='2'+phone;
   else if(!phone.startsWith('20'))phone='20'+phone;
-  var typeAr={maintenance:'صيانة',installation:'تركيب',sales:'مبيعات',uninstall:'فك',inspection:'معاينة'};
+  var typeAr={maintenance:'صيانة',installation:'تركيب',sales:'مبيعات',uninstall:'فك',inspection:'معاينة','بيع مباشر':'بيع مباشر'};
   var typeName=typeAr[CT.type]||CT.type;
   var total=(CT.prods||[]).reduce(function(s,p){return s+p.qty*p.price;},0);
-  var prods=(CT.prods||[]).map(function(p){return '* '+p.name+' x'+p.qty+' = '+(p.qty*p.price)+' j.m';}).join('\n');
-  var payStatus={paid:'مدفوع بالكامل',downpayment:'دفعة مقدمة',unpaid:'غير مدفوع'}[CT.pay_status]||CT.pay_status;
+  var prods=(CT.prods||[]).map(function(p){return '  - '+p.name+' ('+p.qty+' عدد) = '+(p.qty*p.price)+' ج.م';}).join('\n');
+  var payStatus={paid:'مدفوع بالكامل ✔',downpayment:'دفعة مقدمة',unpaid:'غير مدفوع'}[CT.pay_status]||CT.pay_status;
   var taxLine='';
-  if(CT.use_tax&&total>0){var preTax=Math.round(total/1.14*100)/100;var taxAmt=Math.round((total-preTax)*100)/100;taxLine='\nقبل الضريبة: '+preTax+' ج.م | ضريبة 14%: '+taxAmt+' ج.م';}
-  var timeSlot=CT.time_slot?'\nالوقت: '+CT.time_slot:'';
-  var sep='----------------------------';
-  var msg='مرحباً '+CT.customer_name+'\n\n'
-    +'تأكيد طلبك مع برازر كوند للتكييف\n'
-    +sep+'\n'
+  if(CT.use_tax&&total>0){var preTax=Math.round(total/1.14*100)/100;var taxAmt=Math.round((total-preTax)*100)/100;taxLine='\n  قبل الضريبة: '+preTax+' ج.م\n  ضريبة 14%: '+taxAmt+' ج.م';}
+  var timeSlot=CT.time_slot?'\n  الوقت: '+CT.time_slot:'';
+  var msg='مرحبا,\n'
+    +'نشكركم على تعاملكم مع برازر كوند للتكييف.\n'
+    +'يسعدنا تأكيد طلبكم بالتفاصيل التالية:\n\n'
     +'رقم الطلب: '+CT.task_num+'\n'
-    +'النوع: '+typeName+'\n'
-    +'التاريخ: '+CT.date+timeSlot+'\n'
-    +sep+'\n'
-    +'المنتجات:\n'+prods+'\n'
-    +sep+'\n'
+    +'الاسم: '+CT.customer_name+'\n'
+    +'نوع الخدمة: '+typeName+'\n'
+    +'التاريخ: '+CT.date+timeSlot+'\n\n'
+    +'الخدمات:\n'+prods+'\n\n'
     +'الاجمالي: '+total+' ج.م'+taxLine+'\n'
-    +'حالة الدفع: '+payStatus+'\n'
-    +sep+'\n'
-    +'شكرا لثقتكم\nبرازر كوند للتكييف';
+    +'حالة الدفع: '+payStatus+'\n\n'
+    +'نتطلع لخدمتكم وتلبية احتياجاتكم دائما.\n'
+    +'برازر كوند للتكييف\n'
+    +'للتواصل او الاستفسار يرجى الرد على هذه الرسالة.';
   window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(msg),'_blank');
 }
 
