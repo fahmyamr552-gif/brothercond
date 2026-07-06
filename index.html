@@ -2581,35 +2581,40 @@ async function cancelDispatch(dispId){
   if(!disp)return;
   var{data:items}=await db.from('dispatch_items').select('*').eq('dispatch_id',dispId);
   items=items||[];
-  // Restore inventory based on dispatch type
-  if(disp.status==='confirmed'){
-    if(disp.dispatch_type==='مستهلك'){
-      // Restore qty directly from dispatch_items (was deducted immediately)
-      for(var i=0;i<items.length;i++){
-        var it=items[i];
-        if(it.part_id){
-          var{data:sp}=await db.from('spare_parts').select('qty').eq('id',it.part_id).single();
-          if(sp)await db.from('spare_parts').update({qty:(sp.qty||0)+it.qty_out}).eq('id',it.part_id);
+  // Restore inventory based on dispatch type (regardless of status)
+  if(disp.dispatch_type==='مستهلك'||disp.dispatch_type==='بيع مباشر'){
+    // These types deduct qty immediately - always restore
+    for(var i=0;i<items.length;i++){
+      var it=items[i];
+      if(it.part_id){
+        var{data:sp}=await db.from('spare_parts').select('qty').eq('id',it.part_id).single();
+        if(sp)await db.from('spare_parts').update({qty:(sp.qty||0)+it.qty_out}).eq('id',it.part_id);
+      }
+    }
+  } else if(disp.dispatch_type==='عهدة'){
+    // Restore custody_qty for remaining unreturned qty
+    for(var i=0;i<items.length;i++){
+      var it=items[i];
+      if(it.part_id){
+        var remaining=it.qty_out-(it.qty_returned||0);
+        if(remaining>0){
+          var{data:sp}=await db.from('spare_parts').select('custody_qty').eq('id',it.part_id).single();
+          if(sp)await db.from('spare_parts').update({custody_qty:Math.max(0,(sp.custody_qty||0)-remaining)}).eq('id',it.part_id);
         }
       }
-    } else if(disp.dispatch_type==='عهدة'){
-      // Restore custody_qty
-      for(var i=0;i<items.length;i++){
-        var it=items[i];
-        if(it.part_id){
-          var remaining=it.qty_out-(it.qty_returned||0);
-          if(remaining>0){
-            var{data:sp}=await db.from('spare_parts').select('custody_qty').eq('id',it.part_id).single();
-            if(sp)await db.from('spare_parts').update({custody_qty:Math.max(0,(sp.custody_qty||0)-remaining)}).eq('id',it.part_id);
-          }
-        }
-      }
-    } else {
-      // عادي — restore from assignments
-      var{data:assignments}=await db.from('dispatch_assignments').select('qty,dispatch_items(part_id)').eq('dispatch_id',dispId);
+    }
+  } else {
+    // عادي (or NULL/old dispatches) — only deducts on approval via assignments
+    if(disp.status!=='confirmed')return; // nothing deducted if not confirmed
+    var{data:assignments}=await db.from('dispatch_assignments').select('qty,dispatch_item_id').eq('dispatch_id',dispId);
+    var asgnItemIds=(assignments||[]).map(function(a){return a.dispatch_item_id;}).filter(Boolean);
+    if(asgnItemIds.length){
+      var{data:ditems}=await db.from('dispatch_items').select('id,part_id').in('id',asgnItemIds);
+      var itemPartMap={};
+      (ditems||[]).forEach(function(d){itemPartMap[d.id]=d.part_id;});
       for(var i=0;i<(assignments||[]).length;i++){
         var a=assignments[i];
-        var partId=a.dispatch_items?.part_id;
+        var partId=itemPartMap[a.dispatch_item_id];
         if(partId){
           var{data:sp}=await db.from('spare_parts').select('qty').eq('id',partId).single();
           if(sp)await db.from('spare_parts').update({qty:(sp.qty||0)+a.qty}).eq('id',partId);
