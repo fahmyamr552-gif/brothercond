@@ -3120,13 +3120,15 @@ async function openNewDispatch(){
     +'</div>'
     +'<div id="disp-cust-section" style="display:none;background:#f0f9ff;border:1px solid #b3d9f7;border-radius:8px;padding:12px;margin-bottom:12px">'
       +'<div style="font-size:11px;font-weight:700;color:#185FA5;margin-bottom:8px">بيانات العميل</div>'
-      +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px">'
         +'<div><label style="font-size:10px;color:#888;display:block;margin-bottom:3px">اسم العميل *</label>'
           +'<input id="ds-cust-name" placeholder="الاسم" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box"></div>'
         +'<div><label style="font-size:10px;color:#888;display:block;margin-bottom:3px">الهاتف</label>'
           +'<input id="ds-cust-phone" placeholder="01xxxxxxxxx" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box"></div>'
         +'<div><label style="font-size:10px;color:#888;display:block;margin-bottom:3px">العنوان</label>'
           +'<input id="ds-cust-addr" placeholder="العنوان" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box"></div>'
+        +'<div><label style="font-size:10px;color:#888;display:block;margin-bottom:3px">التاريخ *</label>'
+          +'<input type="date" id="ds-date" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box"></div>'
       +'</div>'
     +'</div>'
     +'<div id="disp-tech-section">'
@@ -3163,8 +3165,6 @@ async function openNewDispatch(){
           +'<select id="ds-pay-method" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px">'
             +'<option value="كاش">كاش</option><option value="فيزا">فيزا</option><option value="تحويل">تحويل بنكي</option>'
           +'</select></div>'
-        +'<div><label style="font-size:10px;color:#888;display:block;margin-bottom:3px">المبلغ المدفوع</label>'
-          +'<input type="number" id="ds-paid" placeholder="0" oninput="calcDsTotal()" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box"></div>'
       +'</div>'
     +'</div>'
     +'<div style="display:flex;gap:8px;justify-content:flex-end">'
@@ -3274,21 +3274,8 @@ async function saveNewDispatch(){
     var tProds=items.map(function(it){return{task_id:st.data.id,name:it.part_name,qty:it.qty_out,price:it.unit_price};});
     if(tProds.length)await db.from('task_products').insert(tProds);
     // Payment pending finance approval
-    var paidAmt=parseFloat(document.getElementById('ds-paid')?.value)||0;
-    // Create payment record - always pending finance approval (approved=false)
-    if(paidAmt>0){
-      await db.from('payments').insert({
-        task_id:st.data.id,
-        amount:paidAmt,
-        method:payMethod,
-        date:date,
-        approved:false,
-        notes:'بيع مباشر - '+warehouse
-      });
-    }
-    // Set pay_status based on paid vs total
-    var ps2=paidAmt>=totalWithTax&&totalWithTax>0?'paid':paidAmt>0?'downpayment':'unpaid';
-    await db.from('tasks').update({pay_status:ps2}).eq('id',st.data.id);
+    // Payment will be recorded by finance inside the task
+    // Task starts as unpaid - finance adds payments as usual
     // Deduct stock
     for(var i=0;i<items.length;i++){
       var sp=await db.from('spare_parts').select('qty').eq('id',items[i].part_id).single();
