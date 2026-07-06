@@ -1462,6 +1462,22 @@ async function openTask(id){
 
 function openEditProds(){
   if(!CT)return;
+  // Auto-save completion notes silently before opening product editor
+  // so they aren't lost when openTask reloads
+  var compNotes=document.getElementById('cdn')?.value||'';
+  var compTime=document.getElementById('cdt')?.value||'';
+  var compTech=document.getElementById('ctech-name')?.value||'';
+  var compNote=document.getElementById('ctn')?.value||'';
+  var compOk=document.getElementById('cok')?.checked||false;
+  if(compNotes||compTime||compTech){
+    db.from('tasks').update({
+      completion_notes:compNotes,
+      completion_time:compTime,
+      technician_name:compTech,
+      technician_note:compNote,
+      customer_confirmed:compOk
+    }).eq('id',CT.id);
+  }
   document.querySelectorAll('.ep-modal').forEach(e=>e.remove());
   var useTax=CT.use_tax===false?false:true;
   var overlay=document.createElement('div');
@@ -4166,7 +4182,8 @@ async function saveTask(){
     use_tax:useTax,
     address:document.getElementById('nt-task-address')?.value||null,
     from_address:document.getElementById('nt-addr-from')?.value||null,
-    to_address:document.getElementById('nt-addr-to')?.value||null
+    to_address:document.getElementById('nt-addr-to')?.value||null,
+    time_slot:document.getElementById('nttime')?.value||null
   }).select().single();
   if(te){toast('Error: '+te.message,true);return;}
   var rows=taskRows.map(function(r){return{task_id:task.id,name:r.name,qty:r.qty,price:r.price,inventory_id:r.pid||null};});
