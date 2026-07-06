@@ -1243,7 +1243,7 @@ function sendWhatsApp(){
   var taxLine='';
   if(CT.use_tax&&total>0){var preTax=Math.round(total/1.14*100)/100;var taxAmt=Math.round((total-preTax)*100)/100;taxLine='\n  قبل الضريبة: '+preTax+' ج.م\n  ضريبة 14%: '+taxAmt+' ج.م';}
   var timeSlot=CT.time_slot?'\n  الوقت: '+CT.time_slot:'';
-  var msg='مرحبا,\n'
+  var msg='مرحبا '+CT.customer_name+',\n'
     +'نشكركم على تعاملكم مع برازر كوند للتكييف.\n'
     +'يسعدنا تأكيد طلبكم بالتفاصيل التالية:\n\n'
     +'رقم الطلب: '+CT.task_num+'\n'
