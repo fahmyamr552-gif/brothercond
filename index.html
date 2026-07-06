@@ -1233,30 +1233,31 @@ function sendWhatsApp(){
   if(!CT)return;
   var phone=(CT.phone||CT.cust?.phone||CT.customers?.phone||'').replace(/[^0-9]/g,'');
   if(!phone){toast('لا يوجد رقم هاتف للعميل',true);return;}
-  // Format Egyptian numbers: 01x -> 201x
   if(phone.startsWith('0'))phone='2'+phone;
   else if(!phone.startsWith('20'))phone='20'+phone;
-  // Build message
-  var prods=(CT.prods||[]).map(function(p){
-    return '• '+p.name+' × '+p.qty+' — EGP '+f(p.price*p.qty);
-  }).join('\n');
-  var payStatus={paid:'مدفوع بالكامل ✅',downpayment:'دفعة مقدمة ⚠️',unpaid:'غير مدفوع ❌'}[CT.pay_status]||CT.pay_status;
+  var typeAr={maintenance:'صيانة',installation:'تركيب',sales:'مبيعات',uninstall:'فك',inspection:'معاينة'};
+  var typeName=typeAr[CT.type]||CT.type;
   var total=(CT.prods||[]).reduce(function(s,p){return s+p.qty*p.price;},0);
-  var taxLine=CT.use_tax?'\nضريبة 14%: EGP '+f(total-total/1.14):'';
-  var msg=''
-    +'مرحباً '+CT.customer_name+' 👋\n\n'
-    +'تأكيد طلبك مع BrotherCond للتكييف\n\n'
+  var prods=(CT.prods||[]).map(function(p){return '* '+p.name+' x'+p.qty+' = '+(p.qty*p.price)+' j.m';}).join('\n');
+  var payStatus={paid:'مدفوع بالكامل',downpayment:'دفعة مقدمة',unpaid:'غير مدفوع'}[CT.pay_status]||CT.pay_status;
+  var taxLine='';
+  if(CT.use_tax&&total>0){var preTax=Math.round(total/1.14*100)/100;var taxAmt=Math.round((total-preTax)*100)/100;taxLine='\nقبل الضريبة: '+preTax+' ج.م | ضريبة 14%: '+taxAmt+' ج.م';}
+  var timeSlot=CT.time_slot?'\nالوقت: '+CT.time_slot:'';
+  var sep='----------------------------';
+  var msg='مرحباً '+CT.customer_name+'\n\n'
+    +'تأكيد طلبك مع برازر كوند للتكييف\n'
+    +sep+'\n'
     +'رقم الطلب: '+CT.task_num+'\n'
-    +'النوع: '+CT.type+'\n'
-    +'التاريخ: '+CT.date+'\n\n'
-    +'المنتجات:\n'+prods+'\n\n'
-    +'الإجمالي: EGP '+f(total)
-    +taxLine+'\n'
-    +'حالة الدفع: '+payStatus+'\n\n'
-    +'شكراً لثقتكم 🙏\n'
-    +'BrotherCond Air Conditioning';
-  var url='https://wa.me/'+phone+'?text='+encodeURIComponent(msg);
-  window.open(url,'_blank');
+    +'النوع: '+typeName+'\n'
+    +'التاريخ: '+CT.date+timeSlot+'\n'
+    +sep+'\n'
+    +'المنتجات:\n'+prods+'\n'
+    +sep+'\n'
+    +'الاجمالي: '+total+' ج.م'+taxLine+'\n'
+    +'حالة الدفع: '+payStatus+'\n'
+    +sep+'\n'
+    +'شكرا لثقتكم\nبرازر كوند للتكييف';
+  window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(msg),'_blank');
 }
 
 async function openTask(id){
