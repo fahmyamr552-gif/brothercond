@@ -2622,6 +2622,27 @@ async function cancelDispatch(dispId){
       }
     }
   }
+  // For بيع مباشر: also delete the linked task + payment
+  if(disp.dispatch_type==='بيع مباشر'){
+    // Find linked task by matching date + created_by + type
+    var{data:linkedTasks}=await db.from('tasks').select('id').eq('type','بيع مباشر').eq('date',disp.date).eq('created_by',disp.created_by);
+    for(var i=0;i<(linkedTasks||[]).length;i++){
+      var tid=linkedTasks[i].id;
+      await db.from('payments').delete().eq('task_id',tid);
+      await db.from('task_products').delete().eq('task_id',tid);
+      await db.from('tasks').delete().eq('id',tid);
+    }
+  }
+  // For بيع مباشر: also delete the linked task + payments
+  if(disp.dispatch_type==='بيع مباشر'){
+    var{data:linkedTasks}=await db.from('tasks').select('id').eq('type','بيع مباشر').eq('date',disp.date).eq('created_by',disp.created_by);
+    for(var ti=0;ti<(linkedTasks||[]).length;ti++){
+      var tid=linkedTasks[ti].id;
+      await db.from('payments').delete().eq('task_id',tid);
+      await db.from('task_products').delete().eq('task_id',tid);
+      await db.from('tasks').delete().eq('id',tid);
+    }
+  }
   await db.from('dispatch_assignments').delete().eq('dispatch_id',dispId);
   await db.from('dispatch_items').delete().eq('dispatch_id',dispId);
   await db.from('dispatches').delete().eq('id',dispId);
