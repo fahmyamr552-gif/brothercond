@@ -2999,7 +2999,6 @@ async function openNewDispatch(){
       +'<div style="font-size:17px;font-weight:700">جلسة توزيع جديدة</div>'
       +'<button id="disp-close" style="border:none;background:none;font-size:22px;cursor:pointer;color:#aaa">&#10005;</button>'
     +'</div>'
-    // ── Type selector ──
     +'<div style="margin-bottom:12px;padding:10px 14px;background:#f0f9ff;border:1px solid #b3d9f7;border-radius:8px">'
       +'<div style="font-size:11px;font-weight:700;color:#185FA5;margin-bottom:8px">نوع الصرف</div>'
       +'<div style="display:flex;gap:16px;flex-wrap:wrap">'
@@ -3010,13 +3009,11 @@ async function openNewDispatch(){
       +'</div>'
       +'<div id="disp-type-note" style="font-size:11px;color:#888;margin-top:6px"></div>'
     +'</div>'
-    // ── Warehouse selector ──
     +'<div style="margin-bottom:12px;padding:10px 14px;background:#FFF8E1;border:1px solid #F5A623;border-radius:8px;display:flex;align-items:center;gap:12px">'
       +'<span style="font-size:12px;font-weight:700;color:#7A5000">المخزن:</span>'
       +'<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;font-weight:600"><input type="radio" name="disp-wh" value="مخزن تجمع" checked onchange="reloadDispParts(this.value)"> مخزن تجمع</label>'
       +'<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;font-weight:600"><input type="radio" name="disp-wh" value="مخزن رئيسي" onchange="reloadDispParts(this.value)"> مخزن رئيسي</label>'
     +'</div>'
-    // ── Customer section (بيع مباشر only) ──
     +'<div id="disp-cust-section" style="display:none;background:#f0f9ff;border:1px solid #b3d9f7;border-radius:8px;padding:12px;margin-bottom:12px">'
       +'<div style="font-size:11px;font-weight:700;color:#185FA5;margin-bottom:8px">بيانات العميل</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">'
@@ -3028,7 +3025,6 @@ async function openNewDispatch(){
           +'<input id="ds-cust-addr" placeholder="العنوان" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box"></div>'
       +'</div>'
     +'</div>'
-    // ── Technician section (hidden for بيع مباشر) ──
     +'<div id="disp-tech-section">'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">'
         +'<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">الفني *</label>'
@@ -3039,12 +3035,10 @@ async function openNewDispatch(){
       +'<div style="margin-bottom:12px"><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">ملاحظات (اختياري)</label>'
         +'<input id="disp-notes" placeholder="مثال: توزيع الصباح لـ 3 مهام" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div>'
     +'</div>'
-    // ── Date for بيع مباشر ──
     +'<div id="disp-date-direct" style="display:none;margin-bottom:12px">'
       +'<label style="font-size:11px;color:#888;display:block;margin-bottom:3px">التاريخ</label>'
       +'<input type="date" id="disp-date-2" value="'+today+'" style="width:200px;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px">'
     +'</div>'
-    // ── Parts section ──
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
       +'<div style="font-size:12px;font-weight:700;color:#888">القطع</div>'
       +'<div style="display:flex;gap:6px;align-items:center">'
@@ -3053,7 +3047,6 @@ async function openNewDispatch(){
       +'</div>'
     +'</div>'
     +'<div id="disp-items" style="margin-bottom:12px;min-height:60px"></div>'
-    // ── Price section (بيع مباشر only) ──
     +'<div id="disp-price-section" style="display:none;background:#f9f9f6;border:1px solid #eee;border-radius:8px;padding:12px;margin-bottom:12px">'
       +'<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">'
         +'<label style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;cursor:pointer">'
@@ -3070,7 +3063,6 @@ async function openNewDispatch(){
           +'<input type="number" id="ds-paid" placeholder="0" oninput="calcDsTotal()" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box"></div>'
       +'</div>'
     +'</div>'
-    // ── Footer ──
     +'<div style="display:flex;gap:8px;justify-content:flex-end">'
       +'<button id="disp-cancel-btn" style="padding:9px 20px;font-size:13px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer">إلغاء</button>'
       +'<button id="disp-submit" style="padding:9px 20px;font-size:13px;border:none;border-radius:8px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:700">✓ إنشاء التوزيع</button>'
