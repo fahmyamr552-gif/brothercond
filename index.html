@@ -1231,7 +1231,7 @@ async function loadTasks(resetPage){
 
 function sendWhatsApp(){
   if(!CT)return;
-  var phone=(CT.phone||'').replace(/[^0-9]/g,'');
+  var phone=(CT.phone||CT.cust?.phone||CT.customers?.phone||'').replace(/[^0-9]/g,'');
   if(!phone){toast('لا يوجد رقم هاتف للعميل',true);return;}
   // Format Egyptian numbers: 01x -> 201x
   if(phone.startsWith('0'))phone='2'+phone;
