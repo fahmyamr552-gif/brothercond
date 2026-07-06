@@ -2737,6 +2737,60 @@ function calcDsTotal(){
   return total;
 }
 
+
+function addDispItem(){
+  var parts=window._dispParts||[];
+  var container=document.getElementById('disp-items');
+  if(!container)return;
+  var rowId='disp-row-'+Date.now();
+  var listId='disp-list-'+Date.now();
+  var row=document.createElement('div');
+  row.id=rowId;
+  row.style.cssText='margin-bottom:8px;background:#f9f9f6;border:1px solid #eee;border-radius:8px;padding:8px 10px';
+  var opts=parts.map(function(p){
+    return '<option data-id="'+p.id+'" data-unit="'+p.unit+'" data-stock="'+p.qty+'" data-cost="'+p.cost+'" value="'+p.name+'">'+p.name+'</option>';
+  }).join('');
+  var dispType=document.querySelector('input[name="disp-type"]:checked')?.value||'عادي';
+  var showPrice=dispType==='بيع مباشر';
+  row.innerHTML=''
+    +'<datalist id="'+listId+'">'+opts+'</datalist>'
+    +'<div style="display:flex;align-items:center;gap:8px">'
+      +'<input list="'+listId+'" class="disp-part-inp" placeholder="ابحث عن قطعة..." autocomplete="off" style="flex:1;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box">'
+      +'<input type="hidden" class="disp-part-id">'
+      +'<input type="hidden" class="disp-part-unit">'
+      +'<input type="hidden" class="disp-part-cost">'
+      +'<input type="number" class="disp-qty-out" placeholder="الكمية" min="1" value="1" style="width:75px;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px;text-align:center">'
+      +'<input type="number" class="disp-price" placeholder="السعر" min="0" oninput="calcDsTotal()" style="width:80px;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px;text-align:center;display:'+(showPrice?'block':'none')+'">'
+      +'<div class="disp-unit-lbl" style="font-size:12px;color:#888;min-width:30px"></div>'
+      +'<button data-row="'+rowId+'" onclick="document.getElementById(this.dataset.row).remove();calcDsTotal();" style="border:none;background:none;color:#A32D2D;cursor:pointer;font-size:20px;padding:0;line-height:1">&#10005;</button>'
+    +'</div>'
+    +'<div class="disp-stock-info" style="font-size:11px;color:#888;margin-top:3px;padding-left:2px"></div>';
+  container.appendChild(row);
+  var inp=row.querySelector('.disp-part-inp');
+  var idInp=row.querySelector('.disp-part-id');
+  var unitInp=row.querySelector('.disp-part-unit');
+  var costInp=row.querySelector('.disp-part-cost');
+  var unitLbl=row.querySelector('.disp-unit-lbl');
+  var stockInfo=row.querySelector('.disp-stock-info');
+  var qtyInp=row.querySelector('.disp-qty-out');
+  inp.oninput=function(){
+    var val=this.value;
+    var part=parts.find(function(p){return p.name===val;});
+    if(part){
+      idInp.value=part.id;unitInp.value=part.unit;costInp.value=part.cost||0;
+      unitLbl.textContent=part.unit;
+      var avail=Math.max(0,(part.qty||0)-(part.custody_qty||0));
+      stockInfo.innerHTML='المخزون: <b style="color:'+(part.qty<=0?'#A32D2D':'#3B6D11')+'">'+part.qty+'</b> | المتاح: <b style="color:'+(avail<=0?'#A32D2D':'#1D9E75')+'">'+avail+'</b> '+part.unit;
+      inp.style.borderColor='#1D9E75';
+    }else{
+      idInp.value='';unitLbl.textContent='';stockInfo.textContent='';
+      inp.style.borderColor='#ddd';
+    }
+    calcDsTotal();
+  };
+  inp.focus();
+}
+
 async function reloadDispParts(warehouse){
   window._dispWarehouse=warehouse;
   var{data:parts}=await db.from('spare_parts').select('*').eq('warehouse',warehouse).order('name');
