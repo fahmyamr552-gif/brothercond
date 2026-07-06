@@ -1717,6 +1717,15 @@ function togglePF(){openPayModal();}
 async function confirmPay(id){
   var{error}=await db.from('payments').update({approved:true}).eq('id',id);
   if(error){toast('Error: '+error.message,true);return;}
+  // Recalculate pay_status based on all approved payments
+  var{data:allPays}=await db.from('payments').select('amount,approved').eq('task_id',CT.id);
+  var{data:prods}=await db.from('task_products').select('qty,price').eq('task_id',CT.id);
+  var totalAmt=(prods||[]).reduce(function(s,p){return s+p.qty*p.price;},0);
+  var paidAmt=(allPays||[]).filter(function(p){return p.approved!==false;}).reduce(function(s,p){return s+(p.amount||0);},0);
+  var newStatus='unpaid';
+  if(paidAmt>=totalAmt&&totalAmt>0)newStatus='paid';
+  else if(paidAmt>0)newStatus='downpayment';
+  await db.from('tasks').update({pay_status:newStatus}).eq('id',CT.id);
   toast('Payment confirmed!');
   openTask(CT.id);
 }
@@ -2691,12 +2700,30 @@ function onDispTypeChange(){
     else if(type==='مستهلك')note.textContent='مستهلك — يُخصم المخزون فوراً ويُسجل باسم الفني للمتابعة';
   }
   // Show/hide return note for عهدة
+  // Show price inputs for بيع مباشر
+  document.querySelectorAll('.disp-price').forEach(function(el){el.style.display=type==='بيع مباشر'?'':'none';});
   var submitBtn=document.getElementById('disp-submit');
   if(submitBtn){
     if(type==='مستهلك')submitBtn.textContent='✓ تأكيد الصرف (خصم فوري)';
     else if(type==='عهدة')submitBtn.textContent='✓ تسجيل العهدة';
     else submitBtn.textContent='✓ إنشاء التوزيع';
   }
+}
+
+
+function calcDsTotal(){
+  var rows=Array.from(document.querySelectorAll('#disp-items>div'));
+  var subtotal=0;
+  rows.forEach(function(row){
+    var qty=parseFloat(row.querySelector('.disp-qty-out')?.value||0);
+    var price=parseFloat(row.querySelector('.disp-price')?.value||0);
+    subtotal+=qty*price;
+  });
+  var useTax=document.getElementById('ds-tax')?.checked;
+  var total=useTax?subtotal*1.14:subtotal;
+  var el=document.getElementById('ds-total');
+  if(el)el.textContent='EGP '+total.toFixed(2);
+  return total;
 }
 
 async function reloadDispParts(warehouse){
@@ -2964,11 +2991,14 @@ var techOpts='<option value="">-- اختر الفني --</option>'+allTechs.map(
       +'<div></div>'
       +'<button id="disp-close" style="border:none;background:none;font-size:22px;cursor:pointer">&#10005;</button>'
     +'</div>'
-    +'<div style="margin-bottom:12px;padding:10px 14px;background:#f0f9ff;border:1px solid #b3d9f7;border-radius:8px">'  +'<div style="font-size:11px;font-weight:700;color:#185FA5;margin-bottom:8px">نوع الصرف</div>'  +'<div style="display:flex;gap:16px">'    +'<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;color:#333">'      +'<input type="radio" name="disp-type" value="عادي" checked onchange="onDispTypeChange()" style="accent-color:#1D9E75"> عادي'    +'</label>'    +'<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;color:#333">'      +'<input type="radio" name="disp-type" value="عهدة" onchange="onDispTypeChange()" style="accent-color:#854F0B"> عهدة مستديمة'    +'</label>'    +'<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;color:#333">'      +'<input type="radio" name="disp-type" value="مستهلك" onchange="onDispTypeChange()" style="accent-color:#A32D2D"> مستهلك'    +'</label>'  +'</div>'  +'<div id="disp-type-note" style="font-size:11px;color:#888;margin-top:6px"></div>'+'</div>'+'<div style="margin-bottom:12px;padding:10px 14px;background:#FFF8E1;border:1px solid #F5A623;border-radius:8px;display:flex;align-items:center;gap:10px">'  +'<span style="font-size:12px;font-weight:700;color:#7A5000">&#128197; المخزن:</span>'  +'<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;font-weight:600">'    +'<input type="radio" name="disp-wh" value="مخزن تجمع" checked onchange="reloadDispParts(this.value)" style="accent-color:#185FA5"> مخزن تجمع'  +'</label>'  +'<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;font-weight:600">'    +'<input type="radio" name="disp-wh" value="مخزن رئيسي" onchange="reloadDispParts(this.value)" style="accent-color:#1D9E75"> مخزن رئيسي'  +'</label>'+'</div>'+'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">'  +'<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">'+td('Technician *')+'</label><select id="disp-tech" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px">'+techOpts+'</select></div>'
+    +'<div style="margin-bottom:12px;padding:10px 14px;background:#f0f9ff;border:1px solid #b3d9f7;border-radius:8px">'  +'<div style="font-size:11px;font-weight:700;color:#185FA5;margin-bottom:8px">نوع الصرف</div>'  +'<div style="display:flex;gap:16px">'    +'<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;color:#333">'      +'<input type="radio" name="disp-type" value="عادي" checked onchange="onDispTypeChange()" style="accent-color:#1D9E75"> عادي'    +'</label>'    +'<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;color:#333">'      +'<input type="radio" name="disp-type" value="عهدة" onchange="onDispTypeChange()" style="accent-color:#854F0B"> عهدة مستديمة'    +'</label>'    +'<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;color:#333">'      +'<input type="radio" name="disp-type" value="مستهلك" onchange="onDispTypeChange()" style="accent-color:#A32D2D"> مستهلك'    +'</label>'
+    +'<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;color:#333">'
+      +'<input type="radio" name="disp-type" value="بيع مباشر" onchange="onDispTypeChange()" style="accent-color:#185FA5"> بيع مباشر'
+    +'</label>'    +'<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;color:#333">'      +'<input type="radio" name="disp-type" value="بيع مباشر" onchange="onDispTypeChange()" style="accent-color:#185FA5"> بيع مباشر'    +'</label>'  +'</div>'  +'<div id="disp-type-note" style="font-size:11px;color:#888;margin-top:6px"></div>'+'</div>'+'<div style="margin-bottom:12px;padding:10px 14px;background:#FFF8E1;border:1px solid #F5A623;border-radius:8px;display:flex;align-items:center;gap:10px">'  +'<span style="font-size:12px;font-weight:700;color:#7A5000">&#128197; المخزن:</span>'  +'<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;font-weight:600">'    +'<input type="radio" name="disp-wh" value="مخزن تجمع" checked onchange="reloadDispParts(this.value)" style="accent-color:#185FA5"> مخزن تجمع'  +'</label>'  +'<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;font-weight:600">'    +'<input type="radio" name="disp-wh" value="مخزن رئيسي" onchange="reloadDispParts(this.value)" style="accent-color:#1D9E75"> مخزن رئيسي'  +'</label>'+'</div>'+'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">'  +'<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">'+td('Technician *')+'</label><select id="disp-tech" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px">'+techOpts+'</select></div>'
       +'<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">'+td('Date')+'</label><input type="date" id="disp-date" value="'+new Date().toISOString().slice(0,10)+'" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div>'
     +'</div>'
     +'<div style="margin-bottom:14px"><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">'+td('Notes (optional)')+'</label><input id="disp-notes" placeholder="e.g. Morning dispatch for 3 jobs" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div>'
-    +'<div style="margin-bottom:6px;display:flex;justify-content:space-between;align-items:center"><div style="font-size:13px;font-weight:700">'+td('Parts dispatched')+'</div>'
+    +'<div id="direct-sale-section" style="display:none;background:#f0f9ff;border:1px solid #b3d9f7;border-radius:8px;padding:12px;margin-bottom:12px">'  +'<div style="font-size:12px;font-weight:700;color:#185FA5;margin-bottom:10px">بيانات العميل</div>'  +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">'    +'<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">الاسم *</label><input id="ds-cust-name" placeholder="اسم العميل" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div>'    +'<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">الهاتف</label><input id="ds-cust-phone" placeholder="01xxxxxxxxx" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div>'  +'</div>'  +'<div style="margin-bottom:10px"><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">العنوان</label><input id="ds-cust-addr" placeholder="العنوان" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div>'  +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">'    +'<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">طريقة الدفع</label>'      +'<select id="ds-pay-method" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px"><option>كاش</option><option>فيزا</option><option>إنستاباي</option><option>تحويل بنكي</option></select></div>'    +'<div style="display:flex;align-items:center;gap:8px;margin-top:16px">'      +'<label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer"><input type="checkbox" id="ds-tax" onchange="calcDsTotal()"> ضريبة 14%</label>'    +'</div>'  +'</div>'  +'<div style="background:#fff;border-radius:6px;padding:8px 12px;text-align:right;font-size:15px;font-weight:700;color:#1D9E75">الإجمالي: <span id="ds-total">EGP 0</span></div>'+'</div>'+'<div style="margin-bottom:6px;display:flex;justify-content:space-between;align-items:center"><div style="font-size:13px;font-weight:700">'+td('Parts dispatched')+'</div>'
     +'<button onclick="addDispItem()" style="font-size:12px;padding:5px 12px;border:1px solid #1D9E75;border-radius:6px;background:#EAF3DE;color:#1D9E75;cursor:pointer;font-weight:600">'+td('+ Add part')+'</button>'
     +'</div>'
     +'<div style="margin-bottom:8px;padding:8px 10px;background:#FFF8E1;border:1px solid #f5c842;border-radius:8px;display:flex;align-items:center;gap:8px">'
@@ -2993,6 +3023,20 @@ var techOpts='<option value="">-- اختر الفني --</option>'+allTechs.map(
   addDispItem();
 }
 
+
+function calcDsTotal(){
+  var rows=Array.from(document.querySelectorAll('#disp-items>div'));
+  var subtotal=rows.reduce(function(s,row){
+    var qty=parseFloat(row.querySelector('.disp-qty-out')?.value||0);
+    var price=parseFloat(row.querySelector('.disp-price-inp')?.value||0);
+    return s+qty*price;
+  },0);
+  var useTax=document.getElementById('ds-tax')?.checked;
+  var total=useTax?subtotal*1.14:subtotal;
+  var el=document.getElementById('ds-total');
+  if(el)el.textContent='EGP '+Math.round(total).toLocaleString();
+}
+
 function addDispItem(){
   var parts=window._dispParts||[];
   var container=document.getElementById('disp-items');
@@ -3006,7 +3050,7 @@ function addDispItem(){
   var opts=parts.map(function(p){return '<option data-id="'+p.id+'" data-unit="'+p.unit+'" data-stock="'+p.qty+'" data-cost="'+p.cost+'" value="'+p.name+'">'+p.name+' | Stock: '+p.qty+' '+p.unit+'</option>';}).join('');
   row.innerHTML=''
     +'<datalist id="'+listId+'">'+opts+'</datalist>'
-    +'<div style="display:grid;grid-template-columns:1fr 80px 60px 30px;gap:8px;align-items:center">'
+    +'<div class="disp-row-grid" style="display:grid;grid-template-columns:1fr 80px 60px 60px 30px;gap:8px;align-items:center">'
       +'<div style="position:relative">'
         +'<input list="'+listId+'" class="disp-part-inp" placeholder="ابحث عن قطعة..." autocomplete="off" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box">'
         +'<input type="hidden" class="disp-part-id">'
@@ -3014,7 +3058,7 @@ function addDispItem(){
         +'<input type="hidden" class="disp-part-cost">'
       +'</div>'
       +'<input type="number" class="disp-qty-out" placeholder="الكمية" min="1" value="1" style="padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px;text-align:center">'
-      +'<div class="disp-unit-lbl" style="font-size:12px;color:#888;text-align:center"></div>'
+      +'<input type="number" class="disp-price-inp" placeholder="السعر" min="0" value="0" oninput="calcDsTotal()" style="padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px;text-align:center;display:none">'+'<input type="number" class="disp-price" placeholder="سعر" min="0" oninput="calcDsTotal()" style="padding:7px;border:1px solid #ddd;border-radius:7px;font-size:12px;display:none">'      +'<div class="disp-unit-lbl" style="font-size:12px;color:#888;text-align:center"></div>'
       +'<button data-row="'+rowId+'" onclick="document.getElementById(this.dataset.row).remove()" style="border:none;background:none;color:#A32D2D;cursor:pointer;font-size:20px;padding:0;line-height:1">&#10005;</button>'
     +'</div>'
     +'<div class="disp-stock-info" style="font-size:11px;color:#888;margin-top:4px;padding-left:2px"></div>';
@@ -3071,7 +3115,8 @@ async function saveNewDispatch(){
     var unit=row.querySelector('.disp-part-unit')?.value||'';
     var cost=parseFloat(row.querySelector('.disp-part-cost')?.value||0);
     var qty=parseFloat(row.querySelector('.disp-qty-out')?.value||0);
-    return{part_id:partId,part_name:partName.split(' | ')[0].trim(),unit:unit,qty_out:qty,qty_returned:0,cost_per_unit:cost};
+    var price=parseFloat(row.querySelector('.disp-price-inp')?.value||0);
+    return{part_id:partId,part_name:partName.split(' | ')[0].trim(),unit:unit,qty_out:qty,qty_returned:0,cost_per_unit:cost,unit_price:price};
   }).filter(function(i){return i.qty_out>0&&i.part_id;});
   if(!items.length){toast('أضف قطعة بكمية',true);return;}
   var btn=document.getElementById('disp-submit');
@@ -3107,12 +3152,160 @@ async function saveNewDispatch(){
     }
     await db.from('dispatches').update({status:'confirmed'}).eq('id',disp.id);
     toast('✅ تم تسجيل العهدة');
+  } else if(dispType==='بيع مباشر'){
+    // Direct sale - create customer, task, product records, payment
+    var custName=document.getElementById('ds-cust-name')?.value.trim()||'';
+    var custPhone=document.getElementById('ds-cust-phone')?.value.trim()||'';
+    var custAddr=document.getElementById('ds-cust-addr')?.value.trim()||'';
+    var payMethod=document.getElementById('ds-pay-method')?.value||'كاش';
+    var useTax=document.getElementById('ds-tax')?.checked||false;
+    if(!custName){toast('أدخل اسم العميل',true);if(btn)btn.disabled=false;return;}
+    // Find or create customer
+    var custId=null;
+    var{data:existCust}=await db.from('customers').select('id').eq('phone',custPhone).limit(1).single().catch(function(){return{data:null};});
+    if(existCust){custId=existCust.id;}
+    else{
+      var{data:newCust}=await db.from('customers').insert({full_name:custName,phone:custPhone,address:custAddr}).select().single();
+      if(newCust)custId=newCust.id;
+    }
+    // Get next task number
+    var{data:lastTask2}=await db.from('tasks').select('task_num').order('created_at',{ascending:false}).limit(1).single().catch(function(){return{data:null};});
+    var lastN2=lastTask2?parseInt((lastTask2.task_num||'0').replace(/[^0-9]/g,''))||0:0;
+    var taskNum2='#'+String(lastN2+1).padStart(5,'0');
+    // Calculate total
+    var subtotal2=items.reduce(function(s,it){return s+(it.qty_out||0)*(it.unit_price||0);},0);
+    var grandTotal2=useTax?Math.round(subtotal2*1.14):subtotal2;
+    // Create task
+    var{data:saleTask,error:stErr}=await db.from('tasks').insert({
+      task_num:taskNum2,customer_id:custId,customer_name:custName,
+      type:'بيع مباشر',branch:CU.branch||'Head Office',
+      salesperson:CU.full_name||CU.username,date:date,
+      status:'completed',pay_status:'unpaid',use_tax:useTax,
+      created_by:CU.full_name||CU.username,
+      description:'بيع مباشر من المخزن'
+    }).select().single();
+    if(stErr||!saleTask){toast('خطأ في إنشاء الطلب',true);if(btn)btn.disabled=false;return;}
+    // Add task products
+    var tProds=items.map(function(it){return{task_id:saleTask.id,name:it.part_name,qty:it.qty_out,price:it.unit_price||0};});
+    if(tProds.length)await db.from('task_products').insert(tProds);
+    // Record payment as pending approval
+    var needsApproval=!(can('delete')||can('delete_payment'));
+    await db.from('payments').insert({task_id:saleTask.id,amount:grandTotal2,method:payMethod,note:'بيع مباشر - '+warehouse,approved:!needsApproval});
+    // Deduct stock
+    for(var i=0;i<items.length;i++){
+      var it=items[i];
+      var{data:sp2}=await db.from('spare_parts').select('qty').eq('id',it.part_id).single();
+      if(sp2)await db.from('spare_parts').update({qty:Math.max(0,(sp2.qty||0)-it.qty_out)}).eq('id',it.part_id);
+    }
+    await db.from('dispatches').update({status:'confirmed'}).eq('id',disp.id);
+    toast('✅ تم إنشاء البيع المباشر - طلب '+taskNum2+' | الإجمالي: EGP '+grandTotal2.toLocaleString());
+  } else if(dispType==='بيع مباشر'){
+    var custName=document.getElementById('ds-cust-name')?.value.trim()||'';
+    var custPhone=document.getElementById('ds-cust-phone')?.value.trim()||'';
+    var custAddr=document.getElementById('ds-cust-addr')?.value.trim()||'';
+    var payMethod=document.getElementById('ds-pay-method')?.value||'كاش';
+    var useTax=document.getElementById('ds-tax')?.checked||false;
+    if(!custName){toast('أدخل اسم العميل',true);if(btn){btn.disabled=false;}return;}
+    var custId=null;
+    if(custPhone){
+      var cr=await db.from('customers').select('id').eq('phone',custPhone).limit(1);
+      if(cr.data&&cr.data.length)custId=cr.data[0].id;
+    }
+    if(!custId){
+      var nc=await db.from('customers').insert({full_name:custName,phone:custPhone,address:custAddr}).select().single();
+      if(nc.data)custId=nc.data.id;
+    }
+    var lt=await db.from('tasks').select('task_num').order('created_at',{ascending:false}).limit(1).single();
+    var lastN=lt.data?parseInt((lt.data.task_num||'0').replace(/[^0-9]/g,''))||0:0;
+    var taskNum='#'+String(lastN+1).padStart(5,'0');
+    var subtotal=items.reduce(function(s,it){return s+(it.qty_out||0)*(it.unit_price||0);},0);
+    var grandTotal=useTax?Math.round(subtotal*1.14):subtotal;
+    var st=await db.from('tasks').insert({
+      task_num:taskNum,customer_id:custId,customer_name:custName,
+      type:'بيع مباشر',branch:CU.branch||'Head Office',
+      salesperson:CU.full_name||CU.username,date:date,
+      status:'completed',pay_status:'unpaid',use_tax:useTax,
+      created_by:CU.full_name||CU.username,description:'بيع مباشر من المخزن - '+warehouse
+    }).select().single();
+    if(st.error||!st.data){toast('خطأ في إنشاء الطلب: '+(st.error?.message||''),true);if(btn){btn.disabled=false;}return;}
+    var tProds=items.map(function(it){return{task_id:st.data.id,name:it.part_name,qty:it.qty_out,price:it.unit_price||0};});
+    if(tProds.length)await db.from('task_products').insert(tProds);
+    var needsApproval=!(can('delete')||can('delete_payment'));
+    if(grandTotal>0)await db.from('payments').insert({task_id:st.data.id,amount:grandTotal,method:payMethod,note:'بيع مباشر',approved:!needsApproval});
+    for(var i=0;i<items.length;i++){
+      var it2=items[i];
+      var sp2=await db.from('spare_parts').select('qty').eq('id',it2.part_id).single();
+      if(sp2.data)await db.from('spare_parts').update({qty:Math.max(0,(sp2.data.qty||0)-it2.qty_out)}).eq('id',it2.part_id);
+    }
+    await db.from('dispatches').update({status:'confirmed'}).eq('id',disp.id);
+    toast('✅ طلب '+taskNum+' | إجمالي: EGP '+grandTotal.toLocaleString());
+  } else if(dispType==='بيع مباشر'){
+    // Direct sale: create customer + task + payment, deduct stock
+    var custName=document.getElementById('ds-cust-name')?.value.trim();
+    var custPhone=document.getElementById('ds-cust-phone')?.value.trim();
+    var custAddr=document.getElementById('ds-cust-addr')?.value.trim();
+    var payMethod=document.getElementById('ds-pay-method')?.value||'كاش';
+    var paidAmt=parseFloat(document.getElementById('ds-paid')?.value)||0;
+    var useTax=document.getElementById('ds-tax')?.checked||false;
+    if(!custName){toast('أدخل اسم العميل',true);if(btn)btn.disabled=false;return;}
+    // Calculate total
+    var subtotal=items.reduce(function(s,it){
+      var row=Array.from(document.querySelectorAll('#disp-items>div')).find(function(r){return r.querySelector('.disp-part-id')?.value===it.part_id;});
+      var price=parseFloat(row?.querySelector('.disp-price')?.value||0);
+      return s+it.qty_out*price;
+    },0);
+    var total=useTax?subtotal*1.14:subtotal;
+    // 1. Create or find customer
+    var{data:existCust}=await db.from('customers').select('id').eq('phone',custPhone).single();
+    var custId;
+    if(existCust){custId=existCust.id;}
+    else{
+      var{data:newCust}=await db.from('customers').insert({full_name:custName,phone:custPhone,address:custAddr}).select().single();
+      custId=newCust?.id;
+    }
+    // 2. Get next task number
+    var{data:lastTask}=await db.from('tasks').select('task_num').order('created_at',{ascending:false}).limit(1).single();
+    var lastNum=lastTask?parseInt((lastTask.task_num||'#00000').replace('#',''))||0:0;
+    var newTaskNum='#'+String(lastNum+1).padStart(5,'0');
+    // 3. Create task
+    var{data:newTask}=await db.from('tasks').insert({
+      task_num:newTaskNum,customer_id:custId,customer_name:custName,
+      type:'بيع مباشر',branch:'Head Office',
+      salesperson:CU.full_name||CU.username,
+      date:date,status:'completed',pay_status:paidAmt>=total&&total>0?'paid':paidAmt>0?'downpayment':'unpaid',
+      use_tax:useTax,created_by:CU.full_name||CU.username
+    }).select().single();
+    // 4. Create task_products
+    var taskProds=items.map(function(it){
+      var row=Array.from(document.querySelectorAll('#disp-items>div')).find(function(r){return r.querySelector('.disp-part-id')?.value===it.part_id;});
+      var price=parseFloat(row?.querySelector('.disp-price')?.value||0);
+      return{task_id:newTask.id,name:it.part_name,qty:it.qty_out,price:price};
+    });
+    if(taskProds.length)await db.from('task_products').insert(taskProds);
+    // 5. Deduct stock immediately
+    for(var i=0;i<items.length;i++){
+      var it=items[i];
+      var{data:sp}=await db.from('spare_parts').select('qty').eq('id',it.part_id).single();
+      if(sp)await db.from('spare_parts').update({qty:Math.max(0,(sp.qty||0)-it.qty_out)}).eq('id',it.part_id);
+    }
+    // 6. Record payment (pending approval)
+    if(paidAmt>0){
+      await db.from('payments').insert({task_id:newTask.id,amount:paidAmt,method:payMethod,date:date,approved:false,notes:'بيع مباشر - '+custName});
+    }
+    // 7. Mark dispatch confirmed
+    await db.from('dispatches').update({status:'confirmed'}).eq('id',disp.id);
+    toast('✅ تم إنشاء البيع '+newTaskNum+' للعميل '+custName);
+    document.querySelectorAll('.disp-overlay').forEach(function(e){e.remove();});
+    loadDispatches();
+    return;
   } else {
     toast('✅ تم إنشاء التوزيع');
   }
-  document.getElementById('disp-modal')?.remove();
-  document.querySelectorAll('.disp-overlay').forEach(function(e){e.remove();});
-  loadDispatches();
+  if(dispType!=='بيع مباشر'){
+    document.getElementById('disp-modal')?.remove();
+    document.querySelectorAll('.disp-overlay').forEach(function(e){e.remove();});
+    loadDispatches();
+  }
 }
 
 
