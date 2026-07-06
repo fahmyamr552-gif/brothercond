@@ -484,6 +484,23 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
       <div class="fg"><label data-t="branch">Branch</label><select id="ntbr"><option>Nasr City</option><option>Madinaty</option><option>Rehab</option><option>Head Office</option></select></div>
       <div class="fg"><label>Salesperson</label><select id="ntsp"><option>Salah</option><option>Alaa</option><option>Ayman</option><option>Heba</option><option>Amr Ashraf</option></select></div>
       <div class="fg"><label data-t="taskdate">Task date <span style="color:#A32D2D">*</span></label><input type="date" id="ntdate" onchange="if(scid)checkDupTask(scid,'')"></div>
+      <div class="fg"><label>الوقت</label>
+        <select id="nttime" style="width:100%">
+          <option value="">-- بدون وقت --</option>
+          <option value="8:00 - 9:00">8:00 - 9:00 ص</option>
+          <option value="9:00 - 10:00">9:00 - 10:00 ص</option>
+          <option value="10:00 - 11:00">10:00 - 11:00 ص</option>
+          <option value="11:00 - 12:00">11:00 - 12:00 ص</option>
+          <option value="12:00 - 1:00">12:00 - 1:00 م</option>
+          <option value="1:00 - 2:00">1:00 - 2:00 م</option>
+          <option value="2:00 - 3:00">2:00 - 3:00 م</option>
+          <option value="3:00 - 4:00">3:00 - 4:00 م</option>
+          <option value="4:00 - 5:00">4:00 - 5:00 م</option>
+          <option value="5:00 - 6:00">5:00 - 6:00 م</option>
+          <option value="6:00 - 7:00">6:00 - 7:00 م</option>
+          <option value="7:00 - 8:00">7:00 - 8:00 م</option>
+        </select>
+      </div>
     </div>
     <div class="fg"><label data-t="description">Description</label><textarea id="ntds" placeholder="Special instructions..."></textarea></div>
   </div>
@@ -824,23 +841,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     </div>
     <div class="r2">
       <div class="fg"><label data-t="fullname">Full name</label><input id="nunm" placeholder="Full name"></div>
-      <div class="fg"><label data-t="role">Role</label><select id="nurol"><option value="finance">Finance</option><option value="inventory_manager">Inventory Manager</option><option value="admin" data-t="admin">Office admin</option><option value="salesperson" data-t="salesrole">Salesperson</option><option value="technician" data-t="technician">Technician</option></select></div>
-    </div>
-    <div class="fg" style="margin-bottom:10px"><label data-t="branch">Branch</label><select id="nubr"><option>Nasr City</option><option>Madinaty</option><option>Rehab</option><option>Head Office</option></select></div>
-    <div style="display:flex;gap:8px;justify-content:flex-end">
-      <button class="btn bs" onclick="document.getElementById('auf').style.display='none'" data-t="cancel">Cancel</button>
-      <button class="btn bs bp" onclick="saveUsr()">&#10003; <span data-t="newuser">Create user</span></button>
-    </div>
-  </div>
-</div>
-
-</div>
-</div>
-</div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script>
+      <div class="fg"><label data-t="role">Role</label><select id="nurol"><option value="finance">Finance</option><option value="inventory_manager">Inventor
 let LANG='en';
 function t(k){
   const T2=window.T||{};
@@ -1211,6 +1212,37 @@ async function loadTasks(resetPage){
   }catch(e){console.error('loadTasks error:',e);}
 }
 
+
+
+function sendWhatsApp(){
+  if(!CT)return;
+  var phone=(CT.phone||'').replace(/[^0-9]/g,'');
+  if(!phone){toast('لا يوجد رقم هاتف للعميل',true);return;}
+  // Format Egyptian numbers: 01x -> 201x
+  if(phone.startsWith('0'))phone='2'+phone;
+  else if(!phone.startsWith('20'))phone='20'+phone;
+  // Build message
+  var prods=(CT.prods||[]).map(function(p){
+    return '• '+p.name+' × '+p.qty+' — EGP '+f(p.price*p.qty);
+  }).join('\n');
+  var payStatus={paid:'مدفوع بالكامل ✅',downpayment:'دفعة مقدمة ⚠️',unpaid:'غير مدفوع ❌'}[CT.pay_status]||CT.pay_status;
+  var total=(CT.prods||[]).reduce(function(s,p){return s+p.qty*p.price;},0);
+  var taxLine=CT.use_tax?'\nضريبة 14%: EGP '+f(total-total/1.14):'';
+  var msg=''
+    +'مرحباً '+CT.customer_name+' 👋\n\n'
+    +'تأكيد طلبك مع BrotherCond للتكييف\n\n'
+    +'رقم الطلب: '+CT.task_num+'\n'
+    +'النوع: '+CT.type+'\n'
+    +'التاريخ: '+CT.date+'\n\n'
+    +'المنتجات:\n'+prods+'\n\n'
+    +'الإجمالي: EGP '+f(total)
+    +taxLine+'\n'
+    +'حالة الدفع: '+payStatus+'\n\n'
+    +'شكراً لثقتكم 🙏\n'
+    +'BrotherCond Air Conditioning';
+  var url='https://wa.me/'+phone+'?text='+encodeURIComponent(msg);
+  window.open(url,'_blank');
+}
 
 async function openTask(id){
   try{
@@ -4394,6 +4426,26 @@ function recalcAllRows(){
   var useTax=document.getElementById('tax-toggle')?.checked===true;
   document.querySelectorAll('.th-before').forEach(function(th){th.style.display=useTax?'':'none';});
   var thTotal=document.querySelector('.th-total');
+  if(thTotal)thTotal.textContent=useTax?'Total (14%)':'Total';
+  document.querySelectorAll('#ntb tr').forEach(function(tr){
+    var ptTd=tr.querySelector('.pt')?tr.querySelector('.pt').closest('td'):null;
+    if(ptTd)ptTd.style.display=useTax?'':'none';
+    var priceInp=tr.querySelector('td:nth-child(3) input');
+    if(priceInp)calcR(priceInp);
+  });
+  ntRec();
+}
+
+function clrC(){
+  scid=null;
+  var sct=document.getElementById('sct');if(sct)sct.style.display='none';
+  var cqi=document.getElementById('cqi');if(cqi)cqi.value='';
+  var inner=document.getElementById('nt-addr-block-inner');if(inner)inner.innerHTML='';
+  var taddr=document.getElementById('nt-task-address');if(taddr)taddr.value='';
+  var addrBlock=document.getElementById('nt-addr-block');if(addrBlock)addrBlock.style.display='none';
+  var dupWarn=document.getElementById('nt-dup-warn');if(dupWarn)dupWarn.style.display='none';
+}
+tor('.th-total');
   if(thTotal)thTotal.textContent=useTax?'Total (14%)':'Total';
   document.querySelectorAll('#ntb tr').forEach(function(tr){
     var ptTd=tr.querySelector('.pt')?tr.querySelector('.pt').closest('td'):null;
