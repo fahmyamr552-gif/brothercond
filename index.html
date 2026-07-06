@@ -2982,144 +2982,107 @@ function applyKit(kitIndex){
 }
 
 async function openNewDispatch(){
-  // Get technicians from users
   var{data:techs}=await db.from('employees').select('full_name').eq('position','فني').eq('active',true).order('full_name');
-  // Default warehouse is مخزن تجمع
   var selWh='مخزن تجمع';
   var{data:parts}=await db.from('spare_parts').select('*').eq('warehouse',selWh).order('name');
   window._dispParts=parts||[];window._dispWarehouse=selWh;
-  techs=techs||[];parts=parts||[];
-  // Add fixed technicians + users with technician role
-var allTechs=(techs||[]).map(function(t){return t.full_name;}).filter(Boolean);
-var techOpts='<option value="">-- اختر الفني --</option>'+allTechs.map(function(n){return '<option value="'+n+'">'+n+'</option>';}).join('');
-  var overlay=document.createElement('div');
-  overlay.id='disp-modal';
-  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9000;display:flex;align-items:center;justify-content:center';
-  overlay.innerHTML='<div style="background:#fff;border-radius:14px;padding:24px;width:640px;max-width:95vw;max-height:92vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.25)">'
-    +'<div style="padding:20px 24px;border-bottom:1px solid #e0ddd8"><div style="font-size:17px;font-weight:700">'+td('New Dispatch Session')+'</div></div>'
-    +'<div style="padding:20px 24px;overflow-y:auto;flex:1">'
-    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0">'
-      +'<div></div>'
-      +'<button id="disp-close" style="border:none;background:none;font-size:22px;cursor:pointer">&#10005;</button>'
+  var allTechs=(techs||[]).map(function(t){return t.full_name;}).filter(Boolean);
+  var techOpts='<option value="">-- اختر الفني --</option>'+allTechs.map(function(n){return '<option value="'+n+'">'+n+'</option>';}).join('');
+  var today=new Date().toISOString().split('T')[0];
+  document.querySelectorAll('.disp-overlay,.disp-modal-ov').forEach(function(e){e.remove();});
+  var ov=document.createElement('div');
+  ov.className='disp-overlay';
+  ov.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9000;display:flex;align-items:flex-start;justify-content:center;padding:20px;box-sizing:border-box;overflow-y:auto';
+  var kitOpts=INSTALL_KITS.map(function(k,i){return '<option value="'+i+'">'+k.name+'</option>';}).join('');
+  ov.innerHTML='<div style="background:#fff;border-radius:14px;padding:24px;width:640px;max-width:95vw;margin:auto;box-shadow:0 10px 40px rgba(0,0,0,.25)">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">'
+      +'<div style="font-size:17px;font-weight:700">جلسة توزيع جديدة</div>'
+      +'<button id="disp-close" style="border:none;background:none;font-size:22px;cursor:pointer;color:#aaa">&#10005;</button>'
     +'</div>'
-    +'<div style="margin-bottom:12px;padding:10px 14px;background:#f0f9ff;border:1px solid #b3d9f7;border-radius:8px">'  +'<div style="font-size:11px;font-weight:700;color:#185FA5;margin-bottom:8px">نوع الصرف</div>'  +'<div style="display:flex;gap:16px">'    +'<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;color:#333">'      +'<input type="radio" name="disp-type" value="عادي" checked onchange="onDispTypeChange()" style="accent-color:#1D9E75"> عادي'    +'</label>'    +'<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;color:#333">'      +'<input type="radio" name="disp-type" value="عهدة" onchange="onDispTypeChange()" style="accent-color:#854F0B"> عهدة مستديمة'    +'</label>'    +'<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;color:#333">'      +'<input type="radio" name="disp-type" value="مستهلك" onchange="onDispTypeChange()" style="accent-color:#A32D2D"> مستهلك'    +'</label>'
-    +'<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;color:#333">'
-      +'<input type="radio" name="disp-type" value="بيع مباشر" onchange="onDispTypeChange()" style="accent-color:#185FA5"> بيع مباشر'
-    +'</label>'    +'<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;color:#333">'      +'<input type="radio" name="disp-type" value="بيع مباشر" onchange="onDispTypeChange()" style="accent-color:#185FA5"> بيع مباشر'    +'</label>'  +'</div>'  +'<div id="disp-type-note" style="font-size:11px;color:#888;margin-top:6px"></div>'+'</div>'+'<div style="margin-bottom:12px;padding:10px 14px;background:#FFF8E1;border:1px solid #F5A623;border-radius:8px;display:flex;align-items:center;gap:10px">'  +'<span style="font-size:12px;font-weight:700;color:#7A5000">&#128197; المخزن:</span>'  +'<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;font-weight:600">'    +'<input type="radio" name="disp-wh" value="مخزن تجمع" checked onchange="reloadDispParts(this.value)" style="accent-color:#185FA5"> مخزن تجمع'  +'</label>'  +'<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;font-weight:600">'    +'<input type="radio" name="disp-wh" value="مخزن رئيسي" onchange="reloadDispParts(this.value)" style="accent-color:#1D9E75"> مخزن رئيسي'  +'</label>'+'</div>'+'<div id="disp-cust-section" style="display:none;background:#f0f9ff;border:1px solid #b3d9f7;border-radius:8px;padding:12px;margin-bottom:12px">'  +'<div style="font-size:11px;font-weight:700;color:#185FA5;margin-bottom:8px">بيانات العميل</div>'  +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">'    +'<div><label style="font-size:10px;color:#888;display:block;margin-bottom:3px">اسم العميل *</label>'      +'<input id="ds-cust-name" placeholder="الاسم" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box"></div>'    +'<div><label style="font-size:10px;color:#888;display:block;margin-bottom:3px">الهاتف</label>'      +'<input id="ds-cust-phone" placeholder="01xxxxxxxxx" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box"></div>'    +'<div><label style="font-size:10px;color:#888;display:block;margin-bottom:3px">العنوان</label>'      +'<input id="ds-cust-addr" placeholder="العنوان" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box"></div>'  +'</div>'+'</div>'+'<div id="disp-tech-section">'+'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">'  +'<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">'+td('Technician *')+'</label><select id="disp-tech" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px">'+techOpts+'</select></div>'
-      +'<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">'+td('Date')+'</label><input type="date" id="disp-date" value="'+new Date().toISOString().slice(0,10)+'" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div>'
+    // ── Type selector ──
+    +'<div style="margin-bottom:12px;padding:10px 14px;background:#f0f9ff;border:1px solid #b3d9f7;border-radius:8px">'
+      +'<div style="font-size:11px;font-weight:700;color:#185FA5;margin-bottom:8px">نوع الصرف</div>'
+      +'<div style="display:flex;gap:16px;flex-wrap:wrap">'
+        +'<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600"><input type="radio" name="disp-type" value="عادي" checked onchange="onDispTypeChange()"> عادي</label>'
+        +'<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600"><input type="radio" name="disp-type" value="عهدة" onchange="onDispTypeChange()"> عهدة مستديمة</label>'
+        +'<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600"><input type="radio" name="disp-type" value="مستهلك" onchange="onDispTypeChange()"> مستهلك</label>'
+        +'<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600"><input type="radio" name="disp-type" value="بيع مباشر" onchange="onDispTypeChange()"> بيع مباشر</label>'
+      +'</div>'
+      +'<div id="disp-type-note" style="font-size:11px;color:#888;margin-top:6px"></div>'
     +'</div>'
-    +'<div style="margin-bottom:14px"><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">'+td('Notes (optional)')+'</label><input id="disp-notes" placeholder="e.g. Morning dispatch for 3 jobs" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div>'
-    +'<div id="direct-sale-section" style="display:none;background:#f0f9ff;border:1px solid #b3d9f7;border-radius:8px;padding:12px;margin-bottom:12px">'  +'<div style="font-size:12px;font-weight:700;color:#185FA5;margin-bottom:10px">بيانات العميل</div>'  +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">'    +'<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">الاسم *</label><input id="ds-cust-name" placeholder="اسم العميل" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div>'    +'<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">الهاتف</label><input id="ds-cust-phone" placeholder="01xxxxxxxxx" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div>'  +'</div>'  +'<div style="margin-bottom:10px"><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">العنوان</label><input id="ds-cust-addr" placeholder="العنوان" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div>'  +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">'    +'<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">طريقة الدفع</label>'      +'<select id="ds-pay-method" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px"><option>كاش</option><option>فيزا</option><option>إنستاباي</option><option>تحويل بنكي</option></select></div>'    +'<div style="display:flex;align-items:center;gap:8px;margin-top:16px">'      +'<label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer"><input type="checkbox" id="ds-tax" onchange="calcDsTotal()"> ضريبة 14%</label>'    +'</div>'  +'</div>'  +'<div style="background:#fff;border-radius:6px;padding:8px 12px;text-align:right;font-size:15px;font-weight:700;color:#1D9E75">الإجمالي: <span id="ds-total">EGP 0</span></div>'+'</div>'+'<div style="margin-bottom:6px;display:flex;justify-content:space-between;align-items:center"><div style="font-size:13px;font-weight:700">'+td('Parts dispatched')+'</div>'
-    +'<button onclick="addDispItem()" style="font-size:12px;padding:5px 12px;border:1px solid #1D9E75;border-radius:6px;background:#EAF3DE;color:#1D9E75;cursor:pointer;font-weight:600">'+td('+ Add part')+'</button>'
+    // ── Warehouse selector ──
+    +'<div style="margin-bottom:12px;padding:10px 14px;background:#FFF8E1;border:1px solid #F5A623;border-radius:8px;display:flex;align-items:center;gap:12px">'
+      +'<span style="font-size:12px;font-weight:700;color:#7A5000">المخزن:</span>'
+      +'<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;font-weight:600"><input type="radio" name="disp-wh" value="مخزن تجمع" checked onchange="reloadDispParts(this.value)"> مخزن تجمع</label>'
+      +'<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;font-weight:600"><input type="radio" name="disp-wh" value="مخزن رئيسي" onchange="reloadDispParts(this.value)"> مخزن رئيسي</label>'
     +'</div>'
-    +'<div style="margin-bottom:8px;padding:8px 10px;background:#FFF8E1;border:1px solid #f5c842;border-radius:8px;display:flex;align-items:center;gap:8px">'
-      +'<span style="font-size:11px;font-weight:700;color:#854F0B">&#9889; Quick kit:</span>'
-      +'<select id="kit-sel" style="flex:1;font-size:12px;padding:5px 8px;border:1px solid #f5c842;border-radius:6px;background:#fff;color:#333">'
-        +'<option value="">-- Select a kit --</option>'
-        +INSTALL_KITS.map(function(k,i){return '<option value="'+i+'">'+k.name+'</option>';}).join('')
-      +'</select>'
-      +'<button onclick="var s=document.getElementById(\'kit-sel\');if(s&&s.value!==\'\')applyKit(parseInt(s.value))" style="font-size:12px;padding:5px 14px;border:none;border-radius:6px;background:#854F0B;color:#fff;cursor:pointer;font-weight:600">Apply</button>'
+    // ── Customer section (بيع مباشر only) ──
+    +'<div id="disp-cust-section" style="display:none;background:#f0f9ff;border:1px solid #b3d9f7;border-radius:8px;padding:12px;margin-bottom:12px">'
+      +'<div style="font-size:11px;font-weight:700;color:#185FA5;margin-bottom:8px">بيانات العميل</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">'
+        +'<div><label style="font-size:10px;color:#888;display:block;margin-bottom:3px">اسم العميل *</label>'
+          +'<input id="ds-cust-name" placeholder="الاسم" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box"></div>'
+        +'<div><label style="font-size:10px;color:#888;display:block;margin-bottom:3px">الهاتف</label>'
+          +'<input id="ds-cust-phone" placeholder="01xxxxxxxxx" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box"></div>'
+        +'<div><label style="font-size:10px;color:#888;display:block;margin-bottom:3px">العنوان</label>'
+          +'<input id="ds-cust-addr" placeholder="العنوان" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box"></div>'
+      +'</div>'
     +'</div>'
-    +'<div id="disp-items" style="margin-bottom:16px"></div>'
-    +'<div id="disp-price-section" style="display:none;margin-bottom:12px;background:#f9f9f6;border:1px solid #eee;border-radius:8px;padding:12px">'
+    // ── Technician section (hidden for بيع مباشر) ──
+    +'<div id="disp-tech-section">'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">'
+        +'<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">الفني *</label>'
+          +'<select id="disp-tech" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px">'+techOpts+'</select></div>'
+        +'<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">التاريخ</label>'
+          +'<input type="date" id="disp-date" value="'+today+'" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px"></div>'
+      +'</div>'
+      +'<div style="margin-bottom:12px"><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">ملاحظات (اختياري)</label>'
+        +'<input id="disp-notes" placeholder="مثال: توزيع الصباح لـ 3 مهام" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div>'
+    +'</div>'
+    // ── Date for بيع مباشر ──
+    +'<div id="disp-date-direct" style="display:none;margin-bottom:12px">'
+      +'<label style="font-size:11px;color:#888;display:block;margin-bottom:3px">التاريخ</label>'
+      +'<input type="date" id="disp-date-2" value="'+today+'" style="width:200px;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px">'
+    +'</div>'
+    // ── Parts section ──
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+      +'<div style="font-size:12px;font-weight:700;color:#888">القطع</div>'
+      +'<div style="display:flex;gap:6px;align-items:center">'
+        +(kitOpts?'<select id="kit-sel" style="font-size:11px;padding:4px 8px;border:1px solid #854F0B;border-radius:6px;background:#FFF8E1;color:#854F0B"><option value="">⚡ اختر كيت...</option>'+kitOpts+'</select><button onclick="var s=document.getElementById(\'kit-sel\');if(s&&s.value!==\'\')applyKit(parseInt(s.value))" style="font-size:11px;padding:4px 10px;border:none;border-radius:6px;background:#854F0B;color:#fff;cursor:pointer">تطبيق</button>':'')
+        +'<button onclick="addDispItem()" style="font-size:12px;padding:5px 12px;border:1px solid #1D9E75;border-radius:6px;background:#EAF3DE;color:#1D9E75;cursor:pointer;font-weight:600">+ إضافة قطعة</button>'
+      +'</div>'
+    +'</div>'
+    +'<div id="disp-items" style="margin-bottom:12px;min-height:60px"></div>'
+    // ── Price section (بيع مباشر only) ──
+    +'<div id="disp-price-section" style="display:none;background:#f9f9f6;border:1px solid #eee;border-radius:8px;padding:12px;margin-bottom:12px">'
       +'<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">'
-        +'<label style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;cursor:pointer"><input type="checkbox" id="ds-tax" onchange="calcDsTotal()"> شامل ضريبة 14%</label>'
+        +'<label style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;cursor:pointer">'
+          +'<input type="checkbox" id="ds-tax" onchange="calcDsTotal()"> شامل ضريبة 14%'
+        +'</label>'
         +'<div style="margin-left:auto;font-size:15px;font-weight:700;color:#1D9E75">الإجمالي: <span id="ds-total">EGP 0</span></div>'
       +'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
-        +'<div><label style="font-size:10px;color:#888;display:block;margin-bottom:3px">طريقة الدفع</label><select id="ds-pay-method" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px"><option value="كاش">كاش</option><option value="فيزا">فيزا</option><option value="تحويل">تحويل بنكي</option></select></div>'
-        +'<div><label style="font-size:10px;color:#888;display:block;margin-bottom:3px">المبلغ المدفوع</label><input type="number" id="ds-paid" placeholder="0" oninput="calcDsTotal()" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box"></div>'
+        +'<div><label style="font-size:10px;color:#888;display:block;margin-bottom:3px">طريقة الدفع</label>'
+          +'<select id="ds-pay-method" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px">'
+            +'<option value="كاش">كاش</option><option value="فيزا">فيزا</option><option value="تحويل">تحويل بنكي</option>'
+          +'</select></div>'
+        +'<div><label style="font-size:10px;color:#888;display:block;margin-bottom:3px">المبلغ المدفوع</label>'
+          +'<input type="number" id="ds-paid" placeholder="0" oninput="calcDsTotal()" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box"></div>'
       +'</div>'
     +'</div>'
+    // ── Footer ──
     +'<div style="display:flex;gap:8px;justify-content:flex-end">'
-      +'<button id="disp-cancel-btn" style="padding:9px 20px;font-size:13px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer">'+td('Cancel')+'</button>'
-      +'<button onclick="saveNewDispatch()" style="padding:9px 20px;font-size:13px;border:none;border-radius:8px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:700">'+td('Create Dispatch')+'</button>'
+      +'<button id="disp-cancel-btn" style="padding:9px 20px;font-size:13px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer">إلغاء</button>'
+      +'<button id="disp-submit" style="padding:9px 20px;font-size:13px;border:none;border-radius:8px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:700">✓ إنشاء التوزيع</button>'
     +'</div>'
   +'</div>';
-  document.body.appendChild(overlay);
-  document.getElementById('disp-close').onclick=function(){overlay.remove();};
-  document.getElementById('disp-cancel-btn').onclick=function(){overlay.remove();};
-  // Store parts list globally for addDispItem
-  window._dispParts=parts;
+  document.body.appendChild(ov);
+  document.getElementById('disp-close').onclick=function(){ov.remove();};
+  document.getElementById('disp-cancel-btn').onclick=function(){ov.remove();};
+  document.getElementById('disp-submit').onclick=saveNewDispatch;
   addDispItem();
 }
 
-
-function calcDsTotal(){
-  var rows=Array.from(document.querySelectorAll('#disp-items>div'));
-  var subtotal=rows.reduce(function(s,row){
-    var qty=parseFloat(row.querySelector('.disp-qty-out')?.value||0);
-    var price=parseFloat(row.querySelector('.disp-price-inp')?.value||0);
-    return s+qty*price;
-  },0);
-  var useTax=document.getElementById('ds-tax')?.checked;
-  var total=useTax?subtotal*1.14:subtotal;
-  var el=document.getElementById('ds-total');
-  if(el)el.textContent='EGP '+Math.round(total).toLocaleString();
-}
-
-function addDispItem(){
-  var parts=window._dispParts||[];
-  var container=document.getElementById('disp-items');
-  if(!container)return;
-  var rowId='disp-row-'+Date.now();
-  var listId='disp-list-'+Date.now();
-  var row=document.createElement('div');
-  row.id=rowId;
-  row.style.cssText='margin-bottom:10px;background:#f9f9f6;border:1px solid #eee;border-radius:8px;padding:8px 10px';
-  // Build datalist options
-  var opts=parts.map(function(p){return '<option data-id="'+p.id+'" data-unit="'+p.unit+'" data-stock="'+p.qty+'" data-cost="'+p.cost+'" value="'+p.name+'">'+p.name+' | Stock: '+p.qty+' '+p.unit+'</option>';}).join('');
-  row.innerHTML=''
-    +'<datalist id="'+listId+'">'+opts+'</datalist>'
-    +'<div class="disp-row-grid" style="display:grid;grid-template-columns:1fr 80px 60px 60px 30px;gap:8px;align-items:center">'
-      +'<div style="position:relative">'
-        +'<input list="'+listId+'" class="disp-part-inp" placeholder="ابحث عن قطعة..." autocomplete="off" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box">'
-        +'<input type="hidden" class="disp-part-id">'
-        +'<input type="hidden" class="disp-part-unit">'
-        +'<input type="hidden" class="disp-part-cost">'
-      +'</div>'
-      +'<input type="number" class="disp-qty-out" placeholder="الكمية" min="1" value="1" style="padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px;text-align:center">'
-      +'<input type="number" class="disp-price-inp" placeholder="السعر" min="0" value="0" oninput="calcDsTotal()" style="padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px;text-align:center;display:none">'+'<input type="number" class="disp-price" placeholder="سعر" min="0" oninput="calcDsTotal()" style="padding:7px;border:1px solid #ddd;border-radius:7px;font-size:12px;display:none">'      +'<div class="disp-unit-lbl" style="font-size:12px;color:#888;text-align:center"></div>'
-      +'<button data-row="'+rowId+'" onclick="document.getElementById(this.dataset.row).remove()" style="border:none;background:none;color:#A32D2D;cursor:pointer;font-size:20px;padding:0;line-height:1">&#10005;</button>'
-    +'</div>'
-    +'<div class="disp-stock-info" style="font-size:11px;color:#888;margin-top:4px;padding-left:2px"></div>';
-  container.appendChild(row);
-  var inp=row.querySelector('.disp-part-inp');
-  var idInp=row.querySelector('.disp-part-id');
-  var unitInp=row.querySelector('.disp-part-unit');
-  var costInp=row.querySelector('.disp-part-cost');
-  var unitLbl=row.querySelector('.disp-unit-lbl');
-  var stockInfo=row.querySelector('.disp-stock-info');
-  var qtyInp=row.querySelector('.disp-qty-out');
-  inp.oninput=function(){
-    var val=this.value;
-    var part=parts.find(function(p){return p.name===val;});
-    if(part){
-      idInp.value=part.id;
-      unitInp.value=part.unit;
-      costInp.value=part.cost||0;
-      unitLbl.textContent=part.unit;
-      var stock=part.qty||0;
-      var avail=Math.max(0,stock-(part.custody_qty||0));
-      stockInfo.innerHTML='المخزون: <b style="color:'+(stock<=0?'#A32D2D':'#3B6D11')+'">'+stock+'</b> | المتاح: <b style="color:'+(avail<=0?'#A32D2D':'#1D9E75')+'">'+avail+'</b> '+part.unit;
-      if(qtyInp){qtyInp.max=avail;}
-      inp.style.borderColor='#1D9E75';
-    }else{
-      idInp.value='';unitLbl.textContent='';stockInfo.textContent='';
-      inp.style.borderColor='#ddd';
-    }
-  };
-  qtyInp.oninput=function(){
-    var part=parts.find(function(p){return p.id===idInp.value;});
-    if(!part)return;
-    var avail=Math.max(0,(part.qty||0)-(part.custody_qty||0));
-    if(parseFloat(this.value)>avail&&avail>0){
-      this.style.borderColor='#A32D2D';
-      this.title='تحذير: الكمية تتجاوز المتاح ('+avail+')';
-    }else{this.style.borderColor='#ddd';this.title='';}
-  };
-  inp.focus();
-}
 
 async function saveNewDispatch(){
   var tech=document.getElementById('disp-tech').value;
