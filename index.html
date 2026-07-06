@@ -1900,6 +1900,23 @@ function handleUp(input){const grid=document.getElementById('pgr');Array.from(in
 async function deleteTask(){
   if(!CT)return;
   if(!confirm(t('taskdelconfirm')+' '+CT.task_num))return;
+  // If بيع مباشر task, restore inventory
+  if(CT.type==='بيع مباشر'){
+    var{data:prods}=await db.from('task_products').select('*').eq('task_id',CT.id);
+    // Find linked dispatch to get part_ids
+    var{data:linkedDisp}=await db.from('dispatches').select('id').eq('dispatch_type','بيع مباشر').eq('date',CT.date).eq('created_by',CT.created_by).limit(1);
+    if(linkedDisp&&linkedDisp.length){
+      var{data:dispItems}=await db.from('dispatch_items').select('part_id,qty_out').eq('dispatch_id',linkedDisp[0].id);
+      for(var i=0;i<(dispItems||[]).length;i++){
+        var it=dispItems[i];
+        var sp=await db.from('spare_parts').select('qty').eq('id',it.part_id).single();
+        if(sp.data)await db.from('spare_parts').update({qty:(sp.data.qty||0)+it.qty_out}).eq('id',it.part_id);
+      }
+      await db.from('dispatch_assignments').delete().eq('dispatch_id',linkedDisp[0].id);
+      await db.from('dispatch_items').delete().eq('dispatch_id',linkedDisp[0].id);
+      await db.from('dispatches').delete().eq('id',linkedDisp[0].id);
+    }
+  }
   await db.from('payments').delete().eq('task_id',CT.id);
   await db.from('task_products').delete().eq('task_id',CT.id);
   await db.from('po_items').delete().eq('po_id',CT.id);
