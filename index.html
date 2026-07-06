@@ -2693,19 +2693,30 @@ async function loadDispParts(){
 
 function onDispTypeChange(){
   var type=document.querySelector('input[name="disp-type"]:checked')?.value||'عادي';
+  var isDirect=type==='بيع مباشر';
+  // Note
   var note=document.getElementById('disp-type-note');
   if(note){
     if(type==='عادي')note.textContent='الصرف العادي — يتم خصم المخزون عند الموافقة وتخصيص القطع للعملاء';
     else if(type==='عهدة')note.textContent='عهدة مستديمة — تُحجز القطع باسم الفني وتُرد في نهاية السنة أو عند الانتهاء';
     else if(type==='مستهلك')note.textContent='مستهلك — يُخصم المخزون فوراً ويُسجل باسم الفني للمتابعة';
+    else if(isDirect)note.textContent='بيع مباشر — بيع قطع للعميل من المخزون مع إنشاء أمر بيع تلقائي';
   }
-  // Show/hide return note for عهدة
-  // Show price inputs for بيع مباشر
-  document.querySelectorAll('.disp-price').forEach(function(el){el.style.display=type==='بيع مباشر'?'':'none';});
+  // Show/hide sections
+  var cs=document.getElementById('disp-cust-section');
+  var ts=document.getElementById('disp-tech-section');
+  var ps=document.getElementById('disp-price-section');
+  if(cs)cs.style.display=isDirect?'':'none';
+  if(ts)ts.style.display=isDirect?'none':'';
+  if(ps)ps.style.display=isDirect?'':'none';
+  // Show price inputs per row for بيع مباشر
+  document.querySelectorAll('.disp-price').forEach(function(el){el.style.display=isDirect?'':'none';});
+  // Submit button label
   var submitBtn=document.getElementById('disp-submit');
   if(submitBtn){
     if(type==='مستهلك')submitBtn.textContent='✓ تأكيد الصرف (خصم فوري)';
     else if(type==='عهدة')submitBtn.textContent='✓ تسجيل العهدة';
+    else if(isDirect)submitBtn.textContent='✓ إتمام البيع وإنشاء الأمر';
     else submitBtn.textContent='✓ إنشاء التوزيع';
   }
 }
@@ -2994,7 +3005,7 @@ var techOpts='<option value="">-- اختر الفني --</option>'+allTechs.map(
     +'<div style="margin-bottom:12px;padding:10px 14px;background:#f0f9ff;border:1px solid #b3d9f7;border-radius:8px">'  +'<div style="font-size:11px;font-weight:700;color:#185FA5;margin-bottom:8px">نوع الصرف</div>'  +'<div style="display:flex;gap:16px">'    +'<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;color:#333">'      +'<input type="radio" name="disp-type" value="عادي" checked onchange="onDispTypeChange()" style="accent-color:#1D9E75"> عادي'    +'</label>'    +'<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;color:#333">'      +'<input type="radio" name="disp-type" value="عهدة" onchange="onDispTypeChange()" style="accent-color:#854F0B"> عهدة مستديمة'    +'</label>'    +'<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;color:#333">'      +'<input type="radio" name="disp-type" value="مستهلك" onchange="onDispTypeChange()" style="accent-color:#A32D2D"> مستهلك'    +'</label>'
     +'<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;color:#333">'
       +'<input type="radio" name="disp-type" value="بيع مباشر" onchange="onDispTypeChange()" style="accent-color:#185FA5"> بيع مباشر'
-    +'</label>'    +'<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;color:#333">'      +'<input type="radio" name="disp-type" value="بيع مباشر" onchange="onDispTypeChange()" style="accent-color:#185FA5"> بيع مباشر'    +'</label>'  +'</div>'  +'<div id="disp-type-note" style="font-size:11px;color:#888;margin-top:6px"></div>'+'</div>'+'<div style="margin-bottom:12px;padding:10px 14px;background:#FFF8E1;border:1px solid #F5A623;border-radius:8px;display:flex;align-items:center;gap:10px">'  +'<span style="font-size:12px;font-weight:700;color:#7A5000">&#128197; المخزن:</span>'  +'<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;font-weight:600">'    +'<input type="radio" name="disp-wh" value="مخزن تجمع" checked onchange="reloadDispParts(this.value)" style="accent-color:#185FA5"> مخزن تجمع'  +'</label>'  +'<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;font-weight:600">'    +'<input type="radio" name="disp-wh" value="مخزن رئيسي" onchange="reloadDispParts(this.value)" style="accent-color:#1D9E75"> مخزن رئيسي'  +'</label>'+'</div>'+'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">'  +'<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">'+td('Technician *')+'</label><select id="disp-tech" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px">'+techOpts+'</select></div>'
+    +'</label>'    +'<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;color:#333">'      +'<input type="radio" name="disp-type" value="بيع مباشر" onchange="onDispTypeChange()" style="accent-color:#185FA5"> بيع مباشر'    +'</label>'  +'</div>'  +'<div id="disp-type-note" style="font-size:11px;color:#888;margin-top:6px"></div>'+'</div>'+'<div style="margin-bottom:12px;padding:10px 14px;background:#FFF8E1;border:1px solid #F5A623;border-radius:8px;display:flex;align-items:center;gap:10px">'  +'<span style="font-size:12px;font-weight:700;color:#7A5000">&#128197; المخزن:</span>'  +'<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;font-weight:600">'    +'<input type="radio" name="disp-wh" value="مخزن تجمع" checked onchange="reloadDispParts(this.value)" style="accent-color:#185FA5"> مخزن تجمع'  +'</label>'  +'<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;font-weight:600">'    +'<input type="radio" name="disp-wh" value="مخزن رئيسي" onchange="reloadDispParts(this.value)" style="accent-color:#1D9E75"> مخزن رئيسي'  +'</label>'+'</div>'+'<div id="disp-cust-section" style="display:none;background:#f0f9ff;border:1px solid #b3d9f7;border-radius:8px;padding:12px;margin-bottom:12px">'  +'<div style="font-size:11px;font-weight:700;color:#185FA5;margin-bottom:8px">بيانات العميل</div>'  +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">'    +'<div><label style="font-size:10px;color:#888;display:block;margin-bottom:3px">اسم العميل *</label>'      +'<input id="ds-cust-name" placeholder="الاسم" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box"></div>'    +'<div><label style="font-size:10px;color:#888;display:block;margin-bottom:3px">الهاتف</label>'      +'<input id="ds-cust-phone" placeholder="01xxxxxxxxx" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box"></div>'    +'<div><label style="font-size:10px;color:#888;display:block;margin-bottom:3px">العنوان</label>'      +'<input id="ds-cust-addr" placeholder="العنوان" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box"></div>'  +'</div>'+'</div>'+'<div id="disp-tech-section">'+'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">'  +'<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">'+td('Technician *')+'</label><select id="disp-tech" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px">'+techOpts+'</select></div>'
       +'<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">'+td('Date')+'</label><input type="date" id="disp-date" value="'+new Date().toISOString().slice(0,10)+'" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div>'
     +'</div>'
     +'<div style="margin-bottom:14px"><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">'+td('Notes (optional)')+'</label><input id="disp-notes" placeholder="e.g. Morning dispatch for 3 jobs" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div>'
@@ -3010,6 +3021,16 @@ var techOpts='<option value="">-- اختر الفني --</option>'+allTechs.map(
       +'<button onclick="var s=document.getElementById(\'kit-sel\');if(s&&s.value!==\'\')applyKit(parseInt(s.value))" style="font-size:12px;padding:5px 14px;border:none;border-radius:6px;background:#854F0B;color:#fff;cursor:pointer;font-weight:600">Apply</button>'
     +'</div>'
     +'<div id="disp-items" style="margin-bottom:16px"></div>'
+    +'<div id="disp-price-section" style="display:none;margin-bottom:12px;background:#f9f9f6;border:1px solid #eee;border-radius:8px;padding:12px">'
+      +'<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">'
+        +'<label style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;cursor:pointer"><input type="checkbox" id="ds-tax" onchange="calcDsTotal()"> شامل ضريبة 14%</label>'
+        +'<div style="margin-left:auto;font-size:15px;font-weight:700;color:#1D9E75">الإجمالي: <span id="ds-total">EGP 0</span></div>'
+      +'</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
+        +'<div><label style="font-size:10px;color:#888;display:block;margin-bottom:3px">طريقة الدفع</label><select id="ds-pay-method" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px"><option value="كاش">كاش</option><option value="فيزا">فيزا</option><option value="تحويل">تحويل بنكي</option></select></div>'
+        +'<div><label style="font-size:10px;color:#888;display:block;margin-bottom:3px">المبلغ المدفوع</label><input type="number" id="ds-paid" placeholder="0" oninput="calcDsTotal()" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box"></div>'
+      +'</div>'
+    +'</div>'
     +'<div style="display:flex;gap:8px;justify-content:flex-end">'
       +'<button id="disp-cancel-btn" style="padding:9px 20px;font-size:13px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer">'+td('Cancel')+'</button>'
       +'<button onclick="saveNewDispatch()" style="padding:9px 20px;font-size:13px;border:none;border-radius:8px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:700">'+td('Create Dispatch')+'</button>'
