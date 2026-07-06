@@ -3086,11 +3086,11 @@ async function openNewDispatch(){
 
 async function saveNewDispatch(){
   var tech=document.getElementById('disp-tech').value;
-  var date=document.getElementById('disp-date').value;
+  var date=(dispType==='بيع مباشر'?document.getElementById('disp-date-2')?.value:null)||document.getElementById('disp-date').value||new Date().toISOString().split('T')[0];
   var notes=document.getElementById('disp-notes').value.trim();
   var dispType=document.querySelector('input[name="disp-type"]:checked')?.value||'عادي';
   var warehouse=document.querySelector('input[name="disp-wh"]:checked')?.value||'مخزن تجمع';
-  if(!tech){toast('اختر الفني',true);return;}
+  if(!tech&&dispType!=='بيع مباشر'){toast('اختر الفني',true);return;}
   var rows=Array.from(document.querySelectorAll('#disp-items>div'));
   if(!rows.length){toast('أضف قطعة واحدة على الأقل',true);return;}
   var items=rows.map(function(row){
