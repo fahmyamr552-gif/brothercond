@@ -3659,9 +3659,21 @@ function onPOTypeChange(){
   var thead=document.getElementById('po-thead');
   if(thead){
     if(type==='sp'){
-      thead.innerHTML='<tr><th style="width:35%">اسم القطعة</th><th style="width:15%">المخزن</th><th style="width:12%">المخزون</th><th style="width:15%">الكمية</th><th style="width:18%">التكلفة (ج.م)</th><th style="width:5%"></th></tr>';
+      thead.innerHTML='<tr><th style="width:35%">اسم القطعة</th><th style="width:12%">المخزون</th><th style="width:15%">الكمية</th><th style="width:18%">التكلفة (ج.م)</th><th style="width:5%"></th></tr>';
+      // Show warehouse selector
+      var whSel=document.getElementById('po-wh-selector');
+      if(!whSel){
+        whSel=document.createElement('div');
+        whSel.id='po-wh-selector';
+        whSel.style.cssText='background:#f0f9ff;border:1px solid #b3d9f7;border-radius:8px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:12px';
+        whSel.innerHTML='<span style="font-size:12px;font-weight:700;color:#185FA5">المخزن المستلِم:</span>'          +'<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;font-weight:600"><input type="radio" name="po-wh" value="مخزن تجمع" checked style="accent-color:#185FA5"> مخزن تجمع</label>'          +'<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;font-weight:600"><input type="radio" name="po-wh" value="مخزن رئيسي" style="accent-color:#1D9E75"> مخزن رئيسي</label>';
+        var potbParent=document.getElementById('potb')?.closest('div');
+        if(potbParent)potbParent.insertBefore(whSel,potbParent.querySelector('button'));
+      }
+      whSel.style.display='flex';
     }else{
       thead.innerHTML='<tr><th style="width:42%">المنتج</th><th style="width:17%">المخزون الحالي</th><th style="width:17%">الكمية</th><th style="width:19%">التكلفة (ج.م)</th><th style="width:5%"></th></tr>';
+      var whSel=document.getElementById('po-wh-selector');if(whSel)whSel.style.display='none';
     }
   }
   addPOR();
@@ -3714,27 +3726,23 @@ function addPOR(){
     }
     inp.oninput=function(){checkSP(this);};inp.onchange=function(){checkSP(this);};
     td1.appendChild(dl);td1.appendChild(inp);
-    // Warehouse cell
-    var td2=document.createElement('td');
-    var whDiv=document.createElement('div');whDiv.className='po-wh';whDiv.style.cssText='font-size:11px;color:#888;text-align:center';
-    td2.appendChild(whDiv);
     // Stock cell
-    var td3=document.createElement('td');
+    var td2=document.createElement('td');
     var stDiv=document.createElement('div');stDiv.className='po-stock';stDiv.style.cssText='font-size:11px;color:#888;text-align:center';
-    td3.appendChild(stDiv);
+    td2.appendChild(stDiv);
     // Qty
-    var td4=document.createElement('td');
+    var td3=document.createElement('td');
     var qi=document.createElement('input');qi.type='number';qi.value='1';qi.min='1';qi.style.cssText='width:60px;text-align:center';qi.oninput=calcPOT;
-    td4.appendChild(qi);
+    td3.appendChild(qi);
     // Cost
-    var td5=document.createElement('td');
+    var td4=document.createElement('td');
     var ci=document.createElement('input');ci.type='number';ci.className='po-cost';ci.min='0';ci.value='0';ci.style.width='100%';ci.oninput=calcPOT;
-    td5.appendChild(ci);
+    td4.appendChild(ci);
     // Remove
-    var td6=document.createElement('td');
+    var td5=document.createElement('td');
     var rb=document.createElement('button');rb.className='ib';rb.textContent='X';rb.style.fontSize='12px';rb.onclick=function(){tr.remove();calcPOT();};
-    td6.appendChild(rb);
-    tr.appendChild(td1);tr.appendChild(td2);tr.appendChild(td3);tr.appendChild(td4);tr.appendChild(td5);tr.appendChild(td6);
+    td5.appendChild(rb);
+    tr.appendChild(td1);tr.appendChild(td2);tr.appendChild(td3);tr.appendChild(td4);tr.appendChild(td5);
     body.appendChild(tr);inp.focus();
   }else{
     // AC units: Product | Stock | Qty | Cost | X
@@ -3798,8 +3806,8 @@ async function savePO(){
     var invType=inp.dataset.invType||poType;
     // SP rows: name|wh|stock|qty|cost|x → qty at index 3, cost at index 4
     // AC rows: name|stock|qty|cost|x → qty at index 2, cost at index 3
-    var qIdx=invType==='sp'?3:2;
-    var cIdx=invType==='sp'?4:3;
+    var qIdx=invType==='sp'?2:2;
+    var cIdx=invType==='sp'?3:3;
     var q=parseInt(tr.cells[qIdx]?.querySelector('input')?.value)||0;
     var c=parseFloat(tr.cells[cIdx]?.querySelector('input')?.value)||0;
     var nm=inp.value||'';
