@@ -3873,7 +3873,7 @@ async function openPODetail(poId){
     +'<div style="text-align:right;font-size:13px;font-weight:700;margin-bottom:14px">PO Total: '+f(po.total)+' | Paid: '+f(paidSoFar)+' | Owed: '+f(owed)+'</div>'
     +(pRows?'<div style="margin-bottom:14px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">Payments</div><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f9f9f6"><th style="padding:5px 8px;text-align:left">Amount</th><th style="padding:5px 8px;text-align:left">Method</th><th style="padding:5px 8px;text-align:left">Note</th><th style="padding:5px 8px;text-align:left">Date</th>'+(can('delete')||can('delete_payment')?'<th></th>':'')+'</tr></thead><tbody>'+pRows+'</tbody></table></div>':'')
     +'<div style="margin-bottom:14px;background:#f9f9f6;border-radius:8px;padding:12px"><div style="font-size:12px;font-weight:700;margin-bottom:8px">Record payment to supplier</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px"><input type="number" id="pop-amt" placeholder="Amount" style="padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px"><select id="pop-meth" style="padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px"><option>Cash</option><option>Bank transfer</option><option>Cheque</option><option>Instapay</option></select></div><input id="pop-note" placeholder="Note (optional)" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box;margin-bottom:8px"><button onclick="savePOPayment(\''+poId+'\')" style="padding:7px 16px;font-size:12px;border:none;border-radius:7px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:600">Save payment</button></div>'
-    +(po.status==='pending'||po.status==='partial'?'<button onclick="markDelivered(\''+poId+'\')" style="padding:8px 16px;font-size:12px;border:none;border-radius:8px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:600;margin-bottom:8px">'+t('markdelivered')+'</button> ':'' )
+    +(po.status==='pending'||po.status==='partial'?'<button onclick="openReceiveModal(\''+poId+'\')" style="padding:8px 16px;font-size:12px;border:none;border-radius:8px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:600;margin-bottom:8px">'+t('markdelivered')+'</button> ':'' )
     +'<div style="text-align:right"><button id="pod-cancel" style="padding:8px 16px;font-size:12px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer">Close</button></div>'
   +'</div>';
   overlay.innerHTML=html;document.body.appendChild(overlay);
@@ -3899,6 +3899,82 @@ async function delPOPay(payId,poId){
   await db.from('po_payments').delete().eq('id',payId);
   document.querySelectorAll('.po-modal').forEach(function(e){e.remove();});
   openPODetail(poId);
+}
+
+
+async function openReceiveModal(poId){
+  var{data:po}=await db.from('purchase_orders').select('*').eq('id',poId).single();
+  var{data:items}=await db.from('po_items').select('*').eq('po_id',poId);
+  if(!items?.length){toast('No items in this order',true);return;}
+  // Fetch product names
+  var invIds=items.map(function(i){return i.inventory_id;}).filter(Boolean);
+  var spIds=items.map(function(i){return i.spare_part_id;}).filter(Boolean);
+  var nameMap={};
+  if(invIds.length){var{data:invData}=await db.from('inventory').select('id,brand,model,hp').in('id',invIds);(invData||[]).forEach(function(p){nameMap[p.id]=p.brand+' '+p.model+' '+p.hp;});}
+  if(spIds.length){var{data:spData}=await db.from('spare_parts').select('id,name,unit').in('id',spIds);(spData||[]).forEach(function(p){nameMap[p.id]=p.name+' ('+p.unit+')';});}
+  // Build modal
+  document.querySelectorAll('.receive-modal').forEach(function(e){e.remove();});
+  var ov=document.createElement('div');
+  ov.className='receive-modal';
+  ov.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box';
+  var box=document.createElement('div');
+  box.style.cssText='background:#fff;border-radius:14px;padding:24px;width:520px;max-width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.25)';
+  var rowsHtml=items.map(function(it){
+    var key=it.inventory_id||it.spare_part_id;
+    var name=nameMap[key]||it.product_name||'Unknown';
+    var already=it.qty_received||0;
+    var remaining=it.qty-already;
+    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f0f0e8">'
+      +'<div style="flex:1;font-size:13px;font-weight:600">'+name+'</div>'
+      +'<div style="font-size:11px;color:#888;min-width:80px">طلوب: '+it.qty+' | مستلم: '+already+'</div>'
+      +'<input type="number" class="recv-qty" data-item-id="'+it.id+'" data-inv-id="'+(it.inventory_id||'')+'" data-sp-id="'+(it.spare_part_id||'')+'" min="0" max="'+remaining+'" value="'+remaining+'" style="width:70px;padding:5px;border:1px solid #ddd;border-radius:6px;font-size:13px;text-align:center">'
+    +'</div>';
+  }).join('');
+  box.innerHTML='<div style="font-size:16px;font-weight:700;margin-bottom:16px">استلام البضاعة</div>'
+    +'<div style="font-size:12px;color:#888;margin-bottom:12px">أدخل الكمية المستلمة لكل منتج</div>'
+    +rowsHtml
+    +'<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">'
+      +'<button onclick="this.closest(\'.receive-modal\').remove()" class="btn bs">إلغاء</button>'
+      +'<button onclick="confirmReceive(\''+poId+'\')" class="btn bp">✓ تأكيد الاستلام</button>'
+    +'</div>';
+  ov.appendChild(box);
+  document.body.appendChild(ov);
+}
+
+async function confirmReceive(poId){
+  var inputs=document.querySelectorAll('.recv-qty');
+  if(!inputs.length){toast('No items',true);return;}
+  var{data:po}=await db.from('purchase_orders').select('warehouse').eq('id',poId).single();
+  var allFullyReceived=true;
+  for(var i=0;i<inputs.length;i++){
+    var inp=inputs[i];
+    var qty=parseFloat(inp.value)||0;
+    if(qty<=0)continue;
+    var itemId=inp.dataset.itemId;
+    var invId=inp.dataset.invId;
+    var spId=inp.dataset.spId;
+    // Update inventory
+    if(invId){
+      var{data:inv}=await db.from('inventory').select('qty').eq('id',invId).single();
+      if(inv)await db.from('inventory').update({qty:(inv.qty||0)+qty}).eq('id',invId);
+    } else if(spId){
+      var{data:sp}=await db.from('spare_parts').select('qty').eq('id',spId).single();
+      if(sp)await db.from('spare_parts').update({qty:(sp.qty||0)+qty}).eq('id',spId);
+    }
+    // Update qty_received on item
+    var{data:item}=await db.from('po_items').select('qty,qty_received').eq('id',itemId).single();
+    if(item){
+      var newRecv=(item.qty_received||0)+qty;
+      await db.from('po_items').update({qty_received:newRecv}).eq('id',itemId);
+      if(newRecv<item.qty)allFullyReceived=false;
+    }
+  }
+  var newStatus=allFullyReceived?'received':'partial';
+  await db.from('purchase_orders').update({status:newStatus}).eq('id',poId);
+  toast(allFullyReceived?'تم الاستلام الكامل وتحديث المخزون':'تم تسجيل استلام جزئي');
+  document.querySelectorAll('.receive-modal').forEach(function(e){e.remove();});
+  document.querySelectorAll('.po-modal').forEach(function(e){e.remove();});
+  loadPur();
 }
 
 async function markDelivered(poId){
