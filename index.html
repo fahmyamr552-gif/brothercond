@@ -3802,9 +3802,16 @@ async function savePO(){
   var{data:lastPO}=await db.from('purchase_orders').select('po_num').order('created_at',{ascending:false}).limit(1);
   var lastPNum=parseInt(((lastPO&&lastPO[0]?.po_num)||'PO-00000').replace(/[^0-9]/g,''))||0;
   var poNum='PO-'+String(lastPNum+1).padStart(5,'0');
-  var poInsert={po_num:poNum,supplier_id:supId||null,supplier_name:supNm,date:date,total:tot,status:'pending',notes:document.getElementById('pon')?.value||null};
-  var delDate=document.getElementById('podl')?.value;if(delDate)poInsert.expected_delivery=delDate;
-  var{data:po,error}=await db.from('purchase_orders').insert(poInsert).select().single();
+  var delDate=document.getElementById('podl')?.value||null;
+  var{data:po,error}=await db.from('purchase_orders').insert({
+    po_num:poNum,
+    supplier_id:supId||null,
+    date:date,
+    delivery_date:delDate,
+    total:tot,
+    status:'pending',
+    notes:document.getElementById('pon')?.value||null
+  }).select().single();
   if(error){toast('خطأ: '+error.message,true);return;}
   // Insert po_items - use inventory_id for AC, spare_part_id for SP
   var poItems=items.map(function(it){
