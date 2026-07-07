@@ -1203,7 +1203,7 @@ async function loadTasks(resetPage){
     var body=document.getElementById('tlist');
     if(TASK_PAGE===0)body.innerHTML='';
     // Remove old load-more button if present
-    var oldMore=document.getElementById('load-more');
+    var oldMore=document.getElementById('load-more-btn');
     if(oldMore)oldMore.remove();
     if(!pageData.length&&TASK_PAGE===0){
       body.innerHTML='<div style="padding:20px;text-align:center;color:#888">'+t('notasksfound')+'</div>';
