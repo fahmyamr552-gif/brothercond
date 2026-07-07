@@ -3782,10 +3782,12 @@ function addPOR(){
 }
 
 function calcPOT(){
-  var rows=document.querySelectorAll('#porb tr');var tot=0;
+  var rows=document.querySelectorAll('#potb tr');var tot=0;
   rows.forEach(function(tr){
+    // Both AC and SP now have same structure: name|stock|qty|cost|x
+    // qty at cells[2], cost at cells[3]
     var q=parseFloat(tr.cells[2]?.querySelector('input')?.value)||0;
-    var c=parseFloat(tr.cells[3]?.querySelector('input')?.value)||0;
+    var c=parseFloat(tr.querySelector('.po-cost')?.value)||0;
     tot+=q*c;
   });
   var el=document.getElementById('potot');if(el)el.textContent='EGP '+Math.round(tot).toLocaleString();
@@ -3930,11 +3932,26 @@ async function markDelivered(poId){
 
 async function deletePO(poId){
   if(!can('delete')){toast('No permission to delete',true);return;}
-  if(!confirm('Delete this purchase order?'))return;
+  if(!confirm('Delete this purchase order? If received, inventory will be restored.'))return;
+  // Check if received - if so, restore inventory
+  var{data:po}=await db.from('purchase_orders').select('status').eq('id',poId).single();
+  if(po?.status==='received'){
+    var{data:items}=await db.from('po_items').select('*').eq('po_id',poId);
+    for(var i=0;i<(items||[]).length;i++){
+      var it=items[i];
+      if(it.inventory_id){
+        var{data:inv}=await db.from('inventory').select('qty').eq('id',it.inventory_id).single();
+        if(inv)await db.from('inventory').update({qty:Math.max(0,(inv.qty||0)-it.qty)}).eq('id',it.inventory_id);
+      } else if(it.spare_part_id){
+        var{data:sp}=await db.from('spare_parts').select('qty').eq('id',it.spare_part_id).single();
+        if(sp)await db.from('spare_parts').update({qty:Math.max(0,(sp.qty||0)-it.qty)}).eq('id',it.spare_part_id);
+      }
+    }
+  }
   await db.from('po_items').delete().eq('po_id',poId);
   await db.from('po_payments').delete().eq('po_id',poId);
   await db.from('purchase_orders').delete().eq('id',poId);
-  toast(t('porderdeleted'));loadPur();
+  toast('تم حذف أمر الشراء واسترداد المخزون');loadPur();
 }
 
 async function returnProducts(poId){
