@@ -3660,8 +3660,16 @@ function onPOTypeChange(){
 
 function openNewPO(){
   go('npo',null);
-  document.getElementById('porb').innerHTML='';
-  document.getElementById('potot').textContent='EGP 0';
+  window._SP_PO=null;
+  var acRadio=document.querySelector('input[name="po-type"][value="ac"]');
+  if(acRadio)acRadio.checked=true;
+  var body=document.getElementById('potb');if(body)body.innerHTML='';
+  var tot=document.getElementById('potot');if(tot)tot.textContent='EGP 0';
+  // Reset supplier
+  clrS();
+  // Reset headers to AC
+  var thead=document.getElementById('po-thead');
+  if(thead)thead.innerHTML='<tr><th style="width:42%">المنتج</th><th style="width:17%">المخزون الحالي</th><th style="width:17%">الكمية</th><th style="width:19%">التكلفة (ج.م)</th><th style="width:5%"></th></tr>';
   addPOR();
 }
 
@@ -3723,7 +3731,7 @@ function addPOR(){
     // AC units: Product | Stock | Qty | Cost | X
     var listId='pol'+Date.now();
     var dl=document.createElement('datalist');dl.id=listId;
-    INV.forEach(function(p){var opt=document.createElement('option');opt.value=p.brand+' '+p.model+' '+p.hp+'HP '+p.unit_type;dl.appendChild(opt);});
+    INV.forEach(function(p){var opt=document.createElement('option');opt.value=p.brand+' '+p.model+' '+p.hp+'HP '+p.unit_type+' '+(p.cooling||'')+(p.ac_type?' - '+p.ac_type:'');dl.appendChild(opt);});
     var td1=document.createElement('td');
     var inp=document.createElement('input');
     inp.setAttribute('list',listId);inp.placeholder='ابحث عن وحدة...';
@@ -3731,7 +3739,7 @@ function addPOR(){
     inp.style.cssText='width:100%;font-size:12px;padding:4px;border:1px solid #ddd;border-radius:4px;box-sizing:border-box';
     function checkAC(el){
       var val=el.value.trim();
-      var m=INV.find(function(p){return (p.brand+' '+p.model+' '+p.hp+'HP '+p.unit_type)===val;});
+      var m=INV.find(function(p){return (p.brand+' '+p.model+' '+p.hp+'HP '+p.unit_type+' '+(p.cooling||'')+(p.ac_type?' - '+p.ac_type:''))===val;});
       if(m){el.dataset.invId=m.id;el.style.borderColor='#1D9E75';
         var stk=tr.querySelector('.po-stock');if(stk)stk.textContent=m.qty+' in stock';
         var cost=tr.querySelector('.po-cost');if(cost&&m.cost)cost.value=m.cost;
@@ -3794,12 +3802,9 @@ async function savePO(){
   var{data:lastPO}=await db.from('purchase_orders').select('po_num').order('created_at',{ascending:false}).limit(1);
   var lastPNum=parseInt(((lastPO&&lastPO[0]?.po_num)||'PO-00000').replace(/[^0-9]/g,''))||0;
   var poNum='PO-'+String(lastPNum+1).padStart(5,'0');
-  var{data:po,error}=await db.from('purchase_orders').insert({
-    po_num:poNum,supplier_id:supId||null,supplier_name:supNm,
-    date:date,total:tot,status:'pending',
-    notes:document.getElementById('pon')?.value||null,
-    expected_delivery:document.getElementById('podl')?.value||null
-  }).select().single();
+  var poInsert={po_num:poNum,supplier_id:supId||null,supplier_name:supNm,date:date,total:tot,status:'pending',notes:document.getElementById('pon')?.value||null};
+  var delDate=document.getElementById('podl')?.value;if(delDate)poInsert.expected_delivery=delDate;
+  var{data:po,error}=await db.from('purchase_orders').insert(poInsert).select().single();
   if(error){toast('خطأ: '+error.message,true);return;}
   // Insert po_items - use inventory_id for AC, spare_part_id for SP
   var poItems=items.map(function(it){
