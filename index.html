@@ -3582,6 +3582,48 @@ async function loadPur(){
   });
 }
 
+
+function sSearch(q){
+  var box=document.getElementById('ssg');
+  if(!q||q.length<1){if(box)box.style.display='none';return;}
+  db.from('suppliers').select('id,name,phone').ilike('name','%'+q+'%').limit(10).then(function(res){
+    var sups=res.data||[];
+    if(!box)return;
+    if(!sups.length){box.style.display='none';return;}
+    box.innerHTML=sups.map(function(s){
+      var row=document.createElement('div');
+      row.style.cssText='padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f0f0e8';
+      row.innerHTML=s.name+'<span style="color:#888;font-size:11px;margin-left:8px">'+(s.phone||'')+'</span>';
+      row.onclick=function(){selSup(s.id,s.name);};
+      row.onmouseover=function(){this.style.background='#f5f5f0';};
+      row.onmouseout=function(){this.style.background='';};
+      var div=document.createElement('div');div.appendChild(row);return div.innerHTML;
+    }).join('');
+    box.style.display='';
+  });
+}
+
+function selSup(id,name){
+  window._selSupId=id;
+  var ssn=document.getElementById('ssn');if(ssn)ssn.textContent=name;
+  var ssel=document.getElementById('ssel');if(ssel)ssel.style.display='flex';
+  var ssg=document.getElementById('ssg');if(ssg)ssg.style.display='none';
+  var sqi=document.getElementById('sqi');if(sqi)sqi.value='';
+}
+
+function clrS(){
+  window._selSupId=null;
+  var ssel=document.getElementById('ssel');if(ssel)ssel.style.display='none';
+  var sqi=document.getElementById('sqi');if(sqi)sqi.value='';
+}
+
+function togS(checked){
+  var ssw=document.getElementById('ssw');
+  var nsf=document.getElementById('nsf');
+  if(ssw)ssw.style.display=checked?'none':'';
+  if(nsf)nsf.style.display=checked?'':'none';
+}
+
 function openNewPO(){
   go('npo',null);
   document.getElementById('porb').innerHTML='';
@@ -3591,7 +3633,7 @@ function openNewPO(){
 
 function addPOR(){
   if(!INV.length){db.from('inventory').select('*').then(function(r){INV=r.data||[];addPOR();});return;}
-  var body=document.getElementById('porb');if(!body)return;
+  var body=document.getElementById('potb');if(!body)return;
   var tr=document.createElement('tr');
   var opts=INV.map(function(p){return '<option value="'+p.id+'" data-stock="'+p.qty+'">'+p.brand+' '+p.model+' '+p.hp+' '+(p.unit_type||'')+' '+(p.cooling||'')+' '+(p.ac_type||'')+'</option>';}).join('');
   tr.innerHTML='<td><select style="width:100%;font-size:12px;padding:4px" onchange="var o=this.selectedOptions[0];this.closest(\'tr\').querySelector(\'.po-stock\').textContent=o?o.dataset.stock+\' in stock\':\'\'" >'+opts+'</select></td>'
@@ -3614,10 +3656,10 @@ function calcPOT(){
 }
 
 async function savePO(){
-  var supId=document.getElementById('posup')?.value;
-  var supNm=document.getElementById('posup')?.selectedOptions[0]?.text||'-';
-  var date=document.getElementById('podate')?.value||new Date().toISOString().slice(0,10);
-  var rows=document.querySelectorAll('#porb tr');
+  var supId=window._selSupId||null;
+  var supNm=document.getElementById('ssn')?.textContent||'-';
+  var date=document.getElementById('pod')?.value||new Date().toISOString().slice(0,10);
+  var rows=document.querySelectorAll('#potb tr');
   if(!rows.length){toast('Add at least one product',true);return;}
   var items=[];
   rows.forEach(function(tr){
