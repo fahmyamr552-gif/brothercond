@@ -2642,7 +2642,7 @@ async function submitForApproval(dispId){
 
 async function cancelDispatch(dispId){
   if(!can('delete')&&!can('delete_payment')){toast('No permission',true);return;}
-  if(!confirm('Cancel this dispatch? Inventory will be restored.'))return;
+  if(!window.confirm('هل تريد حذف هذا التوزيع؟ سيتم استرداد المخزون.'))return;
   var{data:disp}=await db.from('dispatches').select('status,dispatch_type').eq('id',dispId).single();
   if(!disp)return;
   var{data:items}=await db.from('dispatch_items').select('*').eq('dispatch_id',dispId);
