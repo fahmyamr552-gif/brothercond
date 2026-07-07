@@ -3902,15 +3902,28 @@ async function delPOPay(payId,poId){
 async function markDelivered(poId){
   var{data:items}=await db.from('po_items').select('*').eq('po_id',poId);
   if(!items?.length){toast('No items',true);return;}
+  // Get PO to find warehouse for spare parts
+  var{data:po}=await db.from('purchase_orders').select('warehouse').eq('id',poId).single();
+  var poWarehouse=po?.warehouse||'مخزن رئيسي';
   for(var i=0;i<items.length;i++){
     var it=items[i];
     if(it.inventory_id){
+      // AC unit - update inventory table
       var{data:inv}=await db.from('inventory').select('qty').eq('id',it.inventory_id).single();
       if(inv)await db.from('inventory').update({qty:(inv.qty||0)+it.qty}).eq('id',it.inventory_id);
+    } else if(it.spare_part_id){
+      // Spare part - update spare_parts table with correct warehouse
+      var{data:sp}=await db.from('spare_parts').select('qty,warehouse').eq('id',it.spare_part_id).single();
+      if(sp){
+        await db.from('spare_parts').update({qty:(sp.qty||0)+it.qty}).eq('id',it.spare_part_id);
+      } else {
+        // Part not found - this shouldn't happen but log it
+        console.warn('Spare part not found:',it.spare_part_id);
+      }
     }
   }
   await db.from('purchase_orders').update({status:'received'}).eq('id',poId);
-  toast('Received - inventory updated!');
+  toast('تم الاستلام وتحديث المخزون');
   document.querySelectorAll('.po-modal,.receive-modal').forEach(function(e){e.remove();});
   loadPur();
 }
