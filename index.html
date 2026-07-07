@@ -3832,19 +3832,21 @@ async function openPODetail(poId){
   var{data:pays}=await db.from('po_payments').select('*').eq('po_id',poId).order('created_at',{ascending:true});
   if(!po)return;items=items||[];pays=pays||[];
   var invIds=items.map(function(i){return i.inventory_id;}).filter(Boolean);
+  var spIds=items.map(function(i){return i.spare_part_id;}).filter(Boolean);
   var invMap={};
-  if(invIds.length){var{data:invData}=await db.from('inventory').select('id,brand,model,hp,qty').in('id',invIds);(invData||[]).forEach(function(inv){invMap[inv.id]={name:inv.brand+' '+inv.model+' '+inv.hp,qty:inv.qty};});}
+  if(invIds.length){var{data:invData}=await db.from('inventory').select('id,brand,model,hp,unit_type,cooling,qty').in('id',invIds);(invData||[]).forEach(function(inv){invMap[inv.id]={name:inv.brand+' '+inv.model+' '+inv.hp+'HP '+inv.unit_type+' '+(inv.cooling||''),qty:inv.qty};});}
+  if(spIds.length){var{data:spData}=await db.from('spare_parts').select('id,name,unit,qty,warehouse').in('id',spIds);(spData||[]).forEach(function(sp){invMap[sp.id]={name:sp.name+' ('+sp.unit+') - '+sp.warehouse,qty:sp.qty};});}
   var overlay=document.createElement('div');overlay.className='po-modal';
   overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9000;display:flex;align-items:center;justify-content:center';
   overlay.onclick=function(e){if(e.target===overlay)overlay.remove();};
   var paidSoFar=pays.reduce(function(a,p){return a+p.amount;},0);
   var owed=Math.max(0,po.total-paidSoFar);
-  var iRows=items.map(function(it){var inv=invMap[it.inventory_id]||{name:'Unknown',qty:0};return '<tr><td style="padding:7px 10px">'+inv.name+'</td><td style="padding:7px 10px;text-align:center">'+it.qty+'</td><td style="padding:7px 10px;text-align:right">EGP '+(it.price||0).toLocaleString()+'</td><td style="padding:7px 10px;text-align:right;font-weight:700">EGP '+(it.qty*(it.price||0)).toLocaleString()+'</td></tr>';}).join('');
+  var iRows=items.map(function(it){var key=it.inventory_id||it.spare_part_id;var inv=invMap[key]||{name:it.product_name||'Unknown',qty:0};var cost=it.unit_cost||0;return '<tr><td style="padding:7px 10px">'+inv.name+'</td><td style="padding:7px 10px;text-align:center">'+it.qty+'</td><td style="padding:7px 10px;text-align:right">EGP '+cost.toLocaleString()+'</td><td style="padding:7px 10px;text-align:right;font-weight:700">EGP '+(it.qty*cost).toLocaleString()+'</td></tr>';}).join('');
   var pRows=pays.map(function(p){return '<tr><td style="padding:5px 8px">'+f(p.amount)+'</td><td style="padding:5px 8px">'+p.method+'</td><td style="padding:5px 8px;color:#888">'+(p.note||'-')+'</td><td style="padding:5px 8px">'+(p.created_at?new Date(p.created_at).toLocaleDateString('en-GB'):'')+'</td>'+(can('delete')||can('delete_payment')?'<td><button onclick="delPOPay(\''+p.id+'\',\''+poId+'\')" style="font-size:10px;color:#A32D2D;border:1px solid #E24B4A;border-radius:4px;background:#FCEBEB;cursor:pointer;padding:1px 6px">Del</button></td>':'')+'</tr>';}).join('');
   var html='<div style="background:#fff;border-radius:14px;padding:24px;width:620px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.25)">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><div style="font-size:16px;font-weight:700">'+po.po_num+'</div><button id="pod-close" style="border:none;background:none;font-size:22px;cursor:pointer">&#10005;</button></div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px;font-size:12px">'
-      +'<div><div style="color:#888">Supplier</div><div style="font-weight:700">'+(po.supplier_name||'-')+'</div></div>'
+      +'<div><div style="color:#888">المورد</div><div style="font-weight:700">'+(po.supplier_name||po.supplier_id||'-')+'</div></div>'
       +'<div><div style="color:#888">Date</div><div style="font-weight:700">'+po.date+'</div></div>'
       +'<div><div style="color:#888">Status</div><div style="font-weight:700">'+po.status+'</div></div>'
     +'</div>'
