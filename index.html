@@ -1203,7 +1203,7 @@ async function loadTasks(resetPage){
         +'<div><div style="font-weight:600;font-size:13px">'+(tk.customer_name||'-')+'</div>'
         +'<div style="font-size:11px;color:#888">'+tk.branch+' &middot; '+(tk.salesperson||'-')+' &middot; '+(tk.date||'-')+'</div></div>'
         +'<div style="font-size:12px;font-weight:700">'+(g>0?('EGP '+Math.round(g).toLocaleString()):'-')+'</div>'
-        +'<div style="font-size:11px;font-weight:600;color:'+(psColor[tk.pay_status]||'#888')+'">'+(psLabel[tk.pay_status]||tk.pay_status||'-')+'</div>'
+        +'<div style="font-size:11px;font-weight:600;color:'+(g===0?'#888':(psColor[tk.pay_status]||'#888'))+'">'+(g===0?'بدون تحصيل':(psLabel[tk.pay_status]||tk.pay_status||'-'))+'</div>'
         +'<div><span class="bx '+(sm[tk.status]||'gr')+'" style="font-size:10px">'+(sl()[tk.status]||tk.status||'-')+'</span></div>';
       d.onclick=function(){openTask(tk.id);};
       body.appendChild(d);
@@ -3606,16 +3606,20 @@ function sSearch(q){
 
 function selSup(id,name){
   window._selSupId=id;
-  var ssn=document.getElementById('ssn');if(ssn)ssn.textContent=name;
-  var ssel=document.getElementById('ssel');if(ssel)ssel.style.display='flex';
+  window._selSupName=name;
+  var sqi=document.getElementById('sqi');
+  if(sqi){sqi.value=name;sqi.style.color='#1D9E75';sqi.style.fontWeight='700';}
   var ssg=document.getElementById('ssg');if(ssg)ssg.style.display='none';
-  var sqi=document.getElementById('sqi');if(sqi)sqi.value='';
+  var ssn=document.getElementById('ssn');if(ssn)ssn.textContent=name;
+  var ssel=document.getElementById('ssel');if(ssel)ssel.style.display='none';
 }
 
 function clrS(){
-  window._selSupId=null;
+  window._selSupId=null;window._selSupName=null;
+  var sqi=document.getElementById('sqi');
+  if(sqi){sqi.value='';sqi.style.color='';sqi.style.fontWeight='';}
   var ssel=document.getElementById('ssel');if(ssel)ssel.style.display='none';
-  var sqi=document.getElementById('sqi');if(sqi)sqi.value='';
+  var ssg=document.getElementById('ssg');if(ssg)ssg.style.display='none';
 }
 
 function togS(checked){
@@ -3664,7 +3668,7 @@ async function savePO(){
   if(!rows.length){toast('Add at least one product',true);return;}
   var items=[];
   rows.forEach(function(tr){
-    var sel=tr.cells[0]?.querySelector('select');var invId=sel?.value;
+    var inp=tr.cells[0]?.querySelector('.po-prod-inp');var invId=inp?.dataset?.invId||'';
     var q=parseInt(tr.cells[2]?.querySelector('input')?.value)||0;
     var c=parseFloat(tr.cells[3]?.querySelector('input')?.value)||0;
     if(invId&&q>0)items.push({inventory_id:invId,qty:q,price:c});
