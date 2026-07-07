@@ -3676,7 +3676,7 @@ async function savePO(){
   var lastPN=lastPO&&lastPO.length?lastPO[0].po_num:'PO-00000';
   var lastPNum=parseInt((lastPN||'PO-00000').replace(/[^0-9]/g,''))||0;
   var poNum='PO-'+String(lastPNum+1).padStart(5,'0');
-  var{data:po,error}=await db.from('purchase_orders').insert({po_num:poNum,supplier_id:supId||null,supplier_name:supNm,date:date,total:tot,status:'pending',item_count:items.length,notes:document.getElementById('ponotes')?.value,expected_delivery:document.getElementById('podel')?.value}).select().single();
+  var{data:po,error}=await db.from('purchase_orders').insert({po_num:poNum,supplier_id:supId||null,supplier_name:supNm,date:date,total:tot,status:'pending',notes:document.getElementById('pon')?.value,expected_delivery:document.getElementById('podl')?.value}).select().single();
   if(error){toast('Error: '+error.message,true);return;}
   var poItems=items.map(function(it){return{po_id:po.id,inventory_id:it.inventory_id,qty:it.qty,price:it.price};});
   await db.from('po_items').insert(poItems);
