@@ -1076,6 +1076,7 @@ function openEditOrderInfo(){
   html+='<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">Salesperson</label><select id="eoi-sp" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px">'+spOpts+'</select></div>';
   html+='<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">Type</label><select id="eoi-ty" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px">'+tyOpts+'</select></div>';
   html+='<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">Task date</label><input type="date" id="eoi-dt" value="'+(CT.date||'')+'" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div>';
+  html+='<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">الوقت</label><select id="eoi-time" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px"><option value="">-- بدون وقت --</option><option value="8:00 - 9:00"'+(CT.time_slot==="8:00 - 9:00"?' selected':'')+'>8:00 - 9:00 ص</option><option value="9:00 - 10:00"'+(CT.time_slot==="9:00 - 10:00"?' selected':'')+'>9:00 - 10:00 ص</option><option value="10:00 - 11:00"'+(CT.time_slot==="10:00 - 11:00"?' selected':'')+'>10:00 - 11:00 ص</option><option value="11:00 - 12:00"'+(CT.time_slot==="11:00 - 12:00"?' selected':'')+'>11:00 - 12:00 ص</option><option value="12:00 - 1:00"'+(CT.time_slot==="12:00 - 1:00"?' selected':'')+'>12:00 - 1:00 م</option><option value="1:00 - 2:00"'+(CT.time_slot==="1:00 - 2:00"?' selected':'')+'>1:00 - 2:00 م</option><option value="2:00 - 3:00"'+(CT.time_slot==="2:00 - 3:00"?' selected':'')+'>2:00 - 3:00 م</option><option value="3:00 - 4:00"'+(CT.time_slot==="3:00 - 4:00"?' selected':'')+'>3:00 - 4:00 م</option><option value="4:00 - 5:00"'+(CT.time_slot==="4:00 - 5:00"?' selected':'')+'>4:00 - 5:00 م</option><option value="5:00 - 6:00"'+(CT.time_slot==="5:00 - 6:00"?' selected':'')+'>5:00 - 6:00 م</option><option value="6:00 - 7:00"'+(CT.time_slot==="6:00 - 7:00"?' selected':'')+'>6:00 - 7:00 م</option><option value="7:00 - 8:00"'+(CT.time_slot==="7:00 - 8:00"?' selected':'')+'>7:00 - 8:00 م</option></select></div>';
   html+='</div>';
   html+='<div style="margin-bottom:12px"><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">Description</label><textarea id="eoi-ds" rows="3" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px;resize:vertical;box-sizing:border-box">'+(CT.description||'')+'</textarea></div>';
   // Build address picker from customer's saved addresses
@@ -1123,6 +1124,8 @@ function openEditOrderInfo(){
       to_address:document.getElementById('eoi-addr-to')?.value||null,
       address:document.getElementById('eoi-task-addr')?.value||null
     };
+    var timeEl=document.getElementById('eoi-time');
+    if(timeEl)updates.time_slot=timeEl.value||null;
     var taxEl=document.getElementById('eoi-tax');
     if(taxEl)updates.use_tax=taxEl.checked;
     var{error}=await db.from('tasks').update(updates).eq('id',CT.id);
@@ -2671,7 +2674,8 @@ async function cancelDispatch(dispId){
     }
   } else {
     // عادي (or NULL/old dispatches) — only deducts on approval via assignments
-    if(disp.status!=='confirmed')return; // nothing deducted if not confirmed
+    // Only restore stock if confirmed (stock deducted via assignments on confirm)
+    if(disp.status==='confirmed'){
     var{data:assignments}=await db.from('dispatch_assignments').select('qty,dispatch_item_id').eq('dispatch_id',dispId);
     var asgnItemIds=(assignments||[]).map(function(a){return a.dispatch_item_id;}).filter(Boolean);
     if(asgnItemIds.length){
@@ -2687,16 +2691,6 @@ async function cancelDispatch(dispId){
         }
       }
     }
-  }
-  // For بيع مباشر: also delete the linked task + payment
-  if(disp.dispatch_type==='بيع مباشر'){
-    // Find linked task by matching date + created_by + type
-    var{data:linkedTasks}=await db.from('tasks').select('id').eq('type','بيع مباشر').eq('date',disp.date).eq('created_by',disp.created_by);
-    for(var i=0;i<(linkedTasks||[]).length;i++){
-      var tid=linkedTasks[i].id;
-      await db.from('payments').delete().eq('task_id',tid);
-      await db.from('task_products').delete().eq('task_id',tid);
-      await db.from('tasks').delete().eq('id',tid);
     }
   }
   // For بيع مباشر: also delete the linked task + payments
