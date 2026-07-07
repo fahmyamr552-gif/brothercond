@@ -932,7 +932,11 @@ async function doSignIn(){
   try{
     const{data,error}=await db.from('users').select('*').eq('username',u).eq('password',p).eq('active',true);
     if(btn){btn.textContent='Sign in';btn.disabled=false;}
-    if(error)throw error;
+    if(error){
+      // 416 = range not satisfiable (page beyond total rows) - just show no more
+      if(error.code==='PGRST103'){TASK_HAS_MORE=false;if(TASK_PAGE>0)return;tasks=[];}
+      else throw error;
+    }
     if(!data||data.length===0){if(errEl){errEl.textContent='Wrong username or password.';errEl.style.display='block';}return;}
     CU=data[0];
     // Save session so page refresh doesn't sign out
@@ -1172,6 +1176,8 @@ async function loadTasks(resetPage){
     const fs=document.getElementById('tfs')?.value||'';
     const from=TASK_PAGE*TASK_PAGE_SIZE;
     const to=from+TASK_PAGE_SIZE-1;
+    // Get count first to avoid range error
+    let countQ=db.from('tasks').select('id',{count:'exact',head:true});
     let qb=db.from('tasks').select('id,task_num,customer_name,type,branch,salesperson,status,date,pay_status',{count:'exact'}).order('date',{ascending:false}).range(from,to+1);
     if(tf)qb=qb.eq('type',tf);
     if(bf)qb=qb.eq('branch',bf);
@@ -1180,7 +1186,10 @@ async function loadTasks(resetPage){
     if(td2)qb=qb.lte('date',td2);
     if(q){qb=qb.or('customer_name.ilike.%'+q+'%,task_num.ilike.%'+q+'%');}
     const{data:tasks,error,count}=await qb;
-    if(error)throw error;
+    if(error){
+      if(error.code==='PGRST103'){TASK_HAS_MORE=false;if(TASK_PAGE>0){loadTasks(false);return;}tasks=[];}
+      else throw error;
+    }
     var pageData=(tasks||[]).slice(0,TASK_PAGE_SIZE);
     TASK_HAS_MORE=(tasks||[]).length>TASK_PAGE_SIZE;
     // Load products for this page only
