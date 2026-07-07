@@ -3770,27 +3770,48 @@ async function savePO(){
   var supId=window._selSupId||null;
   var supNm=document.getElementById('ssn')?.textContent||'-';
   var date=document.getElementById('pod')?.value||new Date().toISOString().slice(0,10);
+  var poType=document.querySelector('input[name="po-type"]:checked')?.value||'ac';
   var rows=document.querySelectorAll('#potb tr');
-  if(!rows.length){toast('Add at least one product',true);return;}
+  if(!rows.length){toast('أضف منتجاً واحداً على الأقل',true);return;}
   var items=[];
   rows.forEach(function(tr){
-    var inp=tr.cells[0]?.querySelector('.po-prod-inp');var invId=inp?.dataset?.invId||'';
-    var q=parseInt(tr.cells[2]?.querySelector('input')?.value)||0;
-    var c=parseFloat(tr.cells[3]?.querySelector('input')?.value)||0;
-    if(invId&&q>0)items.push({inventory_id:invId,qty:q,price:c});
+    var inp=tr.querySelector('.po-prod-inp');
+    if(!inp)return;
+    var invId=inp.dataset.invId||'';
+    var invType=inp.dataset.invType||poType;
+    // SP rows: name|wh|stock|qty|cost|x → qty at index 3, cost at index 4
+    // AC rows: name|stock|qty|cost|x → qty at index 2, cost at index 3
+    var qIdx=invType==='sp'?3:2;
+    var cIdx=invType==='sp'?4:3;
+    var q=parseInt(tr.cells[qIdx]?.querySelector('input')?.value)||0;
+    var c=parseFloat(tr.cells[cIdx]?.querySelector('input')?.value)||0;
+    var nm=inp.value||'';
+    if(invId&&q>0)items.push({invId:invId,invType:invType,qty:q,cost:c,name:nm});
   });
-  if(!items.length){toast('Add at least one valid product',true);return;}
-  var tot=items.reduce(function(a,it){return a+it.qty*it.price;},0);
+  if(!items.length){toast('اختر منتجاً وأدخل الكمية',true);return;}
+  var tot=items.reduce(function(a,it){return a+it.qty*it.cost;},0);
   // Generate PO number
   var{data:lastPO}=await db.from('purchase_orders').select('po_num').order('created_at',{ascending:false}).limit(1);
-  var lastPN=lastPO&&lastPO.length?lastPO[0].po_num:'PO-00000';
-  var lastPNum=parseInt((lastPN||'PO-00000').replace(/[^0-9]/g,''))||0;
+  var lastPNum=parseInt(((lastPO&&lastPO[0]?.po_num)||'PO-00000').replace(/[^0-9]/g,''))||0;
   var poNum='PO-'+String(lastPNum+1).padStart(5,'0');
-  var{data:po,error}=await db.from('purchase_orders').insert({po_num:poNum,supplier_id:supId||null,supplier_name:supNm,date:date,total:tot,status:'pending',notes:document.getElementById('pon')?.value,expected_delivery:document.getElementById('podl')?.value}).select().single();
-  if(error){toast('Error: '+error.message,true);return;}
-  var poItems=items.map(function(it){return{po_id:po.id,inventory_id:(it.inv_type!=='sp'?it.inventory_id:null),spare_part_id:(it.inv_type==='sp'?it.inventory_id:null),product_name:it.name,qty:it.qty,price:it.price};});
-  await db.from('po_items').insert(poItems);
-  toast(t('pocreated'));go('pur',document.getElementById('ni-pur'));
+  var{data:po,error}=await db.from('purchase_orders').insert({
+    po_num:poNum,supplier_id:supId||null,supplier_name:supNm,
+    date:date,total:tot,status:'pending',
+    notes:document.getElementById('pon')?.value||null,
+    expected_delivery:document.getElementById('podl')?.value||null
+  }).select().single();
+  if(error){toast('خطأ: '+error.message,true);return;}
+  // Insert po_items - use inventory_id for AC, spare_part_id for SP
+  var poItems=items.map(function(it){
+    var row={po_id:po.id,qty:it.qty,price:it.cost};
+    if(it.invType==='sp')row.spare_part_id=it.invId;
+    else row.inventory_id=it.invId;
+    return row;
+  });
+  var{error:itemErr}=await db.from('po_items').insert(poItems);
+  if(itemErr){toast('خطأ في حفظ المنتجات: '+itemErr.message,true);return;}
+  toast('تم إنشاء أمر الشراء '+poNum);
+  go('pur',document.getElementById('ni-pur'));
 }
 
 async function openPODetail(poId){
