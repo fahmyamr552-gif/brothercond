@@ -3815,7 +3815,7 @@ async function savePO(){
   if(error){toast('خطأ: '+error.message,true);return;}
   // Insert po_items - use inventory_id for AC, spare_part_id for SP
   var poItems=items.map(function(it){
-    var row={po_id:po.id,qty:it.qty,price:it.cost};
+    var row={po_id:po.id,qty:it.qty,unit_cost:it.cost,product_name:it.name};
     if(it.invType==='sp')row.spare_part_id=it.invId;
     else row.inventory_id=it.invId;
     return row;
