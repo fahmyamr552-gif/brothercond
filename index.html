@@ -3637,17 +3637,86 @@ function openNewPO(){
 }
 
 function addPOR(){
+  // Load AC inventory if needed
   if(!INV.length){db.from('inventory').select('*').then(function(r){INV=r.data||[];addPOR();});return;}
+  // Load spare parts if needed
+  if(!window._SP_PO){
+    db.from('spare_parts').select('id,name,unit,qty,cost,warehouse').order('name').then(function(r){
+      window._SP_PO=r.data||[];addPOR();
+    });
+    return;
+  }
   var body=document.getElementById('potb');if(!body)return;
   var tr=document.createElement('tr');
-  var opts=INV.map(function(p){return '<option value="'+p.id+'" data-stock="'+p.qty+'">'+p.brand+' '+p.model+' '+p.hp+' '+(p.unit_type||'')+' '+(p.cooling||'')+' '+(p.ac_type||'')+'</option>';}).join('');
-  tr.innerHTML='<td><select style="width:100%;font-size:12px;padding:4px" onchange="var o=this.selectedOptions[0];this.closest(\'tr\').querySelector(\'.po-stock\').textContent=o?o.dataset.stock+\' in stock\':\'\'" >'+opts+'</select></td>'
-    +'<td><div class="po-stock" style="font-size:11px;color:#888;text-align:center"></div></td>'
-    +'<td><input type="number" value="1" min="1" style="width:70px;text-align:center" oninput="calcPOT()"></td>'
-    +'<td><input type="number" class="po-cost" min="0" value="0" style="width:100%" oninput="calcPOT()"></td>'
-    +'<td><button class="ib" onclick="this.closest(\'tr\').remove();calcPOT()" style="font-size:12px">X</button></td>';
+  var listId='pol'+Date.now();
+  // Build combined datalist
+  var dl=document.createElement('datalist');
+  dl.id=listId;
+  INV.forEach(function(p){
+    var opt=document.createElement('option');
+    opt.value='[AC] '+p.brand+' '+p.model+' '+p.hp+'HP '+p.unit_type;
+    dl.appendChild(opt);
+  });
+  (window._SP_PO||[]).forEach(function(p){
+    var opt=document.createElement('option');
+    opt.value='[قطعة] '+p.name+' ('+p.unit+') - '+p.warehouse;
+    dl.appendChild(opt);
+  });
+  // Input cell
+  var td1=document.createElement('td');
+  var inp=document.createElement('input');
+  inp.setAttribute('list',listId);
+  inp.placeholder='ابحث عن منتج أو قطعة...';
+  inp.className='po-prod-inp';
+  inp.style.cssText='width:100%;font-size:12px;padding:4px;border:1px solid #ddd;border-radius:4px;box-sizing:border-box';
+  inp.dataset.invId='';inp.dataset.invType='';
+  inp.oninput=function(){
+    var val=this.value.trim();
+    var matchAC=INV.find(function(p){return ('[AC] '+p.brand+' '+p.model+' '+p.hp+'HP '+p.unit_type)===val;});
+    var matchSP=(window._SP_PO||[]).find(function(p){return ('[قطعة] '+p.name+' ('+p.unit+') - '+p.warehouse)===val;});
+    if(matchAC){
+      this.dataset.invId=matchAC.id;this.dataset.invType='ac';
+      tr.querySelector('.po-stock').textContent=matchAC.qty+' in stock';
+      this.style.borderColor='#1D9E75';
+    }else if(matchSP){
+      this.dataset.invId=matchSP.id;this.dataset.invType='sp';
+      tr.querySelector('.po-stock').textContent=matchSP.qty+' '+matchSP.unit+' | '+matchSP.warehouse;
+      this.style.borderColor='#185FA5';
+    }else{
+      this.dataset.invId='';this.dataset.invType='';
+      tr.querySelector('.po-stock').textContent='';
+      this.style.borderColor='#ddd';
+    }
+  };
+  td1.appendChild(dl);td1.appendChild(inp);
+  // Stock cell
+  var td2=document.createElement('td');
+  var stockDiv=document.createElement('div');
+  stockDiv.className='po-stock';
+  stockDiv.style.cssText='font-size:11px;color:#888;text-align:center';
+  td2.appendChild(stockDiv);
+  // Qty cell
+  var td3=document.createElement('td');
+  var qtyInp=document.createElement('input');
+  qtyInp.type='number';qtyInp.value='1';qtyInp.min='1';
+  qtyInp.style.cssText='width:70px;text-align:center';
+  qtyInp.oninput=calcPOT;
+  td3.appendChild(qtyInp);
+  // Cost cell
+  var td4=document.createElement('td');
+  var costInp=document.createElement('input');
+  costInp.type='number';costInp.className='po-cost';costInp.min='0';costInp.value='0';
+  costInp.style.width='100%';costInp.oninput=calcPOT;
+  td4.appendChild(costInp);
+  // Remove cell
+  var td5=document.createElement('td');
+  var rmBtn=document.createElement('button');
+  rmBtn.className='ib';rmBtn.textContent='X';rmBtn.style.fontSize='12px';
+  rmBtn.onclick=function(){tr.remove();calcPOT();};
+  td5.appendChild(rmBtn);
+  tr.appendChild(td1);tr.appendChild(td2);tr.appendChild(td3);tr.appendChild(td4);tr.appendChild(td5);
   body.appendChild(tr);
-  var sel=tr.querySelector('select');if(sel)sel.onchange();
+  inp.focus();
 }
 
 function calcPOT(){
@@ -3682,7 +3751,7 @@ async function savePO(){
   var poNum='PO-'+String(lastPNum+1).padStart(5,'0');
   var{data:po,error}=await db.from('purchase_orders').insert({po_num:poNum,supplier_id:supId||null,supplier_name:supNm,date:date,total:tot,status:'pending',notes:document.getElementById('pon')?.value,expected_delivery:document.getElementById('podl')?.value}).select().single();
   if(error){toast('Error: '+error.message,true);return;}
-  var poItems=items.map(function(it){return{po_id:po.id,inventory_id:it.inventory_id,qty:it.qty,price:it.price};});
+  var poItems=items.map(function(it){return{po_id:po.id,inventory_id:(it.inv_type!=='sp'?it.inventory_id:null),spare_part_id:(it.inv_type==='sp'?it.inventory_id:null),product_name:it.name,qty:it.qty,price:it.price};});
   await db.from('po_items').insert(poItems);
   toast(t('pocreated'));go('pur',document.getElementById('ni-pur'));
 }
