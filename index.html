@@ -3570,29 +3570,103 @@ async function loadPur(){
   });
 }
 
+
+function onPOTypeChange(){
+  var type=document.querySelector('input[name="po-type"]:checked')?.value||'ac';
+  var body=document.getElementById('potb');if(body)body.innerHTML='';
+  var wsel=document.getElementById('po-wh-selector');
+  var thead=document.getElementById('po-thead');
+  if(type==='sp'){
+    if(thead)thead.innerHTML='<tr><th>'+t('name')+'</th><th>Stock</th><th>Qty</th><th>Cost (EGP)</th><th></th></tr>';
+    if(wsel)wsel.style.display='flex';
+  }else{
+    if(thead)thead.innerHTML='<tr><th>Product</th><th>Stock</th><th>Qty</th><th>Cost (EGP)</th><th></th></tr>';
+    if(wsel)wsel.style.display='none';
+  }
+  addPOR();
+}
 function openNewPO(){
   go('npo',null);
-  document.getElementById('porb').innerHTML='';
-  document.getElementById('potot').textContent='EGP 0';
+  window._SP_PO=null;
+  var _b=document.getElementById('potb');if(_b)_b.innerHTML='';
+  var _t=document.getElementById('potot');if(_t)_t.textContent='EGP 0';
+  clrS();
   addPOR();
 }
 
 function addPOR(){
-  if(!INV.length){db.from('inventory').select('*').then(function(r){INV=r.data||[];addPOR();});return;}
-  var body=document.getElementById('porb');if(!body)return;
+  var poType=document.querySelector('input[name="po-type"]:checked')?.value||'ac';
+  if(poType==='sp'){
+    if(!window._SP_PO){
+      db.from('spare_parts').select('id,name,unit,qty,cost,warehouse').order('name').then(function(r){
+        window._SP_PO=r.data||[];addPOR();
+      });return;
+    }
+  }else{
+    if(!INV.length){db.from('inventory').select('*').then(function(r){INV=r.data||[];addPOR();});return;}
+  }
+  var body=document.getElementById('potb');if(!body)return;
   var tr=document.createElement('tr');
-  var opts=INV.map(function(p){return '<option value="'+p.id+'" data-stock="'+p.qty+'">'+p.brand+' '+p.model+' '+p.hp+' '+(p.unit_type||'')+' '+(p.cooling||'')+' '+(p.ac_type||'')+'</option>';}).join('');
-  tr.innerHTML='<td><select style="width:100%;font-size:12px;padding:4px" onchange="var o=this.selectedOptions[0];this.closest(\'tr\').querySelector(\'.po-stock\').textContent=o?o.dataset.stock+\' in stock\':\'\'" >'+opts+'</select></td>'
-    +'<td><div class="po-stock" style="font-size:11px;color:#888;text-align:center"></div></td>'
-    +'<td><input type="number" value="1" min="1" style="width:70px;text-align:center" oninput="calcPOT()"></td>'
-    +'<td><input type="number" class="po-cost" min="0" value="0" style="width:100%" oninput="calcPOT()"></td>'
-    +'<td><button class="ib" onclick="this.closest(\'tr\').remove();calcPOT()" style="font-size:12px">X</button></td>';
-  body.appendChild(tr);
-  var sel=tr.querySelector('select');if(sel)sel.onchange();
+  var listId='pol'+Date.now();
+  var dl=document.createElement('datalist');dl.id=listId;
+  if(poType==='sp'){
+    (window._SP_PO||[]).forEach(function(p){
+      var o=document.createElement('option');
+      o.value=p.name+' ('+p.unit+') - '+p.warehouse;
+      dl.appendChild(o);
+    });
+  }else{
+    INV.forEach(function(p){
+      var o=document.createElement('option');
+      o.value=p.brand+' '+p.model+' '+p.hp+'HP '+p.unit_type+' '+(p.cooling||'')+' '+(p.ac_type||'');
+      dl.appendChild(o);
+    });
+  }
+  var td1=document.createElement('td');
+  var inp=document.createElement('input');
+  inp.setAttribute('list',listId);
+  inp.placeholder=poType==='sp'?'ابحث عن قطعة...':'ابحث عن وحدة...';
+  inp.className='po-prod-inp';inp.dataset.invId='';inp.dataset.invType=poType;
+  inp.style.cssText='width:100%;font-size:12px;padding:5px;border:1px solid #ddd;border-radius:4px;box-sizing:border-box';
+  function doMatch(el){
+    var val=el.value.trim();
+    if(poType==='sp'){
+      var m=(window._SP_PO||[]).find(function(p){return (p.name+' ('+p.unit+') - '+p.warehouse)===val;});
+      if(m){el.dataset.invId=m.id;el.dataset.invType='sp';el.style.borderColor='#185FA5';
+        var st=tr.querySelector('.po-stock');if(st)st.textContent=m.qty+' '+m.unit;
+        var ci=tr.querySelector('.po-cost');if(ci&&m.cost)ci.value=m.cost;
+      }else{el.dataset.invId='';el.style.borderColor='#ddd';}
+    }else{
+      var m=INV.find(function(p){return (p.brand+' '+p.model+' '+p.hp+'HP '+p.unit_type+' '+(p.cooling||'')+' '+(p.ac_type||''))===val;});
+      if(m){el.dataset.invId=m.id;el.dataset.invType='ac';el.style.borderColor='#1D9E75';
+        var st=tr.querySelector('.po-stock');if(st)st.textContent=m.qty+' in stock';
+        var ci=tr.querySelector('.po-cost');if(ci&&m.cost)ci.value=m.cost;
+      }else{el.dataset.invId='';el.style.borderColor='#ddd';}
+    }
+    calcPOT();
+  }
+  inp.oninput=function(){doMatch(this);};
+  inp.onchange=function(){doMatch(this);};
+  td1.appendChild(dl);td1.appendChild(inp);
+  var td2=document.createElement('td');
+  var st=document.createElement('div');st.className='po-stock';st.style.cssText='font-size:11px;color:#888;text-align:center';
+  td2.appendChild(st);
+  var td3=document.createElement('td');
+  var qi=document.createElement('input');qi.type='number';qi.value='1';qi.min='1';qi.style.cssText='width:60px;text-align:center';qi.oninput=calcPOT;
+  td3.appendChild(qi);
+  var td4=document.createElement('td');
+  var ci=document.createElement('input');ci.type='number';ci.className='po-cost';ci.min='0';ci.value='0';ci.style.width='100%';ci.oninput=calcPOT;
+  td4.appendChild(ci);
+  var td5=document.createElement('td');
+  var rb=document.createElement('button');rb.className='ib';rb.textContent='X';rb.style.fontSize='12px';
+  rb.onclick=function(){tr.remove();calcPOT();};
+  td5.appendChild(rb);
+  tr.appendChild(td1);tr.appendChild(td2);tr.appendChild(td3);tr.appendChild(td4);tr.appendChild(td5);
+  body.appendChild(tr);inp.focus();
 }
 
 function calcPOT(){
-  var rows=document.querySelectorAll('#porb tr');var tot=0;
+  var rows=document.querySelectorAll('#potb tr');var tot=0;
   rows.forEach(function(tr){
     var q=parseFloat(tr.cells[2]?.querySelector('input')?.value)||0;
     var c=parseFloat(tr.cells[3]?.querySelector('input')?.value)||0;
@@ -3605,7 +3679,7 @@ async function savePO(){
   var supId=document.getElementById('posup')?.value;
   var supNm=document.getElementById('posup')?.selectedOptions[0]?.text||'-';
   var date=document.getElementById('podate')?.value||new Date().toISOString().slice(0,10);
-  var rows=document.querySelectorAll('#porb tr');
+  var rows=document.querySelectorAll('#potb tr');
   if(!rows.length){toast('Add at least one product',true);return;}
   var items=[];
   rows.forEach(function(tr){
