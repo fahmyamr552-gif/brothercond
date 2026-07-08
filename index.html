@@ -2264,7 +2264,7 @@ function openNT(){
 }
 
 function onTC(v){
-  document.getElementById('ntpc').style.display=v==='sales'?'block':'none';
+  document.getElementById('ntpc').style.display=(v==='sales'||v==='sale_install')?'block':'none';
   var addrBlock=document.getElementById('nt-addr-block');
   if(addrBlock)addrBlock.style.display=(v==='uninstall'||v==='installation'||v==='uninstall_install')?'block':'none';
   var installSec=document.getElementById('nt-install-section');
@@ -4432,7 +4432,7 @@ async function saveTask(){
 
 async function addRow(){
   var type2=document.getElementById('ntt').value;
-  var isSales2=type2==='sales';
+  var isSales2=(type2==='sales'||type2==='sale_install');
   var tbody=document.getElementById('ntb');
   var useTax=document.getElementById('tax-toggle')?.checked!==false;
   var taxStyle=useTax?'':'display:none';
