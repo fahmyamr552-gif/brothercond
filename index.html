@@ -429,7 +429,6 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     <button class="btn bs" onclick="go('tasks',document.getElementById('ni-tasks'))">&larr;</button>
     <span style="font-size:15px;font-weight:700" data-t="newtask">New task</span>
     <select id="ntt" onchange="onTC(this.value)" style="width:180px;margin-left:auto">
-      <option value="sales">طلب بيع</option>
       <option value="maintenance">صيانة</option>
       <option value="installation">تركيب</option>
       <option value="uninstall">فك</option>
@@ -508,7 +507,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
       <div style="font-size:12px;font-weight:700;color:#185FA5;margin-bottom:8px">بيانات التركيب</div>
       <div class="r2">
         <div class="fg"><label style="font-size:11px;color:#888">تاريخ التركيب المتوقع</label><input type="date" id="nt-install-date"></div>
-        <div class="fg"><label style="font-size:11px;color:#888">الفني المسؤول</label><input id="nt-install-tech" placeholder="اسم الفني"></div>
+        <div class="fg"><label style="font-size:11px;color:#888">الفني المسؤول</label><select id="nt-install-tech"><option value="">-- اختر الفني --</option></select></div>
       </div>
     </div>
   </div>
@@ -1071,7 +1070,7 @@ function openEditOrderInfo(){
   overlay.onclick=function(e){if(e.target===overlay)overlay.remove();};
   var BRANCHES=['Nasr City','Madinaty','Rehab','Head Office'];
   var SPS=['Salah','Alaa','Ayman','Heba','Amr Ashraf'];
-  var TYPES=['sales','maintenance','installation','uninstall','uninstall_install','pull','inspection','workshop','sale_install'];
+  var TYPES=['maintenance','installation','uninstall','uninstall_install','pull','inspection','workshop','sale_install'];
   var brOpts=BRANCHES.map(function(b){return '<option value="'+b+'"'+(CT.branch===b?' selected':'')+'>'+b+'</option>';}).join('');
   var spOpts=SPS.map(function(s){return '<option value="'+s+'"'+(CT.salesperson===s?' selected':'')+'>'+s+'</option>';}).join('');
   var typeLabels={sales:'طلب بيع',maintenance:'صيانة',installation:'تركيب',uninstall:'فك',uninstall_install:'فك و تركيب',pull:'سحب',inspection:'معاينة',workshop:'اصلاح ورشة',sale_install:'بيع وتركيب'};
@@ -2253,6 +2252,15 @@ function openNT(){
   var taxToggle=document.getElementById('tax-toggle');
   if(taxToggle)taxToggle.checked=true;
   addRow();
+  // Load technicians for install dropdown
+  db.from('employees').select('full_name').eq('position','فني').eq('active',true).order('full_name').then(function(res){
+    var techSel=document.getElementById('nt-install-tech');
+    if(techSel){
+      var opts='<option value="">-- اختر الفني --</option>';
+      (res.data||[]).forEach(function(e){opts+='<option value="'+e.full_name+'">'+e.full_name+'</option>';});
+      techSel.innerHTML=opts;
+    }
+  });
 }
 
 function onTC(v){
@@ -4617,7 +4625,9 @@ function showInvTab(tab,btn){
   var spSec=document.getElementById('inv-sp-section');
   if(acSec)acSec.style.display=tab==='ac'?'':'none';
   if(spSec)spSec.style.display=(tab==='sp1'||tab==='sp2')?'':'none';
-  if(tab==='sp1'){
+  if(tab==='ac'){
+    loadInv();
+  }else if(tab==='sp1'){
     document.getElementById('sp-warehouse-filter').value='مخزن رئيسي';
     loadSpareParts();setTimeout(renderKitsManager,500);
   }else if(tab==='sp2'){
@@ -4699,10 +4709,7 @@ function clrC(){
   var addrBlock=document.getElementById('nt-addr-block');if(addrBlock)addrBlock.style.display='none';
   var dupWarn=document.getElementById('nt-dup-warn');if(dupWarn)dupWarn.style.display='none';
 }
-</script>
-</body>
-</html>
-<script>
+
 const POL_AR=`تسعير الأنابيب: 1.5-2.25 حصان 950 ج.م/م، 3 حصان 1150 ج.م/م، 4-5 حصان 950 ج.م/م. الوحدات المخفية: بدون أنابيب. الهاي وول: 3 م مشمولة. الشركة غير مسؤولة عن أعمال الخرسانة أو الصرف أو الأعمال الخاصة.
 
 الاستثناءات: نقطة تصريف التكثيف، توصيل الكهرباء للوحدة الخارجية، الأعمال المدنية.
