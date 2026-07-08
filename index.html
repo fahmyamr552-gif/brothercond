@@ -2257,6 +2257,8 @@ function onTC(v){
   document.getElementById('ntpc').style.display=v==='sales'?'block':'none';
   var addrBlock=document.getElementById('nt-addr-block');
   if(addrBlock)addrBlock.style.display=(v==='uninstall'||v==='installation'||v==='uninstall_install')?'block':'none';
+  var installSec=document.getElementById('nt-install-section');
+  if(installSec)installSec.style.display=v==='sale_install'?'block':'none';
   document.getElementById('ntb').innerHTML='';
   addRow();
 }
