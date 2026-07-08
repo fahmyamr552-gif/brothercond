@@ -502,6 +502,13 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
       </select></div>
     </div>
     <div class="fg"><label data-t="description">Description</label><textarea id="ntds" placeholder="Special instructions..."></textarea></div>
+    <div id="nt-install-section" style="display:none;background:#f0f9ff;border:1px solid #b3d9f7;border-radius:8px;padding:12px;margin-top:8px">
+      <div style="font-size:12px;font-weight:700;color:#185FA5;margin-bottom:8px">بيانات التركيب</div>
+      <div class="r2">
+        <div class="fg"><label style="font-size:11px;color:#888">تاريخ التركيب المتوقع</label><input type="date" id="nt-install-date"></div>
+        <div class="fg"><label style="font-size:11px;color:#888">الفني المسؤول</label><input id="nt-install-tech" placeholder="اسم الفني"></div>
+      </div>
+    </div>
   </div>
   <div class="cd">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
@@ -1062,10 +1069,10 @@ function openEditOrderInfo(){
   overlay.onclick=function(e){if(e.target===overlay)overlay.remove();};
   var BRANCHES=['Nasr City','Madinaty','Rehab','Head Office'];
   var SPS=['Salah','Alaa','Ayman','Heba','Amr Ashraf'];
-  var TYPES=['sales','maintenance','installation','uninstall','uninstall_install','pull','inspection','workshop'];
+  var TYPES=['sales','maintenance','installation','uninstall','uninstall_install','pull','inspection','workshop','sale_install'];
   var brOpts=BRANCHES.map(function(b){return '<option value="'+b+'"'+(CT.branch===b?' selected':'')+'>'+b+'</option>';}).join('');
   var spOpts=SPS.map(function(s){return '<option value="'+s+'"'+(CT.salesperson===s?' selected':'')+'>'+s+'</option>';}).join('');
-  var typeLabels={sales:'طلب بيع',maintenance:'صيانة',installation:'تركيب',uninstall:'فك',uninstall_install:'فك و تركيب',pull:'سحب',inspection:'معاينة',workshop:'اصلاح ورشة'};
+  var typeLabels={sales:'طلب بيع',maintenance:'صيانة',installation:'تركيب',uninstall:'فك',uninstall_install:'فك و تركيب',pull:'سحب',inspection:'معاينة',workshop:'اصلاح ورشة',sale_install:'بيع وتركيب'};
   var tyOpts=TYPES.map(function(tp){return '<option value="'+tp+'"'+(CT.type===tp?' selected':'')+'>'+typeLabels[tp]+'</option>';}).join('');
   var html='<div style="background:#fff;border-radius:14px;padding:24px;width:480px;max-width:95vw;box-shadow:0 10px 40px rgba(0,0,0,.25)">';
   html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">';
@@ -1131,7 +1138,36 @@ function openEditOrderInfo(){
     Object.assign(CT,updates);
     if(taxEl)CT.use_tax=taxEl.checked;
     var setEl=function(id,v){var el=document.getElementById(id);if(el)el.textContent=v;};
-    setEl('dbr',CT.branch);setEl('dsp',CT.salesperson);setEl('dty',CT.type);
+    setEl('dbr',CT.branch);setEl('dsp',CT.salesperson);setEl('dty',(typeLabels[CT.type]||CT.type));
+    // Show install card for بيع وتركيب
+    var instCard=document.getElementById('td-install-card');
+    if(CT.type==='sale_install'){
+      if(!instCard){
+        instCard=document.createElement('div');
+        instCard.id='td-install-card';
+        instCard.style.cssText='background:#f0f9ff;border:1px solid #b3d9f7;border-radius:10px;padding:14px;margin-top:10px';
+        var infoSec=document.getElementById('td-info-section');
+        if(infoSec)infoSec.after(instCard);
+        else document.getElementById('task-detail-body')?.appendChild(instCard);
+      }
+      var confAt=CT.installation_confirmed_at;
+      var confDate=confAt?new Date(confAt).toLocaleDateString('ar-EG'):'';
+      var confTime=confAt?new Date(confAt).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}):'';
+      instCard.innerHTML=''
+        +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #b3d9f7">'
+          +'<span style="font-size:14px;font-weight:700;color:#185FA5">&#128295; بيانات التركيب</span>'
+          +'<span style="margin-left:auto;font-size:11px;padding:2px 8px;border-radius:6px;background:'+(confAt?'#EAF3DE':'#FFF8E1')+';color:'+(confAt?'#3B6D11':'#854F0B')+'">'+(confAt?'&#10003; تم التركيب':'&#9203; في الانتظار')+'</span>'
+        +'</div>'
+        +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;margin-bottom:12px">'
+          +'<div><div style="color:#888;font-size:11px;margin-bottom:2px">تاريخ التركيب المتوقع</div><div style="font-weight:600">'+(CT.installation_date||'—')+'</div></div>'
+          +'<div><div style="color:#888;font-size:11px;margin-bottom:2px">الفني المسؤول</div><div style="font-weight:600">'+(CT.installation_tech||'—')+'</div></div>'
+          +(confAt?'<div><div style="color:#888;font-size:11px;margin-bottom:2px">تاريخ التأكيد</div><div style="font-weight:600;color:#3B6D11">'+confDate+' | '+confTime+'</div></div>':'')
+        +'</div>'
+        +(confAt?'':'<button onclick="confirmInstallation()" style="width:100%;padding:9px;border:none;border-radius:8px;background:#185FA5;color:#fff;cursor:pointer;font-size:13px;font-weight:700">&#10003; تأكيد اكتمال التركيب</button>');
+      instCard.style.display='';
+    }else if(instCard){
+      instCard.style.display='none';
+    }
     setEl('ddate',(CT.date||'-')+(CT.time_slot?' | '+CT.time_slot:''));setEl('dds',CT.description||'-');
     setEl('dtax',CT.use_tax===false?t('tax')+': 0%':t('tax')+': 14% VAT');
     setEl('td-addr-from',CT.from_address||'-');setEl('td-addr-to',CT.to_address||'-');
@@ -1259,6 +1295,26 @@ function sendWhatsApp(){
     +sep+'\n'
     +'شكرا لثقتكم\nبرازر كوند للتكييف';
   window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(msg),'_blank');
+}
+
+
+async function confirmInstallation(){
+  if(!CT)return;
+  if(!window.confirm('تأكيد اكتمال التركيب؟'))return;
+  var now=new Date();
+  var dateStr=now.toISOString().split('T')[0];
+  var timeStr=now.toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
+  var{error}=await db.from('tasks').update({
+    installation_confirmed_at:now.toISOString(),
+    installation_status:'done',
+    status:'completed'
+  }).eq('id',CT.id);
+  if(error){toast('Error: '+error.message,true);return;}
+  CT.installation_confirmed_at=now.toISOString();
+  CT.installation_status='done';
+  CT.status='completed';
+  toast('تم تأكيد التركيب بنجاح');
+  openTask(CT.id);
 }
 
 async function openTask(id){
