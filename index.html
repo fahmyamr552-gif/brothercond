@@ -4535,6 +4535,8 @@ async function saveProd(){
 function openAddSP(){
   var modal=document.getElementById('sp-modal');
   if(!modal){toast('Spare part form not found',true);return;}
+  // Move modal to body so it shows even if pg-inv is hidden
+  if(modal.parentElement!==document.body)document.body.appendChild(modal);
   document.getElementById('sp-modal-title').textContent='Add spare part';
   document.getElementById('sp-id').value='';
   document.getElementById('sp-name').value='';
