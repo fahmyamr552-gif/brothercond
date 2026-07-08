@@ -594,7 +594,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
           </select>
         </div>
         <div class="r2" style="margin-bottom:10px">
-          <div class="fg" style="margin-bottom:8px"><label style="font-size:11px;color:#888">المخزن</label><select id="sp-warehouse-sel" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px"><option value="مخزن رئيسي">مخزن رئيسي</option><option value="مخزن تجمع">مخزن تجمع</option></select></div><div class="fg"><label style="font-size:11px;color:#888">Unit</label><input id="sp-unit" value="piece" placeholder="piece / box / meter"></div>
+          <div class="fg"><label style="font-size:11px;color:#888">Unit</label><input id="sp-unit" value="piece" placeholder="piece / box / meter"></div>
           <div class="fg"><label style="font-size:11px;color:#888">Initial qty</label><input type="number" id="sp-qty" value="0" min="0"></div>
         </div>
         <div class="r2" style="margin-bottom:16px">
@@ -844,7 +844,19 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     </div>
     <div class="fg" style="margin-bottom:10px"><label data-t="branch">Branch</label><select id="nubr"><option>Nasr City</option><option>Madinaty</option><option>Rehab</option><option>Head Office</option></select></div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
-      <button class="btn bs" onclick="document.getElementById('auf').style.displ
+      <button class="btn bs" onclick="document.getElementById('auf').style.display='none'" data-t="cancel">Cancel</button>
+      <button class="btn bs bp" onclick="saveUsr()">&#10003; <span data-t="newuser">Create user</span></button>
+    </div>
+  </div>
+</div>
+
+</div>
+</div>
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
 let LANG='en';
 function t(k){
   const T2=window.T||{};
@@ -966,7 +978,7 @@ function go(pg,el){
   document.getElementById('ptitle').textContent=titles[pg]||pg;
   const ta=document.getElementById('tact');ta.innerHTML='';
   const btnKeys={tasks:'newtask',inv:'addproduct',pur:'newpo',cust:'addcustomer',sup:'addsupplier'};
-  const btnFns={tasks:function(){openNT();},inv:function(){openAddInvModal();},pur:function(){openNewPO();},cust:function(){openAC();},sup:function(){openAS();}};
+  const btnFns={tasks:function(){openNT();},inv:function(){openAddInvModal()},pur:function(){openNewPO();},cust:function(){openAC();},sup:function(){openAS();}};
   if(btnKeys[pg]){const b=document.createElement('button');b.className='btn bs bp';b.textContent='+ '+t(btnKeys[pg]);b._tkey=btnKeys[pg];b.onclick=btnFns[pg];ta.appendChild(b);}
   if(pg==='dash')loadDash();
   if(pg==='tasks')loadTasks();
@@ -3521,18 +3533,20 @@ function openAddInvModal(){
   ov.onclick=function(e){if(e.target===ov)ov.remove();};
   var box=document.createElement('div');
   box.style.cssText='background:#fff;border-radius:14px;padding:28px;width:360px;max-width:95vw;box-shadow:0 10px 40px rgba(0,0,0,.25)';
-  var title=document.createElement('div');title.style.cssText='font-size:16px;font-weight:700;margin-bottom:20px;text-align:center';title.textContent='إضافة منتج جديد';
+  var title=document.createElement('div');
+  title.style.cssText='font-size:16px;font-weight:700;margin-bottom:20px;text-align:center';
+  title.textContent=td('addnewproduct');
   var acBtn=document.createElement('button');
   acBtn.style.cssText='width:100%;padding:16px;border:2px solid #1D9E75;border-radius:10px;background:#EAF3DE;cursor:pointer;font-size:14px;font-weight:700;color:#1D9E75;display:flex;align-items:center;gap:10px;margin-bottom:12px;box-sizing:border-box';
-  acBtn.innerHTML='<span style="font-size:22px">\u{1F3E0}</span><div><div>\u0648\u062d\u062f\u0629 \u062a\u0643\u064a\u064a\u0641</div><div style="font-size:11px;font-weight:400;color:#3B6D11;margin-top:2px">\u0623\u062c\u0647\u0632\u0629 \u062a\u0643\u064a\u064a\u0641</div></div>';
+  acBtn.textContent=td('acunit');
   acBtn.onclick=function(){ov.remove();go('np',null);};
   var spBtn=document.createElement('button');
   spBtn.style.cssText='width:100%;padding:16px;border:2px solid #185FA5;border-radius:10px;background:#E8F4FD;cursor:pointer;font-size:14px;font-weight:700;color:#185FA5;display:flex;align-items:center;gap:10px;margin-bottom:12px;box-sizing:border-box';
-  spBtn.innerHTML='<span style="font-size:22px">\u{1F527}</span><div><div>\u0642\u0637\u0639\u0629 \u063a\u064a\u0627\u0631</div><div style="font-size:11px;font-weight:400;color:#185FA5;margin-top:2px">\u0645\u062e\u0632\u0646 \u0631\u0626\u064a\u0633\u064a / \u0645\u062e\u0632\u0646 \u062a\u062c\u0645\u0639</div></div>';
+  spBtn.textContent=td('addpart');
   spBtn.onclick=function(){ov.remove();openAddSP();};
   var cancelBtn=document.createElement('button');
   cancelBtn.style.cssText='width:100%;padding:8px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;color:#888';
-  cancelBtn.textContent='\u0625\u0644\u063a\u0627\u0621';
+  cancelBtn.textContent=td('cancel');
   cancelBtn.onclick=function(){ov.remove();};
   box.appendChild(title);box.appendChild(acBtn);box.appendChild(spBtn);box.appendChild(cancelBtn);
   ov.appendChild(box);document.body.appendChild(ov);
@@ -4471,11 +4485,6 @@ function clrC(){
   var sct=document.getElementById('sct');if(sct)sct.style.display='none';
   var cqi=document.getElementById('cqi');if(cqi)cqi.value='';
   var inner=document.getElementById('nt-addr-block-inner');if(inner)inner.innerHTML='';
-  var taddr=document.getElementById('nt-task-address');if(taddr)taddr.value='';
-  var addrBlock=document.getElementById('nt-addr-block');if(addrBlock)addrBlock.style.display='none';
-  var dupWarn=document.getElementById('nt-dup-warn');if(dupWarn)dupWarn.style.display='none';
-}
-ck-inner');if(inner)inner.innerHTML='';
   var taddr=document.getElementById('nt-task-address');if(taddr)taddr.value='';
   var addrBlock=document.getElementById('nt-addr-block');if(addrBlock)addrBlock.style.display='none';
   var dupWarn=document.getElementById('nt-dup-warn');if(dupWarn)dupWarn.style.display='none';
