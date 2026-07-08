@@ -4252,7 +4252,7 @@ async function loadUsr(){
 }
 
 async function saveUsr(){
-  var un=document.getElementById('nuun')?.value.trim();var pw=document.getElementById('nupw')?.value;var fn=document.getElementById('nufn')?.value.trim();var ro=document.getElementById('nurol')?.value;var br=document.getElementById('nubr')?.value;
+  var un=document.getElementById('nuu')?.value.trim();var pw=document.getElementById('nupw')?.value;var fn=document.getElementById('nunm')?.value.trim();var ro=document.getElementById('nurol')?.value;var br=document.getElementById('nubr')?.value;
   if(!un||!pw||!fn){toast('Fill all required fields',true);return;}
   if(pw.length<6){toast('Password must be at least 6 characters',true);return;}
   var{error}=await db.from('users').insert({username:un,password:pw,full_name:fn,role:ro,branch:br,active:true});
