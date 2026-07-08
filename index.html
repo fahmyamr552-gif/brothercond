@@ -659,17 +659,6 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     <button class="btn bs" onclick="go('pur',document.getElementById('ni-pur'))">&#8592;</button>
     <span style="font-size:15px;font-weight:700" data-t="newpo">New purchase order</span>
   </div>
-  <div class="cd" style="margin-bottom:12px">
-    <div class="sh">نوع المشتريات</div>
-    <div style="display:flex;gap:20px;margin-top:8px">
-      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:14px;font-weight:600">
-        <input type="radio" name="po-type" value="ac" checked onchange="onPOTypeChange()" style="accent-color:#1D9E75"> وحدات تكييف
-      </label>
-      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:14px;font-weight:600">
-        <input type="radio" name="po-type" value="sp" onchange="onPOTypeChange()" style="accent-color:#185FA5"> قطع غيار
-      </label>
-    </div>
-  </div>
   <div class="cd">
     <div class="sh" data-t="supplier">Supplier</div>
     <label style="display:flex;align-items:center;gap:6px;margin-bottom:8px;font-size:12px;color:#888;cursor:pointer"><input type="checkbox" id="nsc" onchange="togS(this.checked)" style="width:auto"> <span data-t="addsupplier">New supplier</span></label>
@@ -702,7 +691,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     <div class="sh" data-t="productstoorder">Products to order</div>
     <div class="tw">
       <table style="table-layout:fixed">
-        <thead id="po-thead"><tr><th style="width:42%" data-t="products">Product</th><th style="width:17%" data-t="currentstock">Current stock</th><th style="width:17%" data-t="qtytorder">Qty to order</th><th style="width:19%" data-t="unitcost">Unit cost (EGP)</th><th style="width:5%"></th></tr></thead>
+        <thead><tr><th style="width:42%" data-t="products">Product</th><th style="width:17%" data-t="currentstock">Current stock</th><th style="width:17%" data-t="qtytorder">Qty to order</th><th style="width:19%" data-t="unitcost">Unit cost (EGP)</th><th style="width:5%"></th></tr></thead>
         <tbody id="potb"></tbody>
       </table>
     </div>
@@ -853,7 +842,21 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
       <div class="fg"><label data-t="fullname">Full name</label><input id="nunm" placeholder="Full name"></div>
       <div class="fg"><label data-t="role">Role</label><select id="nurol"><option value="finance">Finance</option><option value="inventory_manager">Inventory Manager</option><option value="admin" data-t="admin">Office admin</option><option value="salesperson" data-t="salesrole">Salesperson</option><option value="technician" data-t="technician">Technician</option></select></div>
     </div>
-    <di
+    <div class="fg" style="margin-bottom:10px"><label data-t="branch">Branch</label><select id="nubr"><option>Nasr City</option><option>Madinaty</option><option>Rehab</option><option>Head Office</option></select></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn bs" onclick="document.getElementById('auf').style.display='none'" data-t="cancel">Cancel</button>
+      <button class="btn bs bp" onclick="saveUsr()">&#10003; <span data-t="newuser">Create user</span></button>
+    </div>
+  </div>
+</div>
+
+</div>
+</div>
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
 let LANG='en';
 function t(k){
   const T2=window.T||{};
@@ -3567,40 +3570,10 @@ async function loadPur(){
   });
 }
 
-
-function onPOTypeChange(){
-  var type=document.querySelector('input[name="po-type"]:checked')?.value||'ac';
-  var body=document.getElementById('potb');if(body)body.innerHTML='';
-  var wsel=document.getElementById('po-wh-selector');
-  var thead=document.getElementById('po-thead');
-  if(type==='sp'){
-    if(thead)thead.innerHTML='<tr><th style="width:38%">' + String.fromCharCode(0x627,0x633,0x645,' ',0x627,0x644,0x642,0x637,0x639,0x629) + '</th><th style="width:15%">' + String.fromCharCode(0x627,0x644,0x645,0x62e,0x632,0x646) + '</th><th style="width:15%">' + String.fromCharCode(0x627,0x644,0x643,0x645,0x64a,0x629) + '</th><th style="width:22%">' + String.fromCharCode(0x627,0x644,0x62a,0x643,0x644,0x641,0x629) + '</th><th style="width:5%"></th></tr>';
-    if(!wsel){
-      wsel=document.createElement('div');wsel.id='po-wh-selector';
-      wsel.style.cssText='background:#f0f9ff;border:1px solid #b3d9f7;border-radius:8px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:12px';
-      var potbParent=document.getElementById('potb')?.closest('.cd');
-      var addBtn=potbParent?.querySelector('button');
-      if(potbParent&&addBtn)potbParent.insertBefore(wsel,addBtn);
-    }
-    var wh1lbl=String.fromCharCode(0x645,0x62e,0x632,0x646,' ',0x62a,0x62c,0x645,0x639);
-    var wh2lbl=String.fromCharCode(0x645,0x62e,0x632,0x646,' ',0x631,0x626,0x64a,0x633,0x64a);
-    wsel.innerHTML='<span style="font-size:12px;font-weight:700;color:#185FA5">'+String.fromCharCode(0x627,0x644,0x645,0x62e,0x632,0x646,0x20,0x627,0x644,0x645,0x633,0x62a,0x644,0x650,0x645,0x3a)+'</span><label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;font-weight:600"><input type="radio" name="po-wh" value="'+wh1lbl+'" checked style="accent-color:#185FA5"> '+wh1lbl+'</label><label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;font-weight:600"><input type="radio" name="po-wh" value="'+wh2lbl+'" style="accent-color:#1D9E75"> '+wh2lbl+'</label>';
-    wsel.style.display='flex';
-  }else{
-    if(thead)thead.innerHTML='<tr><th style="width:42%">' + String.fromCharCode(0x627,0x644,0x645,0x646,0x62a,0x62c) + '</th><th style="width:17%">' + String.fromCharCode(0x627,0x644,0x645,0x62e,0x632,0x648,0x646) + '</th><th style="width:17%">' + String.fromCharCode(0x627,0x644,0x643,0x645,0x64a,0x629) + '</th><th style="width:19%">' + String.fromCharCode(0x627,0x644,0x62a,0x643,0x644,0x641,0x629) + '</th><th style="width:5%"></th></tr>';
-    if(wsel)wsel.style.display='none';
-  }
-  addPOR();
-}
-
 function openNewPO(){
   go('npo',null);
-  window._SP_PO=null;
-  var acR=document.querySelector('input[name="po-type"][value="ac"]');
-  if(acR)acR.checked=true;
-  var b=document.getElementById('potb');if(b)b.innerHTML='';
-  var t=document.getElementById('potot');if(t)t.textContent='EGP 0';
-  clrS();
+  document.getElementById('porb').innerHTML='';
+  document.getElementById('potot').textContent='EGP 0';
   addPOR();
 }
 
@@ -4473,22 +4446,6 @@ function recalcAllRows(){
   document.querySelectorAll('#ntb tr').forEach(function(tr){
     var ptTd=tr.querySelector('.pt')?tr.querySelector('.pt').closest('td'):null;
     if(ptTd)ptTd.style.display=useTax?'':'none';
-    var priceInp=tr.querySelector('td:nth-child(3) input');
-    if(priceInp)calcR(priceInp);
-  });
-  ntRec();
-}
-
-function clrC(){
-  scid=null;
-  var sct=document.getElementById('sct');if(sct)sct.style.display='none';
-  var cqi=document.getElementById('cqi');if(cqi)cqi.value='';
-  var inner=document.getElementById('nt-addr-block-inner');if(inner)inner.innerHTML='';
-  var taddr=document.getElementById('nt-task-address');if(taddr)taddr.value='';
-  var addrBlock=document.getElementById('nt-addr-block');if(addrBlock)addrBlock.style.display='none';
-  var dupWarn=document.getElementById('nt-dup-warn');if(dupWarn)dupWarn.style.display='none';
-}
-le.display=useTax?'':'none';
     var priceInp=tr.querySelector('td:nth-child(3) input');
     if(priceInp)calcR(priceInp);
   });
