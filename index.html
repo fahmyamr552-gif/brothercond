@@ -975,7 +975,7 @@ function go(pg,el){
   document.getElementById('ptitle').textContent=titles[pg]||pg;
   const ta=document.getElementById('tact');ta.innerHTML='';
   const btnKeys={tasks:'newtask',inv:'addproduct',pur:'newpo',cust:'addcustomer',sup:'addsupplier'};
-  const btnFns={tasks:function(){openNT();},inv:function(){openAddInvModal()},pur:function(){openNewPO();},cust:function(){openAC();},sup:function(){openAS();}};
+  const btnFns={tasks:function(){openNT();},inv:function(){go('np',null);},pur:function(){openNewPO();},cust:function(){openAC();},sup:function(){openAS();}};
   if(btnKeys[pg]){const b=document.createElement('button');b.className='btn bs bp';b.textContent='+ '+t(btnKeys[pg]);b._tkey=btnKeys[pg];b.onclick=btnFns[pg];ta.appendChild(b);}
   if(pg==='dash')loadDash();
   if(pg==='tasks')loadTasks();
@@ -3521,34 +3521,6 @@ function updMdl(){
   var el=document.getElementById('ngnm');if(el)el.value=parts.join(' ');
 }
 
-
-function openAddInvModal(){
-  document.querySelectorAll('.add-inv-modal').forEach(function(e){e.remove();});
-  var ov=document.createElement('div');
-  ov.className='add-inv-modal';
-  ov.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box';
-  ov.onclick=function(e){if(e.target===ov)ov.remove();};
-  var box=document.createElement('div');
-  box.style.cssText='background:#fff;border-radius:14px;padding:28px;width:360px;max-width:95vw;box-shadow:0 10px 40px rgba(0,0,0,.25)';
-  var title=document.createElement('div');
-  title.style.cssText='font-size:16px;font-weight:700;margin-bottom:20px;text-align:center';
-  title.textContent=td('addnewproduct');
-  var acBtn=document.createElement('button');
-  acBtn.style.cssText='width:100%;padding:16px;border:2px solid #1D9E75;border-radius:10px;background:#EAF3DE;cursor:pointer;font-size:14px;font-weight:700;color:#1D9E75;display:flex;align-items:center;gap:10px;margin-bottom:12px;box-sizing:border-box';
-  acBtn.textContent=td('acunit');
-  acBtn.onclick=function(){ov.remove();go('np',null);};
-  var spBtn=document.createElement('button');
-  spBtn.style.cssText='width:100%;padding:16px;border:2px solid #185FA5;border-radius:10px;background:#E8F4FD;cursor:pointer;font-size:14px;font-weight:700;color:#185FA5;display:flex;align-items:center;gap:10px;margin-bottom:12px;box-sizing:border-box';
-  spBtn.textContent=td('addpart');
-  spBtn.onclick=function(){ov.remove();openAddSP();};
-  var cancelBtn=document.createElement('button');
-  cancelBtn.style.cssText='width:100%;padding:8px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;color:#888';
-  cancelBtn.textContent=td('cancel');
-  cancelBtn.onclick=function(){ov.remove();};
-  box.appendChild(title);box.appendChild(acBtn);box.appendChild(spBtn);box.appendChild(cancelBtn);
-  ov.appendChild(box);document.body.appendChild(ov);
-}
-
 function bldN(){updMdl();}
 
 function editProd(p){
@@ -3602,17 +3574,20 @@ function onPOTypeChange(){
   var wsel=document.getElementById('po-wh-selector');
   var thead=document.getElementById('po-thead');
   if(type==='sp'){
-    if(thead)thead.innerHTML='<tr><th style="width:38%">اسم القطعة</th><th style="width:15%">المخزون</th><th style="width:15%">الكمية</th><th style="width:22%">التكلفة (ج.م)</th><th style="width:5%"></th></tr>';
+    if(thead)thead.innerHTML='<tr><th style="width:38%">' + String.fromCharCode(0x627,0x633,0x645,' ',0x627,0x644,0x642,0x637,0x639,0x629) + '</th><th style="width:15%">' + String.fromCharCode(0x627,0x644,0x645,0x62e,0x632,0x646) + '</th><th style="width:15%">' + String.fromCharCode(0x627,0x644,0x643,0x645,0x64a,0x629) + '</th><th style="width:22%">' + String.fromCharCode(0x627,0x644,0x62a,0x643,0x644,0x641,0x629) + '</th><th style="width:5%"></th></tr>';
     if(!wsel){
       wsel=document.createElement('div');wsel.id='po-wh-selector';
       wsel.style.cssText='background:#f0f9ff;border:1px solid #b3d9f7;border-radius:8px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:12px';
-      wsel.innerHTML='<span style="font-size:12px;font-weight:700;color:#185FA5">المخزن المستلِم:</span><label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;font-weight:600"><input type="radio" name="po-wh" value="مخزن تجمع" checked style="accent-color:#185FA5"> مخزن تجمع</label><label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;font-weight:600"><input type="radio" name="po-wh" value="مخزن رئيسي" style="accent-color:#1D9E75"> مخزن رئيسي</label>';
       var potbParent=document.getElementById('potb')?.closest('.cd');
       var addBtn=potbParent?.querySelector('button');
       if(potbParent&&addBtn)potbParent.insertBefore(wsel,addBtn);
-    }else{wsel.style.display='flex';}
+    }
+    var wh1lbl=String.fromCharCode(0x645,0x62e,0x632,0x646,' ',0x62a,0x62c,0x645,0x639);
+    var wh2lbl=String.fromCharCode(0x645,0x62e,0x632,0x646,' ',0x631,0x626,0x64a,0x633,0x64a);
+    wsel.innerHTML='<span style="font-size:12px;font-weight:700;color:#185FA5">'+String.fromCharCode(0x627,0x644,0x645,0x62e,0x632,0x646,0x20,0x627,0x644,0x645,0x633,0x62a,0x644,0x650,0x645,0x3a)+'</span><label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;font-weight:600"><input type="radio" name="po-wh" value="'+wh1lbl+'" checked style="accent-color:#185FA5"> '+wh1lbl+'</label><label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;font-weight:600"><input type="radio" name="po-wh" value="'+wh2lbl+'" style="accent-color:#1D9E75"> '+wh2lbl+'</label>';
+    wsel.style.display='flex';
   }else{
-    if(thead)thead.innerHTML='<tr><th style="width:42%">المنتج</th><th style="width:17%">المخزون الحالي</th><th style="width:17%">الكمية</th><th style="width:19%">التكلفة (ج.م)</th><th style="width:5%"></th></tr>';
+    if(thead)thead.innerHTML='<tr><th style="width:42%">' + String.fromCharCode(0x627,0x644,0x645,0x646,0x62a,0x62c) + '</th><th style="width:17%">' + String.fromCharCode(0x627,0x644,0x645,0x62e,0x632,0x648,0x646) + '</th><th style="width:17%">' + String.fromCharCode(0x627,0x644,0x643,0x645,0x64a,0x629) + '</th><th style="width:19%">' + String.fromCharCode(0x627,0x644,0x62a,0x643,0x644,0x641,0x629) + '</th><th style="width:5%"></th></tr>';
     if(wsel)wsel.style.display='none';
   }
   addPOR();
@@ -3621,13 +3596,11 @@ function onPOTypeChange(){
 function openNewPO(){
   go('npo',null);
   window._SP_PO=null;
-  var acRadio=document.querySelector('input[name="po-type"][value="ac"]');
-  if(acRadio)acRadio.checked=true;
-  var body=document.getElementById('potb');if(body)body.innerHTML='';
-  var tot=document.getElementById('potot');if(tot)tot.textContent='EGP 0';
+  var acR=document.querySelector('input[name="po-type"][value="ac"]');
+  if(acR)acR.checked=true;
+  var b=document.getElementById('potb');if(b)b.innerHTML='';
+  var t=document.getElementById('potot');if(t)t.textContent='EGP 0';
   clrS();
-  var thead=document.getElementById('po-thead');
-  if(thead)thead.innerHTML='<tr><th style="width:42%">المنتج</th><th style="width:17%">المخزون الحالي</th><th style="width:17%">الكمية</th><th style="width:19%">التكلفة (ج.م)</th><th style="width:5%"></th></tr>';
   addPOR();
 }
 
