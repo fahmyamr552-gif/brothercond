@@ -593,13 +593,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
             <option value="مخزن تجمع">مخزن تجمع</option>
           </select>
         </div>
-        <div class="fg" style="margin-bottom:10px">
-          <label style="font-size:11px;color:#888">المخزن</label>
-          <select id="sp-warehouse-sel" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px">
-            <option value="مخزن رئيسي">مخزن رئيسي</option>
-            <option value="مخزن تجمع">مخزن تجمع</option>
-          </select>
-        </div>
+        <div class="fg" style="margin-bottom:10px"><label style="font-size:11px;color:#888">المخزن</label><select id="sp-warehouse-sel" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px"><option value="مخزن رئيسي">مخزن رئيسي</option><option value="مخزن تجمع">مخزن تجمع</option></select></div>
         <div class="r2" style="margin-bottom:10px">
           <div class="fg"><label style="font-size:11px;color:#888">Unit</label><input id="sp-unit" value="piece" placeholder="piece / box / meter"></div>
           <div class="fg"><label style="font-size:11px;color:#888">Initial qty</label><input type="number" id="sp-qty" value="0" min="0"></div>
@@ -666,17 +660,6 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     <button class="btn bs" onclick="go('pur',document.getElementById('ni-pur'))">&#8592;</button>
     <span style="font-size:15px;font-weight:700" data-t="newpo">New purchase order</span>
   </div>
-  <div class="cd" style="margin-bottom:12px">
-    <div class="sh">نوع المشتريات</div>
-    <div style="display:flex;gap:20px;margin-top:8px">
-      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:14px;font-weight:600">
-        <input type="radio" name="po-type" value="ac" checked onchange="onPOTypeChange()" style="accent-color:#1D9E75"> وحدات تكييف
-      </label>
-      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:14px;font-weight:600">
-        <input type="radio" name="po-type" value="sp" onchange="onPOTypeChange()" style="accent-color:#185FA5"> قطع غيار
-      </label>
-    </div>
-  </div>
   <div class="cd">
     <div class="sh" data-t="supplier">Supplier</div>
     <label style="display:flex;align-items:center;gap:6px;margin-bottom:8px;font-size:12px;color:#888;cursor:pointer"><input type="checkbox" id="nsc" onchange="togS(this.checked)" style="width:auto"> <span data-t="addsupplier">New supplier</span></label>
@@ -709,7 +692,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     <div class="sh" data-t="productstoorder">Products to order</div>
     <div class="tw">
       <table style="table-layout:fixed">
-        <thead id="po-thead"><tr><th style="width:42%" data-t="products">Product</th><th style="width:17%" data-t="currentstock">Current stock</th><th style="width:17%" data-t="qtytorder">Qty to order</th><th style="width:19%" data-t="unitcost">Unit cost (EGP)</th><th style="width:5%"></th></tr></thead>
+        <thead><tr><th style="width:42%" data-t="products">Product</th><th style="width:17%" data-t="currentstock">Current stock</th><th style="width:17%" data-t="qtytorder">Qty to order</th><th style="width:19%" data-t="unitcost">Unit cost (EGP)</th><th style="width:5%"></th></tr></thead>
         <tbody id="potb"></tbody>
       </table>
     </div>
@@ -862,7 +845,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     </div>
     <div class="fg" style="margin-bottom:10px"><label data-t="branch">Branch</label><select id="nubr"><option>Nasr City</option><option>Madinaty</option><option>Rehab</option><option>Head Office</option></select></div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
-  
+      <button class="btn bs" onclick="document.getElementById('auf').s
 let LANG='en';
 function t(k){
   const T2=window.T||{};
@@ -927,11 +910,7 @@ async function doSignIn(){
   try{
     const{data,error}=await db.from('users').select('*').eq('username',u).eq('password',p).eq('active',true);
     if(btn){btn.textContent='Sign in';btn.disabled=false;}
-    if(error){
-      // 416 = range not satisfiable (page beyond total rows) - just show no more
-      if(error.code==='PGRST103'){TASK_HAS_MORE=false;if(TASK_PAGE>0)return;tasks=[];}
-      else throw error;
-    }
+    if(error)throw error;
     if(!data||data.length===0){if(errEl){errEl.textContent='Wrong username or password.';errEl.style.display='block';}return;}
     CU=data[0];
     // Save session so page refresh doesn't sign out
@@ -1086,7 +1065,6 @@ function openEditOrderInfo(){
   html+='<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">Salesperson</label><select id="eoi-sp" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px">'+spOpts+'</select></div>';
   html+='<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">Type</label><select id="eoi-ty" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px">'+tyOpts+'</select></div>';
   html+='<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">Task date</label><input type="date" id="eoi-dt" value="'+(CT.date||'')+'" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div>';
-  html+='<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">الوقت</label><select id="eoi-time" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px"><option value="">-- بدون وقت --</option><option value="8:00 - 9:00"'+(CT.time_slot==="8:00 - 9:00"?' selected':'')+'>8:00 - 9:00 ص</option><option value="9:00 - 10:00"'+(CT.time_slot==="9:00 - 10:00"?' selected':'')+'>9:00 - 10:00 ص</option><option value="10:00 - 11:00"'+(CT.time_slot==="10:00 - 11:00"?' selected':'')+'>10:00 - 11:00 ص</option><option value="11:00 - 12:00"'+(CT.time_slot==="11:00 - 12:00"?' selected':'')+'>11:00 - 12:00 ص</option><option value="12:00 - 1:00"'+(CT.time_slot==="12:00 - 1:00"?' selected':'')+'>12:00 - 1:00 م</option><option value="1:00 - 2:00"'+(CT.time_slot==="1:00 - 2:00"?' selected':'')+'>1:00 - 2:00 م</option><option value="2:00 - 3:00"'+(CT.time_slot==="2:00 - 3:00"?' selected':'')+'>2:00 - 3:00 م</option><option value="3:00 - 4:00"'+(CT.time_slot==="3:00 - 4:00"?' selected':'')+'>3:00 - 4:00 م</option><option value="4:00 - 5:00"'+(CT.time_slot==="4:00 - 5:00"?' selected':'')+'>4:00 - 5:00 م</option><option value="5:00 - 6:00"'+(CT.time_slot==="5:00 - 6:00"?' selected':'')+'>5:00 - 6:00 م</option><option value="6:00 - 7:00"'+(CT.time_slot==="6:00 - 7:00"?' selected':'')+'>6:00 - 7:00 م</option><option value="7:00 - 8:00"'+(CT.time_slot==="7:00 - 8:00"?' selected':'')+'>7:00 - 8:00 م</option></select></div>';
   html+='</div>';
   html+='<div style="margin-bottom:12px"><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">Description</label><textarea id="eoi-ds" rows="3" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px;resize:vertical;box-sizing:border-box">'+(CT.description||'')+'</textarea></div>';
   // Build address picker from customer's saved addresses
@@ -1134,8 +1112,6 @@ function openEditOrderInfo(){
       to_address:document.getElementById('eoi-addr-to')?.value||null,
       address:document.getElementById('eoi-task-addr')?.value||null
     };
-    var timeEl=document.getElementById('eoi-time');
-    if(timeEl)updates.time_slot=timeEl.value||null;
     var taxEl=document.getElementById('eoi-tax');
     if(taxEl)updates.use_tax=taxEl.checked;
     var{error}=await db.from('tasks').update(updates).eq('id',CT.id);
@@ -1171,8 +1147,6 @@ async function loadTasks(resetPage){
     const fs=document.getElementById('tfs')?.value||'';
     const from=TASK_PAGE*TASK_PAGE_SIZE;
     const to=from+TASK_PAGE_SIZE-1;
-    // Get count first to avoid range error
-    let countQ=db.from('tasks').select('id',{count:'exact',head:true});
     let qb=db.from('tasks').select('id,task_num,customer_name,type,branch,salesperson,status,date,pay_status',{count:'exact'}).order('date',{ascending:false}).range(from,to+1);
     if(tf)qb=qb.eq('type',tf);
     if(bf)qb=qb.eq('branch',bf);
@@ -1181,10 +1155,7 @@ async function loadTasks(resetPage){
     if(td2)qb=qb.lte('date',td2);
     if(q){qb=qb.or('customer_name.ilike.%'+q+'%,task_num.ilike.%'+q+'%');}
     const{data:tasks,error,count}=await qb;
-    if(error){
-      if(error.code==='PGRST103'){TASK_HAS_MORE=false;if(TASK_PAGE>0){loadTasks(false);return;}tasks=[];}
-      else throw error;
-    }
+    if(error)throw error;
     var pageData=(tasks||[]).slice(0,TASK_PAGE_SIZE);
     TASK_HAS_MORE=(tasks||[]).length>TASK_PAGE_SIZE;
     // Load products for this page only
@@ -1198,7 +1169,7 @@ async function loadTasks(resetPage){
     var body=document.getElementById('tlist');
     if(TASK_PAGE===0)body.innerHTML='';
     // Remove old load-more button if present
-    var oldMore=document.getElementById('load-more-btn');
+    var oldMore=document.getElementById('load-more');
     if(oldMore)oldMore.remove();
     if(!pageData.length&&TASK_PAGE===0){
       body.innerHTML='<div style="padding:20px;text-align:center;color:#888">'+t('notasksfound')+'</div>';
@@ -1218,7 +1189,7 @@ async function loadTasks(resetPage){
         +'<div><div style="font-weight:600;font-size:13px">'+(tk.customer_name||'-')+'</div>'
         +'<div style="font-size:11px;color:#888">'+tk.branch+' &middot; '+(tk.salesperson||'-')+' &middot; '+(tk.date||'-')+'</div></div>'
         +'<div style="font-size:12px;font-weight:700">'+(g>0?('EGP '+Math.round(g).toLocaleString()):'-')+'</div>'
-        +'<div style="font-size:11px;font-weight:600;color:'+(g===0?'#888':(psColor[tk.pay_status]||'#888'))+'">'+(g===0?'بدون تحصيل':(psLabel[tk.pay_status]||tk.pay_status||'-'))+'</div>'
+        +'<div style="font-size:11px;font-weight:600;color:'+(psColor[tk.pay_status]||'#888')+'">'+(psLabel[tk.pay_status]||tk.pay_status||'-')+'</div>'
         +'<div><span class="bx '+(sm[tk.status]||'gr')+'" style="font-size:10px">'+(sl()[tk.status]||tk.status||'-')+'</span></div>';
       d.onclick=function(){openTask(tk.id);};
       body.appendChild(d);
@@ -1253,27 +1224,28 @@ function sendWhatsApp(){
   if(!phone){toast('لا يوجد رقم هاتف للعميل',true);return;}
   if(phone.startsWith('0'))phone='2'+phone;
   else if(!phone.startsWith('20'))phone='20'+phone;
-  var typeAr={maintenance:'صيانة',installation:'تركيب',sales:'مبيعات',uninstall:'فك',inspection:'معاينة','بيع مباشر':'بيع مباشر'};
+  var typeAr={maintenance:'صيانة',installation:'تركيب',sales:'مبيعات',uninstall:'فك',inspection:'معاينة'};
   var typeName=typeAr[CT.type]||CT.type;
   var total=(CT.prods||[]).reduce(function(s,p){return s+p.qty*p.price;},0);
-  var prods=(CT.prods||[]).map(function(p){return '  - '+p.name+' ('+p.qty+' عدد) = '+(p.qty*p.price)+' ج.م';}).join('\n');
-  var payStatus={paid:'مدفوع بالكامل ✔',downpayment:'دفعة مقدمة',unpaid:'غير مدفوع'}[CT.pay_status]||CT.pay_status;
+  var prods=(CT.prods||[]).map(function(p){return '* '+p.name+' x'+p.qty+' = '+(p.qty*p.price)+' j.m';}).join('\n');
+  var payStatus={paid:'مدفوع بالكامل',downpayment:'دفعة مقدمة',unpaid:'غير مدفوع'}[CT.pay_status]||CT.pay_status;
   var taxLine='';
-  if(CT.use_tax&&total>0){var preTax=Math.round(total/1.14*100)/100;var taxAmt=Math.round((total-preTax)*100)/100;taxLine='\n  قبل الضريبة: '+preTax+' ج.م\n  ضريبة 14%: '+taxAmt+' ج.م';}
-  var timeSlot=CT.time_slot?'\n  الوقت: '+CT.time_slot:'';
-  var msg='مرحبا '+CT.customer_name+',\n'
-    +'نشكركم على تعاملكم مع برازر كوند للتكييف.\n'
-    +'يسعدنا تأكيد طلبكم بالتفاصيل التالية:\n\n'
+  if(CT.use_tax&&total>0){var preTax=Math.round(total/1.14*100)/100;var taxAmt=Math.round((total-preTax)*100)/100;taxLine='\nقبل الضريبة: '+preTax+' ج.م | ضريبة 14%: '+taxAmt+' ج.م';}
+  var timeSlot=CT.time_slot?'\nالوقت: '+CT.time_slot:'';
+  var sep='----------------------------';
+  var msg='مرحباً '+CT.customer_name+'\n\n'
+    +'تأكيد طلبك مع برازر كوند للتكييف\n'
+    +sep+'\n'
     +'رقم الطلب: '+CT.task_num+'\n'
-    +'الاسم: '+CT.customer_name+'\n'
-    +'نوع الخدمة: '+typeName+'\n'
-    +'التاريخ: '+CT.date+timeSlot+'\n\n'
-    +'الخدمات:\n'+prods+'\n\n'
+    +'النوع: '+typeName+'\n'
+    +'التاريخ: '+CT.date+timeSlot+'\n'
+    +sep+'\n'
+    +'المنتجات:\n'+prods+'\n'
+    +sep+'\n'
     +'الاجمالي: '+total+' ج.م'+taxLine+'\n'
-    +'حالة الدفع: '+payStatus+'\n\n'
-    +'نتطلع لخدمتكم وتلبية احتياجاتكم دائما.\n'
-    +'برازر كوند للتكييف\n'
-    +'للتواصل او الاستفسار يرجى الرد على هذه الرسالة.';
+    +'حالة الدفع: '+payStatus+'\n'
+    +sep+'\n'
+    +'شكرا لثقتكم\nبرازر كوند للتكييف';
   window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(msg),'_blank');
 }
 
@@ -1480,22 +1452,6 @@ async function openTask(id){
 
 function openEditProds(){
   if(!CT)return;
-  // Auto-save completion notes silently before opening product editor
-  // so they aren't lost when openTask reloads
-  var compNotes=document.getElementById('cdn')?.value||'';
-  var compTime=document.getElementById('cdt')?.value||'';
-  var compTech=document.getElementById('ctech-name')?.value||'';
-  var compNote=document.getElementById('ctn')?.value||'';
-  var compOk=document.getElementById('cok')?.checked||false;
-  if(compNotes||compTime||compTech){
-    db.from('tasks').update({
-      completion_notes:compNotes,
-      completion_time:compTime,
-      technician_name:compTech,
-      technician_note:compNote,
-      customer_confirmed:compOk
-    }).eq('id',CT.id);
-  }
   document.querySelectorAll('.ep-modal').forEach(e=>e.remove());
   var useTax=CT.use_tax===false?false:true;
   var overlay=document.createElement('div');
@@ -2464,10 +2420,7 @@ async function deleteSP(id){
 async function openAssignModal(dispId){
   var{data:items}=await db.from('dispatch_items').select('*').eq('dispatch_id',dispId);
   var{data:assignments}=await db.from('dispatch_assignments').select('*').eq('dispatch_id',dispId);
-  var tday=new Date().toISOString().split('T')[0];
-  var{data:todayT}=await db.from('tasks').select('id,task_num,customer_name,date,type,time_slot').eq('date',tday).order('task_num',{ascending:false});
-  var{data:otherT}=await db.from('tasks').select('id,task_num,customer_name,date,type,time_slot').neq('date',tday).order('date',{ascending:false}).limit(150);
-  var tasks=[...(todayT||[]),...(otherT||[])];
+  var{data:tasks}=await db.from('tasks').select('id,task_num,customer_name,date,type').order('date',{ascending:false}).limit(300);
   items=items||[];assignments=assignments||[];tasks=tasks||[];
   if(!items.length){toast('No parts in this dispatch',true);return;}
 
@@ -2477,9 +2430,9 @@ async function openAssignModal(dispId){
   ov.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box';
   ov.onclick=function(e){if(e.target===ov)ov.remove();};
 
-  var typeIcon={'maintenance':'🔧','installation':'🔩','sales':'💰','بيع مباشر':'🛍','uninstall':'📤','inspection':'🔍'};
-  var taskOpts='<option value="">-- اختر المهمة --</option>'+tasks.map(function(t){var icon=typeIcon[t.type]||'📋';var ts=t.time_slot?' | '+t.time_slot:'';return '<option value="'+t.id+'" data-num="'+t.task_num+'" data-cust="'+t.customer_name+'">'+icon+' '+t.task_num+' | '+t.customer_name+' | '+t.type+' | '+t.date+ts+'</option>';}).join('');
-
+  var taskOpts='<option value="">-- Select task --</option>'+tasks.map(function(t){
+    return '<option value="'+t.id+'" data-num="'+t.task_num+'" data-cust="'+t.customer_name+'">'+t.task_num+' — '+t.customer_name+' ('+t.date+')</option>';
+  }).join('');
 
   // Build a row for EACH part
   var partRows=items.map(function(it){
@@ -2660,7 +2613,7 @@ async function submitForApproval(dispId){
 
 async function cancelDispatch(dispId){
   if(!can('delete')&&!can('delete_payment')){toast('No permission',true);return;}
-  if(!window.confirm('هل تريد حذف هذا التوزيع؟ سيتم استرداد المخزون.'))return;
+  if(!confirm('Cancel this dispatch? Inventory will be restored.'))return;
   var{data:disp}=await db.from('dispatches').select('status,dispatch_type').eq('id',dispId).single();
   if(!disp)return;
   var{data:items}=await db.from('dispatch_items').select('*').eq('dispatch_id',dispId);
@@ -2689,8 +2642,7 @@ async function cancelDispatch(dispId){
     }
   } else {
     // عادي (or NULL/old dispatches) — only deducts on approval via assignments
-    // Only restore stock if confirmed (stock deducted via assignments on confirm)
-    if(disp.status==='confirmed'){
+    if(disp.status!=='confirmed')return; // nothing deducted if not confirmed
     var{data:assignments}=await db.from('dispatch_assignments').select('qty,dispatch_item_id').eq('dispatch_id',dispId);
     var asgnItemIds=(assignments||[]).map(function(a){return a.dispatch_item_id;}).filter(Boolean);
     if(asgnItemIds.length){
@@ -2706,6 +2658,16 @@ async function cancelDispatch(dispId){
         }
       }
     }
+  }
+  // For بيع مباشر: also delete the linked task + payment
+  if(disp.dispatch_type==='بيع مباشر'){
+    // Find linked task by matching date + created_by + type
+    var{data:linkedTasks}=await db.from('tasks').select('id').eq('type','بيع مباشر').eq('date',disp.date).eq('created_by',disp.created_by);
+    for(var i=0;i<(linkedTasks||[]).length;i++){
+      var tid=linkedTasks[i].id;
+      await db.from('payments').delete().eq('task_id',tid);
+      await db.from('task_products').delete().eq('task_id',tid);
+      await db.from('tasks').delete().eq('id',tid);
     }
   }
   // For بيع مباشر: also delete the linked task + payments
@@ -3559,30 +3521,26 @@ function openAddInvModal(){
   ov.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box';
   ov.onclick=function(e){if(e.target===ov)ov.remove();};
   var box=document.createElement('div');
-  box.style.cssText='background:#fff;border-radius:14px;padding:28px;width:380px;max-width:100%;box-shadow:0 10px 40px rgba(0,0,0,.25)';
-  // AC button
+  box.style.cssText='background:#fff;border-radius:14px;padding:28px;width:360px;max-width:95vw;box-shadow:0 10px 40px rgba(0,0,0,.25)';
+  var title=document.createElement('div');
+  title.style.cssText='font-size:16px;font-weight:700;margin-bottom:20px;text-align:center';
+  title.textContent='إضافة منتج جديد';
   var acBtn=document.createElement('button');
-  acBtn.style.cssText='width:100%;padding:16px;border:2px solid #1D9E75;border-radius:10px;background:#EAF3DE;cursor:pointer;font-size:14px;font-weight:700;color:#1D9E75;display:flex;align-items:center;gap:10px;margin-bottom:12px;box-sizing:border-box';
-  acBtn.innerHTML='<span style="font-size:24px">🏠</span><div style="text-align:left"><div>وحدة تكييف</div><div style="font-size:11px;font-weight:400;color:#888;margin-top:2px">أجهزة تكييف - كاريير، ميدي، وغيرها</div></div>';
+  acBtn.style.cssText='width:100%;padding:16px;border:2px solid #1D9E75;border-radius:10px;background:#EAF3DE;cursor:pointer;font-size:14px;font-weight:700;color:#1D9E75;display:flex;align-items:center;gap:10px;margin-bottom:12px;box-sizing:border-box;text-align:right';
+  acBtn.innerHTML='<span style="font-size:24px">🏠</span><div><div>وحدة تكييف</div><div style="font-size:11px;font-weight:400;color:#3B6D11;margin-top:2px">أجهزة تكييف - كاريير، ميدي، وغيرها</div></div>';
   acBtn.onclick=function(){ov.remove();go('np',null);};
-  // SP button
   var spBtn=document.createElement('button');
-  spBtn.style.cssText='width:100%;padding:16px;border:2px solid #185FA5;border-radius:10px;background:#E8F4FD;cursor:pointer;font-size:14px;font-weight:700;color:#185FA5;display:flex;align-items:center;gap:10px;margin-bottom:12px;box-sizing:border-box';
-  spBtn.innerHTML='<span style="font-size:24px">🔧</span><div style="text-align:left"><div>قطعة غيار</div><div style="font-size:11px;font-weight:400;color:#888;margin-top:2px">قطع غيار - مخزن رئيسي أو مخزن تجمع</div></div>';
+  spBtn.style.cssText='width:100%;padding:16px;border:2px solid #185FA5;border-radius:10px;background:#E8F4FD;cursor:pointer;font-size:14px;font-weight:700;color:#185FA5;display:flex;align-items:center;gap:10px;margin-bottom:12px;box-sizing:border-box;text-align:right';
+  spBtn.innerHTML='<span style="font-size:24px">🔧</span><div><div>قطعة غيار</div><div style="font-size:11px;font-weight:400;color:#185FA5;margin-top:2px">قطع غيار - مخزن رئيسي أو مخزن تجمع</div></div>';
   spBtn.onclick=function(){ov.remove();openAddSP();};
-  // Cancel button
   var cancelBtn=document.createElement('button');
   cancelBtn.style.cssText='width:100%;padding:8px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;color:#888';
   cancelBtn.textContent='إلغاء';
   cancelBtn.onclick=function(){ov.remove();};
-  var title=document.createElement('div');
-  title.style.cssText='font-size:16px;font-weight:700;margin-bottom:20px;text-align:center';
-  title.textContent='إضافة منتج جديد';
   box.appendChild(title);box.appendChild(acBtn);box.appendChild(spBtn);box.appendChild(cancelBtn);
   ov.appendChild(box);
   document.body.appendChild(ov);
 }
-
 
 function bldN(){updMdl();}
 
@@ -3630,247 +3588,62 @@ async function loadPur(){
   });
 }
 
-
-function sSearch(q){
-  var box=document.getElementById('ssg');
-  if(!q||q.length<1){if(box)box.style.display='none';return;}
-  db.from('suppliers').select('id,name,phone').ilike('name','%'+q+'%').limit(10).then(function(res){
-    var sups=res.data||[];
-    if(!box)return;
-    if(!sups.length){box.style.display='none';return;}
-    box.innerHTML='';
-    sups.forEach(function(s){
-      var row=document.createElement('div');
-      row.style.cssText='padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f0f0e8';
-      row.innerHTML=s.name+'<span style="color:#888;font-size:11px;margin-left:8px">'+(s.phone||'')+'</span>';
-      row.onclick=function(){selSup(s.id,s.name);};
-      row.onmouseover=function(){this.style.background='#f5f5f0';};
-      row.onmouseout=function(){this.style.background='';};
-      box.appendChild(row);
-    });
-    box.style.display='';
-  });
-}
-
-function selSup(id,name){
-  window._selSupId=id;
-  window._selSupName=name;
-  var sqi=document.getElementById('sqi');
-  if(sqi){sqi.value=name;sqi.style.color='#1D9E75';sqi.style.fontWeight='700';}
-  var ssg=document.getElementById('ssg');if(ssg)ssg.style.display='none';
-  var ssn=document.getElementById('ssn');if(ssn)ssn.textContent=name;
-  var ssel=document.getElementById('ssel');if(ssel)ssel.style.display='none';
-}
-
-function clrS(){
-  window._selSupId=null;window._selSupName=null;
-  var sqi=document.getElementById('sqi');
-  if(sqi){sqi.value='';sqi.style.color='';sqi.style.fontWeight='';}
-  var ssel=document.getElementById('ssel');if(ssel)ssel.style.display='none';
-  var ssg=document.getElementById('ssg');if(ssg)ssg.style.display='none';
-}
-
-function togS(checked){
-  var ssw=document.getElementById('ssw');
-  var nsf=document.getElementById('nsf');
-  if(ssw)ssw.style.display=checked?'none':'';
-  if(nsf)nsf.style.display=checked?'':'none';
-}
-
-
-function onPOTypeChange(){
-  var type=document.querySelector('input[name="po-type"]:checked')?.value||'ac';
-  // Clear current rows
-  var body=document.getElementById('potb');
-  if(body)body.innerHTML='';
-  // Update table header
-  var thead=document.getElementById('po-thead');
-  if(thead){
-    if(type==='sp'){
-      thead.innerHTML='<tr><th style="width:35%">اسم القطعة</th><th style="width:12%">المخزون</th><th style="width:15%">الكمية</th><th style="width:18%">التكلفة (ج.م)</th><th style="width:5%"></th></tr>';
-      // Show warehouse selector
-      var whSel=document.getElementById('po-wh-selector');
-      if(!whSel){
-        whSel=document.createElement('div');
-        whSel.id='po-wh-selector';
-        whSel.style.cssText='background:#f0f9ff;border:1px solid #b3d9f7;border-radius:8px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:12px';
-        whSel.innerHTML='<span style="font-size:12px;font-weight:700;color:#185FA5">المخزن المستلِم:</span>'          +'<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;font-weight:600"><input type="radio" name="po-wh" value="مخزن تجمع" checked style="accent-color:#185FA5"> مخزن تجمع</label>'          +'<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;font-weight:600"><input type="radio" name="po-wh" value="مخزن رئيسي" style="accent-color:#1D9E75"> مخزن رئيسي</label>';
-        var potbParent=document.getElementById('potb')?.closest('div');
-        if(potbParent)potbParent.insertBefore(whSel,potbParent.querySelector('button'));
-      }
-      whSel.style.display='flex';
-    }else{
-      thead.innerHTML='<tr><th style="width:42%">المنتج</th><th style="width:17%">المخزون الحالي</th><th style="width:17%">الكمية</th><th style="width:19%">التكلفة (ج.م)</th><th style="width:5%"></th></tr>';
-      var whSel=document.getElementById('po-wh-selector');if(whSel)whSel.style.display='none';
-    }
-  }
-  addPOR();
-}
-
 function openNewPO(){
   go('npo',null);
-  window._SP_PO=null;
-  var acRadio=document.querySelector('input[name="po-type"][value="ac"]');
-  if(acRadio)acRadio.checked=true;
-  var body=document.getElementById('potb');if(body)body.innerHTML='';
-  var tot=document.getElementById('potot');if(tot)tot.textContent='EGP 0';
-  // Reset supplier
-  clrS();
-  // Reset headers to AC
-  var thead=document.getElementById('po-thead');
-  if(thead)thead.innerHTML='<tr><th style="width:42%">المنتج</th><th style="width:17%">المخزون الحالي</th><th style="width:17%">الكمية</th><th style="width:19%">التكلفة (ج.م)</th><th style="width:5%"></th></tr>';
+  document.getElementById('porb').innerHTML='';
+  document.getElementById('potot').textContent='EGP 0';
   addPOR();
 }
 
 function addPOR(){
-  var poType=document.querySelector('input[name="po-type"]:checked')?.value||'ac';
-  if(poType==='ac'){
-    if(!INV.length){db.from('inventory').select('*').then(function(r){INV=r.data||[];addPOR();});return;}
-  }else{
-    if(!window._SP_PO){db.from('spare_parts').select('id,name,unit,qty,cost,warehouse').order('name').then(function(r){window._SP_PO=r.data||[];addPOR();});return;}
-  }
-  var body=document.getElementById('potb');if(!body)return;
+  if(!INV.length){db.from('inventory').select('*').then(function(r){INV=r.data||[];addPOR();});return;}
+  var body=document.getElementById('porb');if(!body)return;
   var tr=document.createElement('tr');
-  if(poType==='sp'){
-    // Spare parts: Name | Warehouse | Stock | Qty | Cost | X
-    var sp=window._SP_PO||[];
-    var listId='pol'+Date.now();
-    var dl=document.createElement('datalist');dl.id=listId;
-    sp.forEach(function(p){var opt=document.createElement('option');opt.value=p.name+' ('+p.warehouse+')';dl.appendChild(opt);});
-    // Name input
-    var td1=document.createElement('td');
-    var inp=document.createElement('input');
-    inp.setAttribute('list',listId);inp.placeholder='ابحث عن قطعة...';
-    inp.className='po-prod-inp';inp.dataset.invId='';inp.dataset.invType='sp';
-    inp.style.cssText='width:100%;font-size:12px;padding:4px;border:1px solid #ddd;border-radius:4px;box-sizing:border-box';
-    function checkSP(el){
-      var val=el.value.trim();
-      var m=sp.find(function(p){return (p.name+' ('+p.warehouse+')')===val;});
-      if(m){el.dataset.invId=m.id;el.style.borderColor='#185FA5';
-        var wh=tr.querySelector('.po-wh');if(wh)wh.textContent=m.warehouse;
-        var stk=tr.querySelector('.po-stock');if(stk)stk.textContent=m.qty+' '+m.unit;
-        var cost=tr.querySelector('.po-cost');if(cost&&m.cost)cost.value=m.cost;
-      }else{el.dataset.invId='';el.style.borderColor='#ddd';}
-    }
-    inp.oninput=function(){checkSP(this);};inp.onchange=function(){checkSP(this);};
-    td1.appendChild(dl);td1.appendChild(inp);
-    // Stock cell
-    var td2=document.createElement('td');
-    var stDiv=document.createElement('div');stDiv.className='po-stock';stDiv.style.cssText='font-size:11px;color:#888;text-align:center';
-    td2.appendChild(stDiv);
-    // Qty
-    var td3=document.createElement('td');
-    var qi=document.createElement('input');qi.type='number';qi.value='1';qi.min='1';qi.style.cssText='width:60px;text-align:center';qi.oninput=calcPOT;
-    td3.appendChild(qi);
-    // Cost
-    var td4=document.createElement('td');
-    var ci=document.createElement('input');ci.type='number';ci.className='po-cost';ci.min='0';ci.value='0';ci.style.width='100%';ci.oninput=calcPOT;
-    td4.appendChild(ci);
-    // Remove
-    var td5=document.createElement('td');
-    var rb=document.createElement('button');rb.className='ib';rb.textContent='X';rb.style.fontSize='12px';rb.onclick=function(){tr.remove();calcPOT();};
-    td5.appendChild(rb);
-    tr.appendChild(td1);tr.appendChild(td2);tr.appendChild(td3);tr.appendChild(td4);tr.appendChild(td5);
-    body.appendChild(tr);inp.focus();
-  }else{
-    // AC units: Product | Stock | Qty | Cost | X
-    var listId='pol'+Date.now();
-    var dl=document.createElement('datalist');dl.id=listId;
-    INV.forEach(function(p){var opt=document.createElement('option');opt.value=p.brand+' '+p.model+' '+p.hp+'HP '+p.unit_type+' '+(p.cooling||'')+(p.ac_type?' - '+p.ac_type:'');dl.appendChild(opt);});
-    var td1=document.createElement('td');
-    var inp=document.createElement('input');
-    inp.setAttribute('list',listId);inp.placeholder='ابحث عن وحدة...';
-    inp.className='po-prod-inp';inp.dataset.invId='';inp.dataset.invType='ac';
-    inp.style.cssText='width:100%;font-size:12px;padding:4px;border:1px solid #ddd;border-radius:4px;box-sizing:border-box';
-    function checkAC(el){
-      var val=el.value.trim();
-      var m=INV.find(function(p){return (p.brand+' '+p.model+' '+p.hp+'HP '+p.unit_type+' '+(p.cooling||'')+(p.ac_type?' - '+p.ac_type:''))===val;});
-      if(m){el.dataset.invId=m.id;el.style.borderColor='#1D9E75';
-        var stk=tr.querySelector('.po-stock');if(stk)stk.textContent=m.qty+' in stock';
-        var cost=tr.querySelector('.po-cost');if(cost&&m.cost)cost.value=m.cost;
-      }else{el.dataset.invId='';el.style.borderColor='#ddd';}
-    }
-    inp.oninput=function(){checkAC(this);};inp.onchange=function(){checkAC(this);};
-    td1.appendChild(dl);td1.appendChild(inp);
-    var td2=document.createElement('td');
-    var stDiv=document.createElement('div');stDiv.className='po-stock';stDiv.style.cssText='font-size:11px;color:#888;text-align:center';
-    td2.appendChild(stDiv);
-    var td3=document.createElement('td');
-    var qi=document.createElement('input');qi.type='number';qi.value='1';qi.min='1';qi.style.cssText='width:60px;text-align:center';qi.oninput=calcPOT;
-    td3.appendChild(qi);
-    var td4=document.createElement('td');
-    var ci=document.createElement('input');ci.type='number';ci.className='po-cost';ci.min='0';ci.value='0';ci.style.width='100%';ci.oninput=calcPOT;
-    td4.appendChild(ci);
-    var td5=document.createElement('td');
-    var rb=document.createElement('button');rb.className='ib';rb.textContent='X';rb.style.fontSize='12px';rb.onclick=function(){tr.remove();calcPOT();};
-    td5.appendChild(rb);
-    tr.appendChild(td1);tr.appendChild(td2);tr.appendChild(td3);tr.appendChild(td4);tr.appendChild(td5);
-    body.appendChild(tr);inp.focus();
-  }
+  var opts=INV.map(function(p){return '<option value="'+p.id+'" data-stock="'+p.qty+'">'+p.brand+' '+p.model+' '+p.hp+' '+(p.unit_type||'')+' '+(p.cooling||'')+' '+(p.ac_type||'')+'</option>';}).join('');
+  tr.innerHTML='<td><select style="width:100%;font-size:12px;padding:4px" onchange="var o=this.selectedOptions[0];this.closest(\'tr\').querySelector(\'.po-stock\').textContent=o?o.dataset.stock+\' in stock\':\'\'" >'+opts+'</select></td>'
+    +'<td><div class="po-stock" style="font-size:11px;color:#888;text-align:center"></div></td>'
+    +'<td><input type="number" value="1" min="1" style="width:70px;text-align:center" oninput="calcPOT()"></td>'
+    +'<td><input type="number" class="po-cost" min="0" value="0" style="width:100%" oninput="calcPOT()"></td>'
+    +'<td><button class="ib" onclick="this.closest(\'tr\').remove();calcPOT()" style="font-size:12px">X</button></td>';
+  body.appendChild(tr);
+  var sel=tr.querySelector('select');if(sel)sel.onchange();
 }
 
 function calcPOT(){
-  var rows=document.querySelectorAll('#potb tr');var tot=0;
+  var rows=document.querySelectorAll('#porb tr');var tot=0;
   rows.forEach(function(tr){
-    // Both AC and SP now have same structure: name|stock|qty|cost|x
-    // qty at cells[2], cost at cells[3]
     var q=parseFloat(tr.cells[2]?.querySelector('input')?.value)||0;
-    var c=parseFloat(tr.querySelector('.po-cost')?.value)||0;
+    var c=parseFloat(tr.cells[3]?.querySelector('input')?.value)||0;
     tot+=q*c;
   });
   var el=document.getElementById('potot');if(el)el.textContent='EGP '+Math.round(tot).toLocaleString();
 }
 
 async function savePO(){
-  var supId=window._selSupId||null;
-  var supNm=document.getElementById('ssn')?.textContent||'-';
-  var date=document.getElementById('pod')?.value||new Date().toISOString().slice(0,10);
-  var poType=document.querySelector('input[name="po-type"]:checked')?.value||'ac';
-  var rows=document.querySelectorAll('#potb tr');
-  if(!rows.length){toast('أضف منتجاً واحداً على الأقل',true);return;}
+  var supId=document.getElementById('posup')?.value;
+  var supNm=document.getElementById('posup')?.selectedOptions[0]?.text||'-';
+  var date=document.getElementById('podate')?.value||new Date().toISOString().slice(0,10);
+  var rows=document.querySelectorAll('#porb tr');
+  if(!rows.length){toast('Add at least one product',true);return;}
   var items=[];
   rows.forEach(function(tr){
-    var inp=tr.querySelector('.po-prod-inp');
-    if(!inp)return;
-    var invId=inp.dataset.invId||'';
-    var invType=inp.dataset.invType||poType;
-    // SP rows: name|wh|stock|qty|cost|x → qty at index 3, cost at index 4
-    // AC rows: name|stock|qty|cost|x → qty at index 2, cost at index 3
-    var qIdx=invType==='sp'?2:2;
-    var cIdx=invType==='sp'?3:3;
-    var q=parseInt(tr.cells[qIdx]?.querySelector('input')?.value)||0;
-    var c=parseFloat(tr.cells[cIdx]?.querySelector('input')?.value)||0;
-    var nm=inp.value||'';
-    if(invId&&q>0)items.push({invId:invId,invType:invType,qty:q,cost:c,name:nm});
+    var sel=tr.cells[0]?.querySelector('select');var invId=sel?.value;
+    var q=parseInt(tr.cells[2]?.querySelector('input')?.value)||0;
+    var c=parseFloat(tr.cells[3]?.querySelector('input')?.value)||0;
+    if(invId&&q>0)items.push({inventory_id:invId,qty:q,price:c});
   });
-  if(!items.length){toast('اختر منتجاً وأدخل الكمية',true);return;}
-  var tot=items.reduce(function(a,it){return a+it.qty*it.cost;},0);
+  if(!items.length){toast('Add at least one valid product',true);return;}
+  var tot=items.reduce(function(a,it){return a+it.qty*it.price;},0);
   // Generate PO number
   var{data:lastPO}=await db.from('purchase_orders').select('po_num').order('created_at',{ascending:false}).limit(1);
-  var lastPNum=parseInt(((lastPO&&lastPO[0]?.po_num)||'PO-00000').replace(/[^0-9]/g,''))||0;
+  var lastPN=lastPO&&lastPO.length?lastPO[0].po_num:'PO-00000';
+  var lastPNum=parseInt((lastPN||'PO-00000').replace(/[^0-9]/g,''))||0;
   var poNum='PO-'+String(lastPNum+1).padStart(5,'0');
-  var delDate=document.getElementById('podl')?.value||null;
-  var{data:po,error}=await db.from('purchase_orders').insert({
-    po_num:poNum,
-    supplier_id:supId||null,
-    date:date,
-    delivery_date:delDate,
-    total:tot,
-    status:'pending',
-    notes:document.getElementById('pon')?.value||null
-  }).select().single();
-  if(error){toast('خطأ: '+error.message,true);return;}
-  // Insert po_items - use inventory_id for AC, spare_part_id for SP
-  var poItems=items.map(function(it){
-    var row={po_id:po.id,qty:it.qty,unit_cost:it.cost,product_name:it.name};
-    if(it.invType==='sp')row.spare_part_id=it.invId;
-    else row.inventory_id=it.invId;
-    return row;
-  });
-  var{error:itemErr}=await db.from('po_items').insert(poItems);
-  if(itemErr){toast('خطأ في حفظ المنتجات: '+itemErr.message,true);return;}
-  toast('تم إنشاء أمر الشراء '+poNum);
-  go('pur',document.getElementById('ni-pur'));
+  var{data:po,error}=await db.from('purchase_orders').insert({po_num:poNum,supplier_id:supId||null,supplier_name:supNm,date:date,total:tot,status:'pending',item_count:items.length,notes:document.getElementById('ponotes')?.value,expected_delivery:document.getElementById('podel')?.value}).select().single();
+  if(error){toast('Error: '+error.message,true);return;}
+  var poItems=items.map(function(it){return{po_id:po.id,inventory_id:it.inventory_id,qty:it.qty,price:it.price};});
+  await db.from('po_items').insert(poItems);
+  toast(t('pocreated'));go('pur',document.getElementById('ni-pur'));
 }
 
 async function openPODetail(poId){
@@ -3879,21 +3652,19 @@ async function openPODetail(poId){
   var{data:pays}=await db.from('po_payments').select('*').eq('po_id',poId).order('created_at',{ascending:true});
   if(!po)return;items=items||[];pays=pays||[];
   var invIds=items.map(function(i){return i.inventory_id;}).filter(Boolean);
-  var spIds=items.map(function(i){return i.spare_part_id;}).filter(Boolean);
   var invMap={};
-  if(invIds.length){var{data:invData}=await db.from('inventory').select('id,brand,model,hp,unit_type,cooling,qty').in('id',invIds);(invData||[]).forEach(function(inv){invMap[inv.id]={name:inv.brand+' '+inv.model+' '+inv.hp+'HP '+inv.unit_type+' '+(inv.cooling||''),qty:inv.qty};});}
-  if(spIds.length){var{data:spData}=await db.from('spare_parts').select('id,name,unit,qty,warehouse').in('id',spIds);(spData||[]).forEach(function(sp){invMap[sp.id]={name:sp.name+' ('+sp.unit+') - '+sp.warehouse,qty:sp.qty};});}
+  if(invIds.length){var{data:invData}=await db.from('inventory').select('id,brand,model,hp,qty').in('id',invIds);(invData||[]).forEach(function(inv){invMap[inv.id]={name:inv.brand+' '+inv.model+' '+inv.hp,qty:inv.qty};});}
   var overlay=document.createElement('div');overlay.className='po-modal';
   overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9000;display:flex;align-items:center;justify-content:center';
   overlay.onclick=function(e){if(e.target===overlay)overlay.remove();};
   var paidSoFar=pays.reduce(function(a,p){return a+p.amount;},0);
   var owed=Math.max(0,po.total-paidSoFar);
-  var iRows=items.map(function(it){var key=it.inventory_id||it.spare_part_id;var inv=invMap[key]||{name:it.product_name||'Unknown',qty:0};var cost=it.unit_cost||0;return '<tr><td style="padding:7px 10px">'+inv.name+'</td><td style="padding:7px 10px;text-align:center">'+it.qty+'</td><td style="padding:7px 10px;text-align:right">EGP '+cost.toLocaleString()+'</td><td style="padding:7px 10px;text-align:right;font-weight:700">EGP '+(it.qty*cost).toLocaleString()+'</td></tr>';}).join('');
+  var iRows=items.map(function(it){var inv=invMap[it.inventory_id]||{name:'Unknown',qty:0};return '<tr><td style="padding:7px 10px">'+inv.name+'</td><td style="padding:7px 10px;text-align:center">'+it.qty+'</td><td style="padding:7px 10px;text-align:right">EGP '+(it.price||0).toLocaleString()+'</td><td style="padding:7px 10px;text-align:right;font-weight:700">EGP '+(it.qty*(it.price||0)).toLocaleString()+'</td></tr>';}).join('');
   var pRows=pays.map(function(p){return '<tr><td style="padding:5px 8px">'+f(p.amount)+'</td><td style="padding:5px 8px">'+p.method+'</td><td style="padding:5px 8px;color:#888">'+(p.note||'-')+'</td><td style="padding:5px 8px">'+(p.created_at?new Date(p.created_at).toLocaleDateString('en-GB'):'')+'</td>'+(can('delete')||can('delete_payment')?'<td><button onclick="delPOPay(\''+p.id+'\',\''+poId+'\')" style="font-size:10px;color:#A32D2D;border:1px solid #E24B4A;border-radius:4px;background:#FCEBEB;cursor:pointer;padding:1px 6px">Del</button></td>':'')+'</tr>';}).join('');
   var html='<div style="background:#fff;border-radius:14px;padding:24px;width:620px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.25)">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><div style="font-size:16px;font-weight:700">'+po.po_num+'</div><button id="pod-close" style="border:none;background:none;font-size:22px;cursor:pointer">&#10005;</button></div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px;font-size:12px">'
-      +'<div><div style="color:#888">المورد</div><div style="font-weight:700">'+(po.supplier_name||po.supplier_id||'-')+'</div></div>'
+      +'<div><div style="color:#888">Supplier</div><div style="font-weight:700">'+(po.supplier_name||'-')+'</div></div>'
       +'<div><div style="color:#888">Date</div><div style="font-weight:700">'+po.date+'</div></div>'
       +'<div><div style="color:#888">Status</div><div style="font-weight:700">'+po.status+'</div></div>'
     +'</div>'
@@ -3901,7 +3672,7 @@ async function openPODetail(poId){
     +'<div style="text-align:right;font-size:13px;font-weight:700;margin-bottom:14px">PO Total: '+f(po.total)+' | Paid: '+f(paidSoFar)+' | Owed: '+f(owed)+'</div>'
     +(pRows?'<div style="margin-bottom:14px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">Payments</div><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f9f9f6"><th style="padding:5px 8px;text-align:left">Amount</th><th style="padding:5px 8px;text-align:left">Method</th><th style="padding:5px 8px;text-align:left">Note</th><th style="padding:5px 8px;text-align:left">Date</th>'+(can('delete')||can('delete_payment')?'<th></th>':'')+'</tr></thead><tbody>'+pRows+'</tbody></table></div>':'')
     +'<div style="margin-bottom:14px;background:#f9f9f6;border-radius:8px;padding:12px"><div style="font-size:12px;font-weight:700;margin-bottom:8px">Record payment to supplier</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px"><input type="number" id="pop-amt" placeholder="Amount" style="padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px"><select id="pop-meth" style="padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px"><option>Cash</option><option>Bank transfer</option><option>Cheque</option><option>Instapay</option></select></div><input id="pop-note" placeholder="Note (optional)" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box;margin-bottom:8px"><button onclick="savePOPayment(\''+poId+'\')" style="padding:7px 16px;font-size:12px;border:none;border-radius:7px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:600">Save payment</button></div>'
-    +(po.status==='pending'||po.status==='partial'?'<button onclick="openReceiveModal(\''+poId+'\')" style="padding:8px 16px;font-size:12px;border:none;border-radius:8px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:600;margin-bottom:8px">'+t('markdelivered')+'</button> ':'' )
+    +(po.status==='pending'||po.status==='partial'?'<button onclick="markDelivered(\''+poId+'\')" style="padding:8px 16px;font-size:12px;border:none;border-radius:8px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:600;margin-bottom:8px">'+t('markdelivered')+'</button> ':'' )
     +'<div style="text-align:right"><button id="pod-cancel" style="padding:8px 16px;font-size:12px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer">Close</button></div>'
   +'</div>';
   overlay.innerHTML=html;document.body.appendChild(overlay);
@@ -3929,133 +3700,29 @@ async function delPOPay(payId,poId){
   openPODetail(poId);
 }
 
-
-async function openReceiveModal(poId){
-  var{data:po}=await db.from('purchase_orders').select('*').eq('id',poId).single();
-  var{data:items}=await db.from('po_items').select('*').eq('po_id',poId);
-  if(!items?.length){toast('No items in this order',true);return;}
-  // Fetch product names
-  var invIds=items.map(function(i){return i.inventory_id;}).filter(Boolean);
-  var spIds=items.map(function(i){return i.spare_part_id;}).filter(Boolean);
-  var nameMap={};
-  if(invIds.length){var{data:invData}=await db.from('inventory').select('id,brand,model,hp').in('id',invIds);(invData||[]).forEach(function(p){nameMap[p.id]=p.brand+' '+p.model+' '+p.hp;});}
-  if(spIds.length){var{data:spData}=await db.from('spare_parts').select('id,name,unit').in('id',spIds);(spData||[]).forEach(function(p){nameMap[p.id]=p.name+' ('+p.unit+')';});}
-  // Build modal
-  document.querySelectorAll('.receive-modal').forEach(function(e){e.remove();});
-  var ov=document.createElement('div');
-  ov.className='receive-modal';
-  ov.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box';
-  var box=document.createElement('div');
-  box.style.cssText='background:#fff;border-radius:14px;padding:24px;width:520px;max-width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.25)';
-  var rowsHtml=items.map(function(it){
-    var key=it.inventory_id||it.spare_part_id;
-    var name=nameMap[key]||it.product_name||'Unknown';
-    var already=it.qty_received||0;
-    var remaining=it.qty-already;
-    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f0f0e8">'
-      +'<div style="flex:1;font-size:13px;font-weight:600">'+name+'</div>'
-      +'<div style="font-size:11px;color:#888;min-width:80px">طلوب: '+it.qty+' | مستلم: '+already+'</div>'
-      +'<input type="number" class="recv-qty" data-item-id="'+it.id+'" data-inv-id="'+(it.inventory_id||'')+'" data-sp-id="'+(it.spare_part_id||'')+'" min="0" max="'+remaining+'" value="'+remaining+'" style="width:70px;padding:5px;border:1px solid #ddd;border-radius:6px;font-size:13px;text-align:center">'
-    +'</div>';
-  }).join('');
-  box.innerHTML='<div style="font-size:16px;font-weight:700;margin-bottom:16px">استلام البضاعة</div>'
-    +'<div style="font-size:12px;color:#888;margin-bottom:12px">أدخل الكمية المستلمة لكل منتج</div>'
-    +rowsHtml
-    +'<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">'
-      +'<button onclick="this.closest(\'.receive-modal\').remove()" class="btn bs">إلغاء</button>'
-      +'<button onclick="confirmReceive(\''+poId+'\')" class="btn bp">✓ تأكيد الاستلام</button>'
-    +'</div>';
-  ov.appendChild(box);
-  document.body.appendChild(ov);
-}
-
-async function confirmReceive(poId){
-  var inputs=document.querySelectorAll('.recv-qty');
-  if(!inputs.length){toast('No items',true);return;}
-  var{data:po}=await db.from('purchase_orders').select('warehouse').eq('id',poId).single();
-  var allFullyReceived=true;
-  for(var i=0;i<inputs.length;i++){
-    var inp=inputs[i];
-    var qty=parseFloat(inp.value)||0;
-    if(qty<=0)continue;
-    var itemId=inp.dataset.itemId;
-    var invId=inp.dataset.invId;
-    var spId=inp.dataset.spId;
-    // Update inventory
-    if(invId){
-      var{data:inv}=await db.from('inventory').select('qty').eq('id',invId).single();
-      if(inv)await db.from('inventory').update({qty:(inv.qty||0)+qty}).eq('id',invId);
-    } else if(spId){
-      var{data:sp}=await db.from('spare_parts').select('qty').eq('id',spId).single();
-      if(sp)await db.from('spare_parts').update({qty:(sp.qty||0)+qty}).eq('id',spId);
-    }
-    // Update qty_received on item
-    var{data:item}=await db.from('po_items').select('qty,qty_received').eq('id',itemId).single();
-    if(item){
-      var newRecv=(item.qty_received||0)+qty;
-      await db.from('po_items').update({qty_received:newRecv}).eq('id',itemId);
-      if(newRecv<item.qty)allFullyReceived=false;
-    }
-  }
-  var newStatus=allFullyReceived?'received':'partial';
-  await db.from('purchase_orders').update({status:newStatus}).eq('id',poId);
-  toast(allFullyReceived?'تم الاستلام الكامل وتحديث المخزون':'تم تسجيل استلام جزئي');
-  document.querySelectorAll('.receive-modal').forEach(function(e){e.remove();});
-  document.querySelectorAll('.po-modal').forEach(function(e){e.remove();});
-  loadPur();
-}
-
 async function markDelivered(poId){
   var{data:items}=await db.from('po_items').select('*').eq('po_id',poId);
   if(!items?.length){toast('No items',true);return;}
-  // Get PO to find warehouse for spare parts
-  var{data:po}=await db.from('purchase_orders').select('warehouse').eq('id',poId).single();
-  var poWarehouse=po?.warehouse||'مخزن رئيسي';
   for(var i=0;i<items.length;i++){
     var it=items[i];
     if(it.inventory_id){
-      // AC unit - update inventory table
       var{data:inv}=await db.from('inventory').select('qty').eq('id',it.inventory_id).single();
       if(inv)await db.from('inventory').update({qty:(inv.qty||0)+it.qty}).eq('id',it.inventory_id);
-    } else if(it.spare_part_id){
-      // Spare part - update spare_parts table with correct warehouse
-      var{data:sp}=await db.from('spare_parts').select('qty,warehouse').eq('id',it.spare_part_id).single();
-      if(sp){
-        await db.from('spare_parts').update({qty:(sp.qty||0)+it.qty}).eq('id',it.spare_part_id);
-      } else {
-        // Part not found - this shouldn't happen but log it
-        console.warn('Spare part not found:',it.spare_part_id);
-      }
     }
   }
   await db.from('purchase_orders').update({status:'received'}).eq('id',poId);
-  toast('تم الاستلام وتحديث المخزون');
+  toast('Received - inventory updated!');
   document.querySelectorAll('.po-modal,.receive-modal').forEach(function(e){e.remove();});
   loadPur();
 }
 
 async function deletePO(poId){
   if(!can('delete')){toast('No permission to delete',true);return;}
-  if(!confirm('Delete this purchase order? If received, inventory will be restored.'))return;
-  // Check if received - if so, restore inventory
-  var{data:po}=await db.from('purchase_orders').select('status').eq('id',poId).single();
-  if(po?.status==='received'){
-    var{data:items}=await db.from('po_items').select('*').eq('po_id',poId);
-    for(var i=0;i<(items||[]).length;i++){
-      var it=items[i];
-      if(it.inventory_id){
-        var{data:inv}=await db.from('inventory').select('qty').eq('id',it.inventory_id).single();
-        if(inv)await db.from('inventory').update({qty:Math.max(0,(inv.qty||0)-it.qty)}).eq('id',it.inventory_id);
-      } else if(it.spare_part_id){
-        var{data:sp}=await db.from('spare_parts').select('qty').eq('id',it.spare_part_id).single();
-        if(sp)await db.from('spare_parts').update({qty:Math.max(0,(sp.qty||0)-it.qty)}).eq('id',it.spare_part_id);
-      }
-    }
-  }
+  if(!confirm('Delete this purchase order?'))return;
   await db.from('po_items').delete().eq('po_id',poId);
   await db.from('po_payments').delete().eq('po_id',poId);
   await db.from('purchase_orders').delete().eq('id',poId);
-  toast('تم حذف أمر الشراء واسترداد المخزون');loadPur();
+  toast(t('porderdeleted'));loadPur();
 }
 
 async function returnProducts(poId){
@@ -4518,8 +4185,7 @@ async function saveTask(){
     use_tax:useTax,
     address:document.getElementById('nt-task-address')?.value||null,
     from_address:document.getElementById('nt-addr-from')?.value||null,
-    to_address:document.getElementById('nt-addr-to')?.value||null,
-    time_slot:document.getElementById('nttime')?.value||null
+    to_address:document.getElementById('nt-addr-to')?.value||null
   }).select().single();
   if(te){toast('Error: '+te.message,true);return;}
   var rows=taskRows.map(function(r){return{task_id:task.id,name:r.name,qty:r.qty,price:r.price,inventory_id:r.pid||null};});
@@ -4813,8 +4479,7 @@ function clrC(){
   var addrBlock=document.getElementById('nt-addr-block');if(addrBlock)addrBlock.style.display='none';
   var dupWarn=document.getElementById('nt-dup-warn');if(dupWarn)dupWarn.style.display='none';
 }
-d('cqi');if(cqi)cqi.value='';
-  var inner=document.getElementById('nt-addr-block-inner');if(inner)inner.innerHTML='';
+t-addr-block-inner');if(inner)inner.innerHTML='';
   var taddr=document.getElementById('nt-task-address');if(taddr)taddr.value='';
   var addrBlock=document.getElementById('nt-addr-block');if(addrBlock)addrBlock.style.display='none';
   var dupWarn=document.getElementById('nt-dup-warn');if(dupWarn)dupWarn.style.display='none';
