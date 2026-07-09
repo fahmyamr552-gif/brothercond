@@ -1210,7 +1210,7 @@ async function loadTasks(resetPage){
       var g=grand(tk.id);
       d.innerHTML='<div style="font-size:11px;font-weight:700;color:#1D9E75">'+tk.task_num+'</div>'
         +'<div><div style="font-weight:600;font-size:13px">'+(tk.customer_name||'-')+'</div>'
-        +'<div style="font-size:11px;color:#888">'+tk.branch+' &middot; '+(tk.salesperson||'-')+' &middot; '+(tk.date||'-')+'</div></div>'
+        +'<div style="font-size:11px;color:#888">'+tk.branch+' &middot; '+(tk.salesperson||'-')+' &middot; '+(tk.type==='sale_install'?(tk.installation_date?'تركيب: '+tk.installation_date:'تركيب: لم يحدد'):(tk.date||'-'))+'</div></div>'
         +'<div style="font-size:12px;font-weight:700">'+(g>0?('EGP '+Math.round(g).toLocaleString()):'-')+'</div>'
         +'<div style="font-size:11px;font-weight:600;color:'+(psColor[tk.pay_status]||'#888')+'">'+(psLabel[tk.pay_status]||tk.pay_status||'-')+'</div>'
         +'<div><span class="bx '+(sm[tk.status]||'gr')+'" style="font-size:10px">'+(sl()[tk.status]||tk.status||'-')+'</span></div>';
@@ -2002,6 +2002,15 @@ function handleUp(input){const grid=document.getElementById('pgr');Array.from(in
 async function deleteTask(){
   if(!CT)return;
   if(!confirm(t('taskdelconfirm')+' '+CT.task_num))return;
+  // Restore inventory for sales/sale_install tasks
+  if(CT.type==='sale_install'){
+    var{data:saleProds}=await db.from('task_products').select('inventory_id,qty').eq('task_id',CT.id);
+    for(var i=0;i<(saleProds||[]).length;i++){
+      var sp=saleProds[i];if(!sp.inventory_id)continue;
+      var{data:inv}=await db.from('inventory').select('qty').eq('id',sp.inventory_id).single();
+      if(inv)await db.from('inventory').update({qty:(inv.qty||0)+sp.qty}).eq('id',sp.inventory_id);
+    }
+  }
   // If بيع مباشر task, restore inventory
   if(CT.type==='بيع مباشر'){
     var{data:prods}=await db.from('task_products').select('*').eq('task_id',CT.id);
