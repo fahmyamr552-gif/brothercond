@@ -1090,6 +1090,7 @@ function openEditOrderInfo(){
   html+='<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">Task date</label><input type="date" id="eoi-dt" value="'+(CT.date||'')+'" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div>';
   html+='</div>';
   html+='<div style="margin-bottom:12px"><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">Description</label><textarea id="eoi-ds" rows="3" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px;resize:vertical;box-sizing:border-box">'+(CT.description||'')+'</textarea></div>';
+  if(CT.type==='sale_install'){html+='<div style="background:#f0f9ff;border:1px solid #b3d9f7;border-radius:8px;padding:12px;margin-top:10px"><div style="font-size:12px;font-weight:700;color:#185FA5;margin-bottom:8px">بيانات التركيب</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div><label style="font-size:11px;color:#888">تاريخ التركيب</label><input type="date" id="eoi-install-date" value="'+(CT.installation_date||'')+'"></div><div><label style="font-size:11px;color:#888">الفني</label><input id="eoi-install-tech" value="'+(CT.installation_tech||'')+'" placeholder="الفني"></div></div></div>';}
   // Build address picker from customer's saved addresses
   var custAddrs2=[];
   try{var caj=JSON.parse((CT.cust&&CT.cust.addresses)||'[]');custAddrs2=caj.filter(Boolean);}catch(e){}
@@ -1133,7 +1134,9 @@ function openEditOrderInfo(){
       description:document.getElementById('eoi-ds').value,
       from_address:document.getElementById('eoi-addr-from')?.value||null,
       to_address:document.getElementById('eoi-addr-to')?.value||null,
-      address:document.getElementById('eoi-task-addr')?.value||null
+      address:document.getElementById('eoi-task-addr')?.value||null,
+      installation_date:(function(){var el=document.getElementById('eoi-install-date');return el&&el.value?el.value:null;})(),
+      installation_tech:(function(){var el=document.getElementById('eoi-install-tech');return el&&el.value?el.value:null;})()
     };
     var taxEl=document.getElementById('eoi-tax');
     if(taxEl)updates.use_tax=taxEl.checked;
