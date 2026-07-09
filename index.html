@@ -1371,7 +1371,7 @@ async function openTask(id){
         iCard.innerHTML=''
           +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #b3d9f7">'
             +'<span style="font-size:14px;font-weight:700;color:#185FA5">&#128295; بيانات التركيب</span>'
-            +'<span style="margin-left:auto;font-size:11px;padding:2px 8px;border-radius:6px;background:'+(confAt?'#EAF3DE':'#FFF8E1')+';color:'+(confAt?'#3B6D11':'#854F0B')+'">'+(confAt?'&#10003; تم التركيب':'&#9203; في الانتظار')+'</span>'
+            +'<span style="margin-left:auto;font-size:11px;padding:2px 8px;border-radius:6px;background:'+(confAt?'#EAF3DE':'#FFF8E1')+';color:'+(confAt?'#3B6D11':'#854F0B')+'">'+( confAt?'&#10003; تم التركيب':'&#9203; في الانتظار')+'</span>'
           +'</div>'
           +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;margin-bottom:12px">'
             +'<div><div style="color:#888;font-size:11px;margin-bottom:2px">تاريخ التركيب</div><div style="font-weight:600">'+(CT.installation_date||'—')+'</div></div>'
@@ -1379,11 +1379,13 @@ async function openTask(id){
             +(confAt?'<div><div style="color:#888;font-size:11px;margin-bottom:2px">تم بتاريخ</div><div style="font-weight:600;color:#3B6D11">'+confDate+' | '+confTime+'</div></div>':'')
           +'</div>'
           +(confAt?'':'<button onclick="confirmInstallation()" style="width:100%;padding:9px;border:none;border-radius:8px;background:#185FA5;color:#fff;cursor:pointer;font-size:13px;font-weight:700">&#10003; تأكيد اكتمال التركيب</button>');
+      }else{
+        iCard.style.display='none';
       }
-    }else if(iCard){
-      iCard.style.display='none';
+    }else{
+      if(iCard)iCard.style.display='none';
     }
-    set('ddate',(CT.date||'-')+(CT.time_slot?' | '+CT.time_slot:''));
+        set('ddate',(CT.date||'-')+(CT.time_slot?' | '+CT.time_slot:''));
     set('dds',CT.description||'-');
     // Show task-specific address if different from customer default
     var taskAddrEl=S('td-task-addr-block');
