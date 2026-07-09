@@ -4367,7 +4367,7 @@ async function saveTask(){
     from_address:document.getElementById('nt-addr-from')?.value||null,
     to_address:document.getElementById('nt-addr-to')?.value||null,
     time_slot:document.getElementById('nttime')?.value||null,
-    installation_date:(function(){var el=document.getElementById('nt-install-date');return el&&el.value?el.value:null;})(),
+    installation_date:(function(){var el=document.getElementById('nt-install-date');var sec=document.getElementById('nt-install-section');if(sec)sec.style.display='';var v=el?el.value:null;return v||null;})(),
     installation_tech:(function(){var el=document.getElementById('nt-install-tech');return el&&el.value?el.value:null;})(),
     installation_status:taskType==='sale_install'?'pending':null
   }).select().single();
@@ -4387,6 +4387,7 @@ async function saveTask(){
       }
     }
   }
+  var installSec2=document.getElementById('nt-install-section');if(installSec2)installSec2.style.display='none';
   toast(t('taskcreated'));go('tasks',document.getElementById('ni-tasks'));
 }
 
