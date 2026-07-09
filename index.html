@@ -1212,7 +1212,7 @@ async function loadTasks(resetPage){
       var psColor={paid:'#3B6D11',unpaid:'#A32D2D',downpayment:'#854F0B',installments:'#185FA5'};
       var psLabel={paid:t('paidinfull'),unpaid:t('unpaid'),downpayment:t('downpayment'),installments:t('installments')};
       var g=grand(tk.id);
-      d.innerHTML='<div style="display:flex;align-items:center;gap:6px"><span style="font-size:11px;font-weight:700;color:#1D9E75">'+tk.task_num+'</span><span style="font-size:10px;padding:1px 6px;border-radius:10px;background:#f0f0ea;color:#666;font-weight:600">'+(typeLabels[tk.type]||tk.type)+'</span></div>'
+      d.innerHTML='<div style="font-size:11px;font-weight:700;color:#1D9E75">'+tk.task_num+'  <span style="font-size:10px;padding:1px 6px;border-radius:10px;background:#f0f0ea;color:#666;font-weight:500">'+(typeLabels[tk.type]||tk.type)+'</span></div>'
         +'<div><div style="font-weight:600;font-size:13px">'+(tk.customer_name||'-')+'</div>'
         +'<div style="font-size:11px;color:#888">'+tk.branch+' &middot; '+(tk.salesperson||'-')+' &middot; '+(tk.type==='sale_install'?(tk.installation_date?'تركيب: '+tk.installation_date:'تركيب: لم يحدد'):(tk.date||'-'))+'</div></div>'
         +'<div style="font-size:12px;font-weight:700">'+(g>0?('EGP '+Math.round(g).toLocaleString()):'-')+'</div>'
