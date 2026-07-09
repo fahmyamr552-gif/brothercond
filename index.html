@@ -1174,7 +1174,7 @@ async function loadTasks(resetPage){
     const fs=document.getElementById('tfs')?.value||'';
     const from=TASK_PAGE*TASK_PAGE_SIZE;
     const to=from+TASK_PAGE_SIZE-1;
-    let qb=db.from('tasks').select('id,task_num,customer_name,type,branch,salesperson,status,date,pay_status',{count:'exact'}).order('date',{ascending:false}).range(from,to+1);
+    let qb=db.from('tasks').select('id,task_num,customer_name,type,branch,salesperson,status,date,pay_status,installation_date',{count:'exact'}).order('date',{ascending:false}).range(from,to+1);
     if(tf)qb=qb.eq('type',tf);
     if(bf)qb=qb.eq('branch',bf);
     if(fs)qb=qb.eq('status',fs);
