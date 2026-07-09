@@ -488,6 +488,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
       <div class="fg"><label data-t="branch">Branch</label><select id="ntbr"><option>Nasr City</option><option>Madinaty</option><option>Rehab</option><option>Head Office</option></select></div>
       <div class="fg"><label>Salesperson</label><select id="ntsp"><option>Salah</option><option>Alaa</option><option>Ayman</option><option>Heba</option><option>Amr Ashraf</option></select></div>
       <div class="fg"><label data-t="taskdate">Task date <span style="color:#A32D2D">*</span></label><input type="date" id="ntdate" onchange="if(scid)checkDupTask(scid,'')"></div>
+      <div class="fg" id="nt-install-date-wrap" style="display:none"><label style="font-size:12px;color:#185FA5;font-weight:600">تاريخ التركيب</label><input type="date" id="nt-install-date"></div>
       <div class="fg"><label>الوقت</label><select id="nttime" style="width:100%">
         <option value="">-- بدون وقت --</option>
         <option value="8:00 - 9:00">8:00 - 9:00 ص</option>
@@ -1275,23 +1276,6 @@ function sendWhatsApp(){
   window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(msg),'_blank');
 }
 
-
-async function confirmInstallation(){
-  if(!CT)return;
-  if(!window.confirm('تأكيد اكتمال التركيب؟'))return;
-  var now=new Date();
-  var{error}=await db.from('tasks').update({
-    installation_confirmed_at:now.toISOString(),
-    installation_status:'done',
-    status:'completed'
-  }).eq('id',CT.id);
-  if(error){toast('Error: '+error.message,true);return;}
-  CT.installation_confirmed_at=now.toISOString();
-  CT.installation_status='done';
-  CT.status='completed';
-  toast('تم تأكيد التركيب بنجاح');
-  openTask(CT.id);
-}
 async function openTask(id){
   try{
     const[tr,tp,tpy]=await Promise.all([
@@ -1368,23 +1352,12 @@ async function openTask(id){
     var iCard=document.getElementById('td-install-card');
     if(CT.type==='sale_install'){
       if(iCard){
-        var confAt=CT.installation_confirmed_at;
-        var confDate=confAt?new Date(confAt).toLocaleDateString('ar-EG'):'';
-        var confTime=confAt?new Date(confAt).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}):'';
         iCard.style.display='';
-        iCard.innerHTML=''
-          +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #b3d9f7">'
-            +'<span style="font-size:14px;font-weight:700;color:#185FA5">&#128295; بيانات التركيب</span>'
-            +'<span style="margin-left:auto;font-size:11px;padding:2px 8px;border-radius:6px;background:'+(confAt?'#EAF3DE':'#FFF8E1')+';color:'+(confAt?'#3B6D11':'#854F0B')+'">'+( confAt?'&#10003; تم التركيب':'&#9203; في الانتظار')+'</span>'
-          +'</div>'
-          +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;margin-bottom:12px">'
-            +'<div><div style="color:#888;font-size:11px;margin-bottom:2px">تاريخ التركيب</div><div style="font-weight:600">'+(CT.installation_date||'—')+'</div></div>'
-            +'<div><div style="color:#888;font-size:11px;margin-bottom:2px">الفني</div><div style="font-weight:600">'+(CT.installation_tech||'—')+'</div></div>'
-            +(confAt?'<div><div style="color:#888;font-size:11px;margin-bottom:2px">تم بتاريخ</div><div style="font-weight:600;color:#3B6D11">'+confDate+' | '+confTime+'</div></div>':'')
-          +'</div>'
-          +(confAt?'':'<button onclick="confirmInstallation()" style="width:100%;padding:9px;border:none;border-radius:8px;background:#185FA5;color:#fff;cursor:pointer;font-size:13px;font-weight:700">&#10003; تأكيد اكتمال التركيب</button>');
-      }else{
-        iCard.style.display='none';
+        iCard.innerHTML='<div style="display:flex;gap:20px;padding:10px 14px;background:#f0f9ff;border:1px solid #b3d9f7;border-radius:10px">'
+          +'<div><div style="font-size:11px;color:#888;margin-bottom:3px">تاريخ العقد</div><div style="font-weight:700;font-size:14px">'+(CT.date||'—')+'</div></div>'
+          +'<div style="width:1px;background:#b3d9f7"></div>'
+          +'<div><div style="font-size:11px;color:#888;margin-bottom:3px">تاريخ التركيب</div><div style="font-weight:700;font-size:14px;color:#185FA5">'+(CT.installation_date||'لم يحدد بعد')+'</div></div>'
+          +'</div>';
       }
     }else{
       if(iCard)iCard.style.display='none';
@@ -2275,9 +2248,33 @@ function onTC(v){
   document.getElementById('ntpc').style.display=(v==='sales'||v==='sale_install')?'block':'none';
   var addrBlock=document.getElementById('nt-addr-block');
   if(addrBlock)addrBlock.style.display=(v==='uninstall'||v==='installation'||v==='uninstall_install')?'block':'none';
-  var installSec=document.getElementById('nt-install-section');
-  if(installSec)installSec.style.display=v==='sale_install'?'block':'none';
+  var installDateWrap=document.getElementById('nt-install-date-wrap');
+  if(installDateWrap)installDateWrap.style.display=v==='sale_install'?'':'none';
   document.getElementById('ntb').innerHTML='';
+  if(v==='sale_install'){
+    // Auto-add تركيب row first
+    var tbody=document.getElementById('ntb');
+    var tr=document.createElement('tr');
+    var td0=document.createElement('td');
+    var nameInp=document.createElement('input');
+    nameInp.type='text';nameInp.value='تركيب';nameInp.readOnly=true;
+    nameInp.style.cssText='width:100%;padding:6px 8px;border:1px solid #b3d9f7;border-radius:6px;font-size:12px;background:#f0f9ff;font-weight:700;color:#185FA5;box-sizing:border-box';
+    nameInp.dataset.invId='';
+    td0.appendChild(nameInp);
+    var td1=document.createElement('td');
+    var qi=document.createElement('input');qi.type='number';qi.value='1';qi.min='1';qi.style.cssText='width:60px;text-align:center';qi.oninput=function(){calcR(this);};
+    td1.appendChild(qi);
+    var td2=document.createElement('td');
+    var pi=document.createElement('input');pi.type='number';pi.min='0';pi.placeholder='0';pi.style.width='100%';pi.oninput=function(){calcR(this);};
+    td2.appendChild(pi);
+    var td3=document.createElement('td');td3.style.display='none';// tax
+    var td4=document.createElement('td');
+    var rb=document.createElement('button');rb.className='ib';rb.textContent='X';rb.style.fontSize='12px';
+    rb.onclick=function(){tr.remove();calcT();};
+    td4.appendChild(rb);
+    tr.appendChild(td0);tr.appendChild(td1);tr.appendChild(td2);tr.appendChild(td3);tr.appendChild(td4);
+    tbody.appendChild(tr);
+  }
   addRow();
 }
 
@@ -4367,9 +4364,9 @@ async function saveTask(){
     from_address:document.getElementById('nt-addr-from')?.value||null,
     to_address:document.getElementById('nt-addr-to')?.value||null,
     time_slot:document.getElementById('nttime')?.value||null,
-    installation_date:(function(){var el=document.getElementById('nt-install-date');var sec=document.getElementById('nt-install-section');if(sec)sec.style.display='';var v=el?el.value:null;return v||null;})(),
-    installation_tech:(function(){var el=document.getElementById('nt-install-tech');return el&&el.value?el.value:null;})(),
-    installation_status:taskType==='sale_install'?'pending':null
+    installation_date:(function(){var el=document.getElementById('nt-install-date');return el&&el.value?el.value:null;})(),
+    installation_tech:null,
+    installation_status:null
   }).select().single();
   if(te){toast('Error: '+te.message,true);return;}
   var rows=taskRows.map(function(r){return{task_id:task.id,name:r.name,qty:r.qty,price:r.price,inventory_id:r.pid||null};});
