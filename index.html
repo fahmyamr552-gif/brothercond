@@ -4375,7 +4375,7 @@ async function saveTask(){
     if(re){toast('Error saving products: '+re.message,true);return;}
   }
   // Deduct inventory for sales tasks
-  if(taskType==='sales'){
+  if(taskType==='sales'||taskType==='sale_install'){
     for(var ri=0;ri<taskRows.length;ri++){
       var rr=taskRows[ri];
       if(rr.pid){
