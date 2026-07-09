@@ -488,7 +488,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
       <div class="fg"><label data-t="branch">Branch</label><select id="ntbr"><option>Nasr City</option><option>Madinaty</option><option>Rehab</option><option>Head Office</option></select></div>
       <div class="fg"><label>Salesperson</label><select id="ntsp"><option>Salah</option><option>Alaa</option><option>Ayman</option><option>Heba</option><option>Amr Ashraf</option></select></div>
       <div class="fg"><label data-t="taskdate">Task date <span style="color:#A32D2D">*</span></label><input type="date" id="ntdate" onchange="if(scid)checkDupTask(scid,'')"></div>
-      <div class="fg" id="nt-install-date-wrap" style="display:none"><label style="font-size:12px;color:#185FA5;font-weight:600">تاريخ التركيب</label><input type="date" id="nt-install-date"></div>
+      <div class="fg" id="nt-install-date-wrap" style="display:none"><label style="font-size:12px;color:#185FA5;font-weight:600">تاريخ التركيب</label><input type="date" id="nt-install-date" onchange="window._installDate=this.value"></div>
       <div class="fg"><label>الوقت</label><select id="nttime" style="width:100%">
         <option value="">-- بدون وقت --</option>
         <option value="8:00 - 9:00">8:00 - 9:00 ص</option>
@@ -4364,7 +4364,7 @@ async function saveTask(){
     from_address:document.getElementById('nt-addr-from')?.value||null,
     to_address:document.getElementById('nt-addr-to')?.value||null,
     time_slot:document.getElementById('nttime')?.value||null,
-    installation_date:(function(){var el=document.getElementById('nt-install-date');return el&&el.value?el.value:null;})(),
+    installation_date:(window._installDate||document.getElementById('nt-install-date')?.value||null),
     installation_tech:null,
     installation_status:null
   }).select().single();
@@ -4385,6 +4385,7 @@ async function saveTask(){
     }
   }
   var installSec2=document.getElementById('nt-install-section');if(installSec2)installSec2.style.display='none';
+  window._installDate=null;
   toast(t('taskcreated'));go('tasks',document.getElementById('ni-tasks'));
 }
 
