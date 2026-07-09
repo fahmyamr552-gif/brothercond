@@ -1018,7 +1018,7 @@ function go(pg,el){
 async function loadDash(){
   try{
     const[tr,ti,tp,tpo]=await Promise.all([
-      db.from('tasks').select('id,task_num,type,branch,status,date,customer_name,pay_status,due_date'),
+      db.from('tasks').select('id,task_num,type,branch,status,date,time_slot,customer_name,pay_status,due_date,installation_date,installation_status,installation_confirmed_at'),
       db.from('task_products').select('task_id,qty,price'),
       db.from('payments').select('task_id,amount'),
       db.from('po_payments').select('amount'),
