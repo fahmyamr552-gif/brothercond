@@ -868,6 +868,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
 let LANG='en';
+var typeLabels={maintenance:'صيانة',installation:'تركيب',uninstall:'فك',uninstall_install:'فك و تركيب',pull:'سحب',inspection:'معاينة',workshop:'اصلاح ورشة',sale_install:'بيع وتركيب'};
 function t(k){
   const T2=window.T||{};
   return(T2[LANG]&&T2[LANG][k])||( T2.en&&T2.en[k])||k;
@@ -1075,7 +1076,7 @@ function openEditOrderInfo(){
   var TYPES=['maintenance','installation','uninstall','uninstall_install','pull','inspection','workshop','sale_install'];
   var brOpts=BRANCHES.map(function(b){return '<option value="'+b+'"'+(CT.branch===b?' selected':'')+'>'+b+'</option>';}).join('');
   var spOpts=SPS.map(function(s){return '<option value="'+s+'"'+(CT.salesperson===s?' selected':'')+'>'+s+'</option>';}).join('');
-  var typeLabels={sales:'طلب بيع',maintenance:'صيانة',installation:'تركيب',uninstall:'فك',uninstall_install:'فك و تركيب',pull:'سحب',inspection:'معاينة',workshop:'اصلاح ورشة',sale_install:'بيع وتركيب'};
+  // typeLabels is now global
   var tyOpts=TYPES.map(function(tp){return '<option value="'+tp+'"'+(CT.type===tp?' selected':'')+'>'+typeLabels[tp]+'</option>';}).join('');
   var html='<div style="background:#fff;border-radius:14px;padding:24px;width:480px;max-width:95vw;box-shadow:0 10px 40px rgba(0,0,0,.25)">';
   html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">';
