@@ -4364,9 +4364,9 @@ async function saveTask(){
     from_address:document.getElementById('nt-addr-from')?.value||null,
     to_address:document.getElementById('nt-addr-to')?.value||null,
     time_slot:document.getElementById('nttime')?.value||null,
-    installation_date:document.getElementById('nt-install-date')?.value||null,
-    installation_tech:document.getElementById('nt-install-tech')?.value||null,
-    installation_status:document.getElementById('ntt')?.value==='sale_install'?'pending':null
+    installation_date:(function(){var el=document.getElementById('nt-install-date');return el&&el.value?el.value:null;})(),
+    installation_tech:(function(){var el=document.getElementById('nt-install-tech');return el&&el.value?el.value:null;})(),
+    installation_status:taskType==='sale_install'?'pending':null
   }).select().single();
   if(te){toast('Error: '+te.message,true);return;}
   var rows=taskRows.map(function(r){return{task_id:task.id,name:r.name,qty:r.qty,price:r.price,inventory_id:r.pid||null};});
