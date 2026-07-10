@@ -3672,6 +3672,32 @@ async function confirmPODraft(poId){
   ov.onclick=function(e){if(e.target===ov)ov.remove();};
 }
 
+
+function updatePOItemCost(inp){
+  // Update the total cell live
+  var tr=inp.closest('tr');
+  var qty=parseFloat(tr.cells[1].textContent)||0;
+  var cost=parseFloat(inp.value)||0;
+  tr.cells[3].textContent='EGP '+(qty*cost).toLocaleString();
+}
+
+async function financeConfirmPO(poId){
+  // Read all cost inputs and save
+  var inputs=document.querySelectorAll('.po-cost-inp');
+  if(!inputs.length){toast('لا توجد منتجات',true);return;}
+  var tot=0;
+  for(var i=0;i<inputs.length;i++){
+    var inp=inputs[i];
+    var cost=parseFloat(inp.value)||0;
+    var qty=parseFloat(inp.closest('tr').cells[1].textContent)||0;
+    tot+=qty*cost;
+    await db.from('po_items').update({unit_cost:cost}).eq('id',inp.dataset.id);
+  }
+  await db.from('purchase_orders').update({status:'pending',total:tot}).eq('id',poId);
+  toast('تم تأكيد طلب الشراء بنجاح');
+  openPODetail(poId);
+}
+
 async function loadPur(){
   var body=document.getElementById('pob');
   if(!body)return;
@@ -3929,19 +3955,23 @@ async function openPODetail(poId){
   overlay.onclick=function(e){if(e.target===overlay)overlay.remove();};
   var paidSoFar=pays.reduce(function(a,p){return a+p.amount;},0);
   var owed=Math.max(0,po.total-paidSoFar);
-  var iRows=items.map(function(it){var inv=invMap[it.inventory_id]||{name:'Unknown',qty:0};return '<tr><td style="padding:7px 10px">'+inv.name+'</td><td style="padding:7px 10px;text-align:center">'+it.qty+'</td><td style="padding:7px 10px;text-align:right">EGP '+(it.price||0).toLocaleString()+'</td><td style="padding:7px 10px;text-align:right;font-weight:700">EGP '+(it.qty*(it.price||0)).toLocaleString()+'</td></tr>';}).join('');
-  var pRows=pays.map(function(p){return '<tr><td style="padding:5px 8px">'+f(p.amount)+'</td><td style="padding:5px 8px">'+p.method+'</td><td style="padding:5px 8px;color:#888">'+(p.note||'-')+'</td><td style="padding:5px 8px">'+(p.created_at?new Date(p.created_at).toLocaleDateString('en-GB'):'')+'</td>'+(can('delete')||can('delete_payment')?'<td><button onclick="delPOPay(\''+p.id+'\',\''+poId+'\')" style="font-size:10px;color:#A32D2D;border:1px solid #E24B4A;border-radius:4px;background:#FCEBEB;cursor:pointer;padding:1px 6px">Del</button></td>':'')+'</tr>';}).join('');
-  var html='<div style="background:#fff;border-radius:14px;padding:24px;width:620px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.25)">'
-    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><div style="font-size:16px;font-weight:700">'+po.po_num+'</div><button id="pod-close" style="border:none;background:none;font-size:22px;cursor:pointer">&#10005;</button></div>'
-    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px;font-size:12px">'
-      +'<div><div style="color:#888">Supplier</div><div style="font-weight:700">'+(po.supplier_name||'-')+'</div></div>'
-      +'<div><div style="color:#888">Date</div><div style="font-weight:700">'+po.date+'</div></div>'
-      +'<div><div style="color:#888">Status</div><div style="font-weight:700">'+po.status+'</div></div>'
-    +'</div>'
-    +'<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px"><thead><tr style="background:#f9f9f6"><th style="padding:7px 10px;text-align:left">Product</th><th style="padding:7px 10px;text-align:center">Qty</th><th style="padding:7px 10px;text-align:right">Unit cost</th><th style="padding:7px 10px;text-align:right">Total</th></tr></thead><tbody>'+iRows+'</tbody></table>'
+  var isDraft=po.status==='draft';
+    var canEditCost=isDraft&&CU&&(CU.role==='finance'||CU.role==='owner');
+    var iRows=items.map(function(it){
+      var prodName=it.product_name||(invMap[it.inventory_id]||{}).name||(spMap&&spMap[it.spare_part_id])||'Unknown';
+      var cost=it.unit_cost||it.price||0;
+      var costCell=canEditCost
+        ?'<input type="number" min="0" value="'+cost+'" data-id="'+it.id+'" class="po-cost-inp" style="width:100%;padding:4px;border:1px solid #ddd;border-radius:4px;text-align:right" oninput="updatePOItemCost(this)">'
+        :'EGP '+cost.toLocaleString();
+      return '<tr><td style="padding:7px 10px">'+prodName+'</td>'
+        +'<td style="padding:7px 10px;text-align:center">'+it.qty+'</td>'
+        +'<td style="padding:7px 10px;text-align:right">'+costCell+'</td>'
+        +'<td style="padding:7px 10px;text-align:right;font-weight:700">EGP '+(it.qty*cost).toLocaleString()+'</td></tr>';
+    }).join('')+'</tbody></table>'
     +'<div style="text-align:right;font-size:13px;font-weight:700;margin-bottom:14px">PO Total: '+f(po.total)+' | Paid: '+f(paidSoFar)+' | Owed: '+f(owed)+'</div>'
     +(pRows?'<div style="margin-bottom:14px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">Payments</div><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f9f9f6"><th style="padding:5px 8px;text-align:left">Amount</th><th style="padding:5px 8px;text-align:left">Method</th><th style="padding:5px 8px;text-align:left">Note</th><th style="padding:5px 8px;text-align:left">Date</th>'+(can('delete')||can('delete_payment')?'<th></th>':'')+'</tr></thead><tbody>'+pRows+'</tbody></table></div>':'')
     +'<div style="margin-bottom:14px;background:#f9f9f6;border-radius:8px;padding:12px"><div style="font-size:12px;font-weight:700;margin-bottom:8px">Record payment to supplier</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px"><input type="number" id="pop-amt" placeholder="Amount" style="padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px"><select id="pop-meth" style="padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px"><option>Cash</option><option>Bank transfer</option><option>Cheque</option><option>Instapay</option></select></div><input id="pop-note" placeholder="Note (optional)" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box;margin-bottom:8px"><button onclick="savePOPayment(\''+poId+'\')" style="padding:7px 16px;font-size:12px;border:none;border-radius:7px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:600">Save payment</button></div>'
+    +(canEditCost?'<button onclick="financeConfirmPO(\''+poId+'\')" style="width:100%;padding:10px 16px;font-size:13px;border:none;border-radius:8px;background:#185FA5;color:#fff;cursor:pointer;font-weight:700;margin-bottom:8px">✓ تأكيد الطلب وحفظ الأسعار</button>':'')
     +(po.status==='pending'||po.status==='partial'?'<button onclick="markDelivered(\''+poId+'\')" style="padding:8px 16px;font-size:12px;border:none;border-radius:8px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:600;margin-bottom:8px">'+t('markdelivered')+'</button> ':'' )
     +'<div style="text-align:right"><button id="pod-cancel" style="padding:8px 16px;font-size:12px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer">Close</button></div>'
   +'</div>';
