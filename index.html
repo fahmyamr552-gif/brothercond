@@ -3611,6 +3611,67 @@ function editProd(p){
   hidEl.value=p.id;
 }
 
+
+async function confirmPODraft(poId){
+  if(!window.confirm('تأكيد الطلب وتحديد الأسعار؟'))return;
+  // Open cost entry modal
+  var{data:items}=await db.from('po_items').select('*').eq('po_id',poId);
+  if(!items||!items.length){toast('لا توجد منتجات',true);return;}
+  var ov=document.createElement('div');
+  ov.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box';
+  var box=document.createElement('div');
+  box.style.cssText='background:#fff;border-radius:14px;padding:24px;width:500px;max-width:95vw;max-height:80vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.25)';
+  var title=document.createElement('div');
+  title.style.cssText='font-size:15px;font-weight:700;margin-bottom:16px;color:#185FA5';
+  title.textContent='تحديد أسعار المنتجات';
+  var tbl=document.createElement('table');tbl.style.cssText='width:100%;border-collapse:collapse;font-size:13px';
+  tbl.innerHTML='<thead><tr style="background:#f5f5f0"><th style="padding:8px;text-align:right">المنتج</th><th style="padding:8px;text-align:center">الكمية</th><th style="padding:8px;text-align:center">سعر الوحدة (EGP)</th></tr></thead>';
+  var tbody=document.createElement('tbody');
+  items.forEach(function(item){
+    var tr=document.createElement('tr');tr.style.borderBottom='1px solid #f0f0e8';
+    tr.innerHTML='<td style="padding:8px">'+(item.product_name||item.name||'-')+'</td>'
+      +'<td style="padding:8px;text-align:center">'+item.qty+'</td>'
+      +'<td style="padding:8px"><input type="number" min="0" value="'+(item.unit_cost||0)+'" data-id="'+item.id+'" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:5px;text-align:center"></td>';
+    tbody.appendChild(tr);
+  });
+  tbl.appendChild(tbody);
+  var total=document.createElement('div');
+  total.style.cssText='margin-top:12px;text-align:right;font-size:14px;font-weight:700;color:#185FA5';
+  total.id='po-confirm-total';total.textContent='EGP 0';
+  tbl.querySelectorAll&&setTimeout(function(){
+    tbl.querySelectorAll('input').forEach(function(i){i.oninput=function(){
+      var t2=0;tbl.querySelectorAll('input').forEach(function(inp){
+        var qty=parseFloat(inp.closest('tr').cells[1].textContent)||0;
+        t2+=qty*(parseFloat(inp.value)||0);
+      });total.textContent='EGP '+Math.round(t2).toLocaleString();
+    };});
+  },100);
+  var btnRow=document.createElement('div');btnRow.style.cssText='display:flex;gap:10px;margin-top:16px;justify-content:flex-end';
+  var cancelB=document.createElement('button');cancelB.className='btn bs';cancelB.textContent='إلغاء';cancelB.onclick=function(){ov.remove();};
+  var saveB=document.createElement('button');saveB.className='btn bp';saveB.textContent='تأكيد وحفظ';
+  saveB.onclick=async function(){
+    saveB.disabled=true;saveB.textContent='جاري...';
+    var tot2=0;
+    var updates=Array.from(tbl.querySelectorAll('input')).map(function(inp){
+      var qty=parseFloat(inp.closest('tr').cells[1].textContent)||0;
+      var cost=parseFloat(inp.value)||0;
+      tot2+=qty*cost;
+      return {id:inp.dataset.id,cost:cost};
+    });
+    for(var i=0;i<updates.length;i++){
+      await db.from('po_items').update({unit_cost:updates[i].cost}).eq('id',updates[i].id);
+    }
+    await db.from('purchase_orders').update({status:'pending',total:tot2}).eq('id',poId);
+    ov.remove();
+    toast('تم تأكيد طلب الشراء');
+    loadPur();
+  };
+  btnRow.appendChild(cancelB);btnRow.appendChild(saveB);
+  box.appendChild(title);box.appendChild(tbl);box.appendChild(total);box.appendChild(btnRow);
+  ov.appendChild(box);document.body.appendChild(ov);
+  ov.onclick=function(e){if(e.target===ov)ov.remove();};
+}
+
 async function loadPur(){
   var body=document.getElementById('pob');
   if(!body)return;
@@ -3624,12 +3685,14 @@ async function loadPur(){
   var sm={received:'g',pending:'a',partial:'b',partial_return:'a',returned:'r',cancelled:'r'};
   body.innerHTML='';
   pos.forEach(function(po){
-    var sc={'received':'#3B6D11','pending':'#854F0B','partial':'#185FA5','partial_return':'#854F0B','returned':'#A32D2D','cancelled':'#A32D2D'}[po.status]||'#888';
-    var sl={'received':'Received','pending':'Pending','partial':'Partial','partial_return':'Part. returned','returned':'Returned','cancelled':'Cancelled'}[po.status]||po.status;
+    var sc={'draft':'#854F0B','received':'#3B6D11','pending':'#3B6D11','partial':'#185FA5','partial_return':'#854F0B','returned':'#A32D2D','cancelled':'#A32D2D'}[po.status]||'#888';
+    var sl={'draft':'مسودة','received':'Received','pending':'Confirmed','partial':'Partial','partial_return':'Part. returned','returned':'Returned','cancelled':'Cancelled'}[po.status]||po.status;
     var canReceive=(po.status==='pending'||po.status==='partial')&&po.status!=='returned'&&po.status!=='partial_return';
+    var canConfirm=po.status==='draft'&&(CU&&(CU.role==='finance'||CU.role==='owner'));
     var canReturn=po.status==='received'||po.status==='partial'||po.status==='partial_return';
     var retBtn=canReturn?('<button onclick="returnProducts(\''+po.id+'\')" style="font-size:10px;padding:2px 7px;border:1px solid #E24B4A;border-radius:4px;background:#FCEBEB;color:#A32D2D;cursor:pointer;margin-right:3px">Return</button>'):'';
     var delBtn=can('delete')?('<button onclick="deletePO(\''+po.id+'\')" style="font-size:10px;padding:2px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;margin-right:3px">Del</button>'):'';
+    var confirmBtn=canConfirm?('<button onclick="confirmPODraft(\''+po.id+'\')" style="font-size:10px;padding:2px 7px;border:1px solid #185FA5;border-radius:4px;background:#E8F4FD;color:#185FA5;cursor:pointer;margin-right:3px">تأكيد الطلب</button>'):'';
     var rcvBtn=canReceive?('<button onclick="openPODetail(\''+po.id+'\')" style="font-size:10px;padding:2px 7px;border:1px solid #1D9E75;border-radius:4px;background:#EAF3DE;color:#1D9E75;cursor:pointer">'+t('receivemore')+'</button>'):'';
     var tr=document.createElement('tr');tr.style.cssText='border-bottom:1px solid #f0f0e8;cursor:pointer';
     tr.onclick=function(e){if(!e.target.tagName.match(/BUTTON/))openPODetail(po.id);};
@@ -3639,7 +3702,7 @@ async function loadPur(){
       +'<td style="padding:8px 10px;text-align:center">'+(po.item_count||'-')+' items</td>'
       +'<td style="padding:8px 10px;font-weight:700">'+f(po.total)+'</td>'
       +'<td style="padding:8px 10px"><span style="font-size:11px;padding:2px 8px;border-radius:4px;font-weight:700;background:'+sc+'22;color:'+sc+'">'+sl+'</span></td>'
-      +'<td style="padding:8px 10px">'+retBtn+delBtn+rcvBtn+'</td>';
+      +'<td style="padding:8px 10px">'+confirmBtn+retBtn+delBtn+rcvBtn+'</td>';
     body.appendChild(tr);
   });
 }
@@ -3760,7 +3823,9 @@ function addPOR(){
   td1.appendChild(dl);td1.appendChild(inp);
   var td2=document.createElement('td');var st=document.createElement('div');st.className='po-stock';st.style.cssText='font-size:11px;color:#888;text-align:center';td2.appendChild(st);
   var td3=document.createElement('td');var qi=document.createElement('input');qi.type='number';qi.value='1';qi.min='1';qi.style.cssText='width:60px;text-align:center';qi.oninput=calcPOT;td3.appendChild(qi);
-  var td4=document.createElement('td');var ci=document.createElement('input');ci.type='number';ci.className='po-cost';ci.min='0';ci.value='0';ci.style.width='100%';ci.oninput=calcPOT;td4.appendChild(ci);
+  var td4=document.createElement('td');var ci=document.createElement('input');ci.type='number';ci.className='po-cost';ci.min='0';ci.value='0';ci.style.width='100%';ci.oninput=calcPOT;
+  if(CU&&CU.role==='inventory_manager'){ci.readOnly=true;ci.style.background='#f5f5f0';ci.style.color='#aaa';ci.placeholder='Finance only';}
+  td4.appendChild(ci);
   var td5=document.createElement('td');var rb=document.createElement('button');rb.className='ib';rb.textContent='X';rb.style.fontSize='12px';rb.onclick=function(){tr.remove();calcPOT();};td5.appendChild(rb);
   tr.appendChild(td1);tr.appendChild(td2);tr.appendChild(td3);tr.appendChild(td4);tr.appendChild(td5);
   body.appendChild(tr);inp.focus();
@@ -3816,7 +3881,7 @@ async function savePO(){
   var lastPN=lastPO&&lastPO.length?lastPO[0].po_num:'PO-00000';
   var lastPNum=parseInt((lastPN||'PO-00000').replace(/[^0-9]/g,''))||0;
   var poNum='PO-'+String(lastPNum+1).padStart(5,'0');
-  var{data:po,error}=await db.from('purchase_orders').insert({po_num:poNum,supplier_id:supId||null,supplier_name:supNm,date:date,total:tot,status:'pending',item_count:items.length,notes:document.getElementById('ponotes')?.value,expected_delivery:document.getElementById('podel')?.value}).select().single();
+  var{data:po,error}=await db.from('purchase_orders').insert({po_num:poNum,supplier_id:supId||null,supplier_name:supNm,date:date,total:0,status:'draft',item_count:items.length,notes:document.getElementById('ponotes')?.value,expected_delivery:document.getElementById('podel')?.value}).select().single();
   if(error){toast('Error: '+error.message,true);return;}
   var poItems=items.map(function(it){return{po_id:po.id,inventory_id:it.inventory_id,qty:it.qty,price:it.price};});
   await db.from('po_items').insert(poItems);
