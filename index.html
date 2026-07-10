@@ -869,7 +869,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
 let LANG='en';
-var typeLabels={maintenance:'صيانة',installation:'تركيب',uninstall:'فك',uninstall_install:'فك و تركيب',pull:'سحب',inspection:'معاينة',workshop:'اصلاح ورشة',sale_install:'بيع وتركيب'};
+var typeLabels={maintenance:'صيانة',installation:'تركيب',uninstall:'فك',uninstall_install:'فك و تركيب',pull:'سحب',inspection:'معاينة',workshop:'اصلاح ورشة',sale_install:'بيع'};
 function t(k){
   const T2=window.T||{};
   return(T2[LANG]&&T2[LANG][k])||( T2.en&&T2.en[k])||k;
@@ -1091,7 +1091,7 @@ function openEditOrderInfo(){
   html+='<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">Task date</label><input type="date" id="eoi-dt" value="'+(CT.date||'')+'" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div>';
   html+='</div>';
   html+='<div style="margin-bottom:12px"><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">Description</label><textarea id="eoi-ds" rows="3" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px;resize:vertical;box-sizing:border-box">'+(CT.description||'')+'</textarea></div>';
-  if(CT.type==='sale_install'){html+='<div style="background:#f0f9ff;border:1px solid #b3d9f7;border-radius:8px;padding:12px;margin-top:10px"><div style="font-size:12px;font-weight:700;color:#185FA5;margin-bottom:8px">بيانات التركيب</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div><label style="font-size:11px;color:#888">تاريخ التركيب</label><input type="date" id="eoi-install-date" value="'+(CT.installation_date||'')+'"></div><div><label style="font-size:11px;color:#888">الفني</label><input id="eoi-install-tech" value="'+(CT.installation_tech||'')+'" placeholder="الفني"></div></div></div>';}
+  if(CT.type==='sale_install'||CT.type==='sales'){html+='<div style="background:#f0f9ff;border:1px solid #b3d9f7;border-radius:8px;padding:12px;margin-top:10px"><div style="font-size:12px;font-weight:700;color:#185FA5;margin-bottom:8px">بيانات التركيب</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div><label style="font-size:11px;color:#888">تاريخ التركيب</label><input type="date" id="eoi-install-date" value="'+(CT.installation_date||'')+'"></div><div><label style="font-size:11px;color:#888">الفني</label><input id="eoi-install-tech" value="'+(CT.installation_tech||'')+'" placeholder="الفني"></div></div></div>';}
   // Build address picker from customer's saved addresses
   var custAddrs2=[];
   try{var caj=JSON.parse((CT.cust&&CT.cust.addresses)||'[]');custAddrs2=caj.filter(Boolean);}catch(e){}
@@ -1979,7 +1979,7 @@ async function deleteTask(){
   if(!CT)return;
   if(!confirm(t('taskdelconfirm')+' '+CT.task_num))return;
   // Restore inventory for sales/sale_install tasks
-  if(CT.type==='sale_install'){
+  if(CT.type==='sale_install'||CT.type==='sales'){
     var{data:saleProds}=await db.from('task_products').select('inventory_id,qty').eq('task_id',CT.id);
     for(var i=0;i<(saleProds||[]).length;i++){
       var sp=saleProds[i];if(!sp.inventory_id)continue;
@@ -3948,8 +3948,10 @@ async function openPODetail(poId){
   var{data:pays}=await db.from('po_payments').select('*').eq('po_id',poId).order('created_at',{ascending:true});
   if(!po)return;items=items||[];pays=pays||[];
   var invIds=items.map(function(i){return i.inventory_id;}).filter(Boolean);
-  var invMap={};
-  if(invIds.length){var{data:invData}=await db.from('inventory').select('id,brand,model,hp,qty').in('id',invIds);(invData||[]).forEach(function(inv){invMap[inv.id]={name:inv.brand+' '+inv.model+' '+inv.hp,qty:inv.qty};});}
+  var spIds=items.map(function(i){return i.spare_part_id;}).filter(Boolean);
+  var invMap={};var spMap={};
+  if(invIds.length){var{data:invData}=await db.from('inventory').select('id,brand,model,hp,qty').in('id',invIds);(invData||[]).forEach(function(inv){invMap[inv.id]={name:inv.brand+' '+inv.model+' '+inv.hp+'HP',qty:inv.qty};});}
+  if(spIds.length){var{data:spData}=await db.from('spare_parts').select('id,name').in('id',spIds);(spData||[]).forEach(function(sp){spMap[sp.id]=sp.name;});}
   var overlay=document.createElement('div');overlay.className='po-modal';
   overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9000;display:flex;align-items:center;justify-content:center';
   overlay.onclick=function(e){if(e.target===overlay)overlay.remove();};
@@ -4019,6 +4021,16 @@ async function markDelivered(poId){
 async function deletePO(poId){
   if(!can('delete')){toast('No permission to delete',true);return;}
   if(!confirm('Delete this purchase order?'))return;
+  // Restore inventory if PO was received
+  var{data:poToDelete}=await db.from('purchase_orders').select('status').eq('id',poId).single();
+  if(poToDelete&&(poToDelete.status==='received'||poToDelete.status==='partial')){
+    var{data:poItemsDel}=await db.from('po_items').select('inventory_id,spare_part_id,qty,qty_received').eq('po_id',poId);
+    for(var di=0;di<(poItemsDel||[]).length;di++){
+      var pit=poItemsDel[di];var qr=pit.qty_received||pit.qty||0;
+      if(pit.inventory_id){var{data:inv}=await db.from('inventory').select('qty').eq('id',pit.inventory_id).single();if(inv)await db.from('inventory').update({qty:(inv.qty||0)-qr}).eq('id',pit.inventory_id);}
+      if(pit.spare_part_id){var{data:sp}=await db.from('spare_parts').select('qty').eq('id',pit.spare_part_id).single();if(sp)await db.from('spare_parts').update({qty:(sp.qty||0)-qr}).eq('id',pit.spare_part_id);}
+    }
+  }
   await db.from('po_items').delete().eq('po_id',poId);
   await db.from('po_payments').delete().eq('po_id',poId);
   await db.from('purchase_orders').delete().eq('id',poId);
