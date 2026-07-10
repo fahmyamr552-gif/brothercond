@@ -3832,13 +3832,35 @@ function addPOR(){
 }
 function openNewPO(){
   go('npo',null);
-  document.getElementById('porb').innerHTML='';
-  document.getElementById('potot').textContent='EGP 0';
+  window._SP_PO=null;
+  clrS();
+  // Inject type selector if not present
+  var pg=document.getElementById('pg-npo');
+  if(pg&&!document.getElementById('po-type-bar')){
+    var bar=document.createElement('div');
+    bar.id='po-type-bar';
+    bar.className='cd';
+    bar.style.marginBottom='12px';
+    bar.innerHTML='<div class="sh">نوع الطلب</div><div style="display:flex;gap:20px;margin-top:8px"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:14px;font-weight:600"><input type="radio" name="po-type" value="ac" checked onchange="onPOTypeChange()" style="accent-color:#1D9E75"> وحدات تكييف</label><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:14px;font-weight:600"><input type="radio" name="po-type" value="sp" onchange="onPOTypeChange()" style="accent-color:#185FA5"> قطع غيار</label></div>';
+    pg.insertBefore(bar,pg.firstChild.nextSibling);
+  }
+  // Reset to AC
+  var acR=document.querySelector('input[name="po-type"][value="ac"]');
+  if(acR)acR.checked=true;
+  // Set thead
+  var thead=document.getElementById('po-thead');
+  if(!thead){var tbl=document.querySelector('#pg-npo thead');if(tbl)tbl.id='po-thead';thead=document.getElementById('po-thead');}
+  if(thead)thead.innerHTML='<tr><th style="width:42%">Product</th><th style="width:17%">Stock</th><th style="width:17%">Qty</th><th style="width:19%">Cost (EGP)</th><th style="width:5%"></th></tr>';
+  var wsel=document.getElementById('po-wh-selector');if(wsel)wsel.style.display='none';
+  // Clear table
+  var potb=document.getElementById('potb');if(potb)potb.innerHTML='';
+  var porb=document.getElementById('porb');if(porb)porb.innerHTML='';
+  var el=document.getElementById('potot');if(el)el.textContent='EGP 0';
   addPOR();
 }
 
-function addPOR(){
-  if(!INV.length){db.from('inventory').select('*').then(function(r){INV=r.data||[];addPOR();});return;}
+function addPOR_old_disabled(){
+  if(!INV.length){db.from('inventory').select('*').then(function(r){INV=r.data||[];addPOR_old_disabled();});return;}
   var body=document.getElementById('porb');if(!body)return;
   var tr=document.createElement('tr');
   var opts=INV.map(function(p){return '<option value="'+p.id+'" data-stock="'+p.qty+'">'+p.brand+' '+p.model+' '+p.hp+' '+(p.unit_type||'')+' '+(p.cooling||'')+' '+(p.ac_type||'')+'</option>';}).join('');
