@@ -122,6 +122,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
   <div class="nv">
     <div class="ni on" id="ni-dash" onclick="go('dash',this)">&#9632; <span data-t="dashboard">Dashboard</span></div>
     <div class="ni" id="ni-tasks" onclick="go('tasks',this)">&#9632; <span data-t="tasks">Tasks</span></div>
+    <div class="ni" id="ni-plan" onclick="openPlan()">&#9632; <span>خطة يومية</span></div>
     <div class="ni" id="ni-inv" onclick="go('inv',this)">&#9632; <span data-t="inventory">Inventory</span></div>
     <div class="ni" id="ni-pur" onclick="go('pur',this)">&#9632; <span data-t="purchases">Purchases</span></div>
     <div class="ni" id="ni-fin" onclick="go('fin',this)">&#9632; <span data-t="finance">Finance</span></div>
@@ -539,6 +540,15 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     <button class="btn" onclick="go('tasks',document.getElementById('ni-tasks'))" data-t="cancel">Cancel</button>
     <button class="btn bp" onclick="saveTask()">&#10003; <span data-t="createtask">Create task</span></button>
   </div>
+</div>
+
+<div class="pg" id="pg-plan">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+    <span style="font-size:16px;font-weight:700">خطة يومية</span>
+    <input type="date" id="plan-date" style="border:1px solid #ddd;border-radius:8px;padding:6px 10px;font-size:14px" onchange="loadPlan()">
+    <button class="btn bs" onclick="printPlan()" style="margin-left:auto">&#128438; طباعة</button>
+  </div>
+  <div id="plan-body"></div>
 </div>
 
 <!-- INVENTORY -->
@@ -986,7 +996,7 @@ function go(pg,el){
   const pge=document.getElementById('pg-'+pg);
   if(pge)pge.classList.add('on');
   if(el)el.classList.add('on');
-  const titlesMap={dash:'dashboard',tasks:'tasks',inv:'inventory','np':'addproduct',pur:'purchases','npo':'newpo',fin:'finance',cust:'customers','cd':'customer',sup:'suppliers','sd':'supplier',usr:'users',disp:'dispatches','nt':'newtask','td':'tasks'};
+  const titlesMap={dash:'dashboard',tasks:'tasks',inv:'inventory','np':'addproduct',pur:'purchases','npo':'newpo',fin:'finance',cust:'customers','cd':'customer',sup:'suppliers','sd':'supplier',usr:'users',disp:'dispatches','nt':'newtask','td':'tasks',plan:'خطة يومية'};
   const titles={}; Object.entries(titlesMap).forEach(([k,v])=>titles[k]=t(v));
   document.getElementById('ptitle').textContent=titles[pg]||pg;
   const ta=document.getElementById('tact');ta.innerHTML='';
@@ -4810,6 +4820,149 @@ function clrC(){
   var addrBlock=document.getElementById('nt-addr-block');if(addrBlock)addrBlock.style.display='none';;;
   var dupWarn=document.getElementById('nt-dup-warn');if(dupWarn)dupWarn.style.display='none';
 }
+
+// ── DAILY PLAN ──────────────────────────────────────────────
+var _planTechColors={};
+var _planColorList=["#E53935","#8E24AA","#1E88E5","#00897B","#F4511E","#3949AB","#039BE5","#43A047","#FB8C00","#6D4C41","#00ACC1","#7CB342"];
+var _planColorIdx=0;
+
+function getPlanColor(name){
+  if(!name||name==='\u063a\u064a\u0631 \u0645\u062d\u062f\u062f')return '#aaa';
+  if(!_planTechColors[name]){_planTechColors[name]=_planColorList[_planColorIdx%_planColorList.length];_planColorIdx++;}
+  return _planTechColors[name];
+}
+
+function planRowBg(status){
+  if(status==='completed')return '#f0faf0';
+  if(status==='cancelled')return '#fff0f0';
+  return '';
+}
+
+function planStatusLabel(status){
+  var m={pending:'\u0645\u0639\u0644\u0642',completed:'\u062a\u0645',cancelled:'\u0645\u0644\u063a\u064a',in_progress:'\u064a\u062a\u0645'};
+  var c={pending:'#854F0B',completed:'#3B6D11',cancelled:'#A32D2D',in_progress:'#185FA5'};
+  var l=m[status]||status||'-';var cl=c[status]||'#888';
+  return '<span style="background:'+cl+'22;color:'+cl+';border-radius:6px;padding:1px 7px;font-size:11px;font-weight:700">'+l+'</span>';
+}
+
+async function loadPlan(){
+  var dateEl=document.getElementById('plan-date');if(!dateEl)return;
+  var date=dateEl.value;if(!date)return;
+  var body=document.getElementById('plan-body');if(!body)return;
+  body.innerHTML='<div style="text-align:center;padding:30px;color:#888">\u062c\u0627\u0631\u064a \u0627\u0644\u062a\u062d\u0645\u064a\u0644...</div>';
+  var maintTypes=['maintenance'];
+  var instTypes=['installation','uninstall','uninstall_install','inspection','sales','pull'];
+  var{data:tasks}=await db.from('tasks').select('id,task_num,type,description,salesperson,time_slot,status,pay_status,branch,customer_name,installation_date').eq('date',date).neq('status','cancelled').order('time_slot',{ascending:true,nullsFirst:false});
+  tasks=tasks||[];
+  var taskIds=tasks.map(function(t){return t.id;});
+  var prodsMap={};var paysMap={};
+  if(taskIds.length){
+    var{data:prods}=await db.from('task_products').select('task_id,qty,price').in('task_id',taskIds);
+    (prods||[]).forEach(function(p){if(!prodsMap[p.task_id])prodsMap[p.task_id]=0;prodsMap[p.task_id]+=(p.qty*(p.price||0));});
+    var{data:pays}=await db.from('payments').select('task_id,amount,approved').in('task_id',taskIds);
+    (pays||[]).forEach(function(p){if(!p.approved)return;if(!paysMap[p.task_id])paysMap[p.task_id]=0;paysMap[p.task_id]+=(p.amount||0);});
+  }
+  var{data:emps}=await db.from('employees').select('full_name').eq('position','\u0641\u0646\u064a').eq('active',true).order('full_name');
+  var techList=(emps||[]).map(function(e){return e.full_name;});
+  var techOpts='<option value="">\u063a\u064a\u0631 \u0645\u062d\u062f\u062f</option>'+techList.map(function(n){return '<option value="'+n+'">'+n+'</option>';}).join('');
+
+  function buildSection(types){
+    var st=tasks.filter(function(t){return types.indexOf(t.type)>-1;});
+    if(!st.length)return '<tr><td colspan="8" style="padding:12px;text-align:center;color:#aaa">\u0644\u0627 \u062a\u0648\u062c\u062f \u0637\u0644\u0628\u0627\u062a</td></tr>';
+    var groups={};var order=[];
+    st.forEach(function(t){
+      var tech=t.salesperson||'\u063a\u064a\u0631 \u0645\u062d\u062f\u062f';
+      if(!groups[tech]){groups[tech]=[];order.push(tech);}
+      groups[tech].push(t);
+    });
+    order.forEach(function(tech){
+      groups[tech].sort(function(a,b){
+        if(!a.time_slot&&!b.time_slot)return 0;if(!a.time_slot)return 1;if(!b.time_slot)return -1;
+        return a.time_slot.localeCompare(b.time_slot);
+      });
+    });
+    var ui=order.indexOf('\u063a\u064a\u0631 \u0645\u062d\u062f\u062f');
+    if(ui>0){order.splice(ui,1);order.push('\u063a\u064a\u0631 \u0645\u062d\u062f\u062f');}
+    var h='';
+    order.forEach(function(tech){
+      var col=getPlanColor(tech);
+      h+='<tr style="background:#f8f8f4"><td colspan="8" style="padding:6px 10px;font-weight:700;font-size:13px">'
+        +(tech!=='\u063a\u064a\u0631 \u0645\u062d\u062f\u062f'
+          ?'<span style="background:'+col+'22;color:'+col+';border:1px solid '+col+'44;border-radius:12px;padding:3px 12px">'+tech+'</span>'
+          :'<span style="color:#aaa">\u063a\u064a\u0631 \u0645\u062d\u062f\u062f</span>')
+        +'</td></tr>';
+      groups[tech].forEach(function(t){
+        var tot=prodsMap[t.id]||0;var paid=paysMap[t.id]||0;
+        var bg=planRowBg(t.status);
+        h+='<tr style="background:'+bg+';border-bottom:1px solid #f0f0e8">'
+          +'<td style="padding:6px 8px;font-size:12px">'
+            +'<div style="font-weight:600;font-size:11px;color:#1D9E75">'+t.task_num+'</div>'
+            +'<div>'+t.customer_name+'</div>'
+            +(t.description?'<div style="color:#888;font-size:11px">'+t.description+'</div>':'')
+          +'</td>'
+          +'<td style="padding:6px 8px;text-align:center;font-size:12px">1</td>'
+          +'<td style="padding:4px;min-width:120px">'
+            +'<select onchange="savePlanField(\''+t.id+'\',\'salesperson\',this.value)" style="width:100%;font-size:11px;border:1px solid #ddd;border-radius:6px;padding:3px">'
+            +techOpts.replace('value="'+t.salesperson+'"','value="'+t.salesperson+'" selected')
+            +'</select>'
+          +'</td>'
+          +'<td style="padding:4px;min-width:90px">'
+            +'<input value="'+(t.time_slot||'')+'" placeholder="\u0627\u0644\u0648\u0642\u062a" onchange="savePlanField(\''+t.id+'\',\'time_slot\',this.value)" style="width:100%;font-size:11px;border:1px solid #ddd;border-radius:6px;padding:4px;box-sizing:border-box">'
+          +'</td>'
+          +'<td style="padding:6px 8px;text-align:center;font-size:12px">'+(tot>0?tot.toLocaleString()+' \u062c.\u0645':'-')+'</td>'
+          +'<td style="padding:6px 8px;text-align:center;font-size:12px;color:#3B6D11;font-weight:600">'+(paid>0?paid.toLocaleString()+' \u062c.\u0645':'')+'</td>'
+          +'<td style="padding:6px 8px;text-align:center">'+planStatusLabel(t.status)+'</td>'
+          +'<td style="padding:6px 8px;text-align:center;font-size:11px;color:#666">'+t.branch+'</td>'
+          +'</tr>';
+      });
+    });
+    return h;
+  }
+
+  var ds=date.split('-').reverse().join('-');
+  var th='padding:8px 10px;background:#2c2c2c;color:#fff;font-size:12px;white-space:nowrap;';
+  var sh='background:#f5c518;font-weight:700;font-size:15px;padding:10px 12px;';
+  var colHeaders='<tr><th style="'+th+'">\u0627\u0644\u0628\u064a\u0627\u0646</th><th style="'+th+'">\u0639\u062f\u062f</th><th style="'+th+'">\u0627\u0633\u0645 \u0627\u0644\u0641\u0646\u064a</th><th style="'+th+'">\u0627\u0644\u0648\u0642\u062a</th><th style="'+th+'">\u0627\u0644\u062a\u062d\u0635\u064a\u0644 \u0627\u0644\u0645\u0642\u062f\u0631</th><th style="'+th+'">\u0627\u0644\u062a\u062d\u0635\u064a\u0644 \u0627\u0644\u0641\u0639\u0644\u064a</th><th style="'+th+'">\u0627\u0644\u062d\u0627\u0644\u0629</th><th style="'+th+'">\u0627\u0644\u0641\u0631\u0639</th></tr>';
+  var html='<div id="plan-print-area" style="font-family:Arial,sans-serif;direction:rtl">'
+    +'<table style="width:100%;border-collapse:collapse;margin-bottom:24px;border:1px solid #ddd"><thead>'
+    +'<tr><td colspan="8" style="'+sh+'">\u0627\u0644\u0635\u064a\u0627\u0646\u0629</td></tr>'
+    +'<tr><td colspan="8" style="padding:6px 10px;background:#fff9e6;font-size:13px;font-weight:600">\u062a\u0627\u0631\u064a\u062e: '+ds+'</td></tr>'
+    +colHeaders+'</thead><tbody>'+buildSection(maintTypes)+'</tbody></table>'
+    +'<table style="width:100%;border-collapse:collapse;border:1px solid #ddd"><thead>'
+    +'<tr><td colspan="8" style="'+sh+'">\u0627\u0644\u062a\u0631\u0643\u064a\u0628\u0627\u062a</td></tr>'
+    +'<tr><td colspan="8" style="padding:6px 10px;background:#fff9e6;font-size:13px;font-weight:600">\u062a\u0627\u0631\u064a\u062e: '+ds+'</td></tr>'
+    +colHeaders+'</thead><tbody>'+buildSection(instTypes)+'</tbody></table>'
+    +'</div>';
+  body.innerHTML=html;
+}
+
+async function savePlanField(taskId,field,value){
+  var u={};u[field]=value||null;
+  var{error}=await db.from('tasks').update(u).eq('id',taskId);
+  if(error)toast('Error: '+error.message,true);
+  else toast(field==='salesperson'?'\u062a\u0645 \u062d\u0641\u0638 \u0627\u0644\u0641\u0646\u064a':'\u062a\u0645 \u062d\u0641\u0638 \u0627\u0644\u0648\u0642\u062a');
+}
+
+function printPlan(){
+  var area=document.getElementById('plan-print-area');
+  if(!area){toast('\u062d\u0645\u0644 \u0627\u0644\u062e\u0637\u0629 \u0623\u0648\u0644\u0627\u064b',true);return;}
+  var w=window.open('','_blank');
+  w.document.write('<html><head><meta charset="UTF-8"><style>body{font-family:Arial,sans-serif;direction:rtl;margin:20px}table{width:100%;border-collapse:collapse;margin-bottom:20px}th,td{border:1px solid #ccc;padding:6px 8px;font-size:11px}input,select{display:none}@media print{@page{size:A4 landscape;margin:10mm}}</style></head><body>'+area.innerHTML+'</body></html>');
+  w.document.close();w.focus();w.print();w.close();
+}
+
+function openPlan(){
+  go('plan',document.getElementById('ni-plan'));
+  var dateEl=document.getElementById('plan-date');
+  if(dateEl&&!dateEl.value){
+    var today=new Date();
+    dateEl.value=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+    loadPlan();
+  }else if(dateEl&&dateEl.value){
+    loadPlan();
+  }
+}
+// ── END DAILY PLAN ───────────────────────────────────────────
 </script>
 </body>
 </html>
