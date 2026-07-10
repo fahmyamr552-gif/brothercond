@@ -3959,6 +3959,8 @@ async function openPODetail(poId){
   var owed=Math.max(0,po.total-paidSoFar);
   var isDraft=po.status==='draft';
     var canEditCost=isDraft&&CU&&(CU.role==='finance'||CU.role==='owner');
+    var slabel={'draft':'مسودة','pending':'Confirmed','received':'Received','partial':'Partial','cancelled':'Cancelled','returned':'Returned'}[po.status]||po.status;
+    var scolor={'draft':'#854F0B','pending':'#3B6D11','received':'#3B6D11','partial':'#185FA5','cancelled':'#A32D2D','returned':'#A32D2D'}[po.status]||'#888';
     var iRows=items.map(function(it){
       var prodName=it.product_name||(invMap[it.inventory_id]||{}).name||(spMap&&spMap[it.spare_part_id])||'Unknown';
       var cost=it.unit_cost||it.price||0;
@@ -3969,7 +3971,13 @@ async function openPODetail(poId){
         +'<td style="padding:7px 10px;text-align:center">'+it.qty+'</td>'
         +'<td style="padding:7px 10px;text-align:right">'+costCell+'</td>'
         +'<td style="padding:7px 10px;text-align:right;font-weight:700">EGP '+(it.qty*cost).toLocaleString()+'</td></tr>';
-    }).join('')+'</tbody></table>'
+    }).join('');
+  var html='<div style="background:#fff;border-radius:14px;padding:24px;width:560px;max-width:95vw;max-height:85vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.25)">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><div style="font-size:15px;font-weight:700">'+po.po_num+'</div><span style="font-size:11px;padding:2px 8px;border-radius:4px;font-weight:700;background:'+scolor+'22;color:'+scolor+'">'+slabel+'</span></div>'
+    +'<div style="font-size:12px;color:#888;margin-bottom:16px">Supplier: '+(po.supplier_name||'-')+' | Date: '+po.date+'</div>'
+    +'<table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:14px"><thead><tr style="background:#f5f5f0"><th style="padding:7px 10px;text-align:left">Product</th><th style="padding:7px 10px;text-align:center">Qty</th><th style="padding:7px 10px;text-align:right">Unit cost</th><th style="padding:7px 10px;text-align:right">Total</th></tr></thead><tbody>'
+    +iRows
+    +'</tbody></table>'
     +'<div style="text-align:right;font-size:13px;font-weight:700;margin-bottom:14px">PO Total: '+f(po.total)+' | Paid: '+f(paidSoFar)+' | Owed: '+f(owed)+'</div>'
     +(iRows?'<div style="margin-bottom:14px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">Payments</div><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f9f9f6"><th style="padding:5px 8px;text-align:left">Amount</th><th style="padding:5px 8px;text-align:left">Method</th><th style="padding:5px 8px;text-align:left">Note</th><th style="padding:5px 8px;text-align:left">Date</th>'+(can('delete')||can('delete_payment')?'<th></th>':'')+'</tr></thead><tbody>'+iRows+'</tbody></table></div>':'')
     +'<div style="margin-bottom:14px;background:#f9f9f6;border-radius:8px;padding:12px"><div style="font-size:12px;font-weight:700;margin-bottom:8px">Record payment to supplier</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px"><input type="number" id="pop-amt" placeholder="Amount" style="padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px"><select id="pop-meth" style="padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px"><option>Cash</option><option>Bank transfer</option><option>Cheque</option><option>Instapay</option></select></div><input id="pop-note" placeholder="Note (optional)" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box;margin-bottom:8px"><button onclick="savePOPayment(\''+poId+'\')" style="padding:7px 16px;font-size:12px;border:none;border-radius:7px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:600">Save payment</button></div>'
