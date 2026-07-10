@@ -438,7 +438,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
       <option value="inspection">معاينة</option>
       <option value="workshop">اصلاح ورشة</option>
     
-      <option value="sale_install">بيع وتركيب</option>
+      <option value="sales">بيع وتركيب</option>
     </select>
   </div>
   <div id="td-install-card" style="display:none;background:#f0f9ff;border:1px solid #b3d9f7;border-radius:10px;padding:14px;margin-bottom:12px"></div>
@@ -867,9 +867,9 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script>
+
 let LANG='en';
-var typeLabels={maintenance:'صيانة',installation:'تركيب',uninstall:'فك',uninstall_install:'فك و تركيب',pull:'سحب',inspection:'معاينة',workshop:'اصلاح ورشة',sale_install:'بيع'};
+var typeLabels={maintenance:'صيانة',installation:'تركيب',uninstall:'فك',uninstall_install:'فك و تركيب',pull:'سحب',inspection:'معاينة',workshop:'اصلاح ورشة',sales:'بيع'};
 function t(k){
   const T2=window.T||{};
   return(T2[LANG]&&T2[LANG][k])||( T2.en&&T2.en[k])||k;
@@ -1074,7 +1074,7 @@ function openEditOrderInfo(){
   overlay.onclick=function(e){if(e.target===overlay)overlay.remove();};
   var BRANCHES=['Nasr City','Madinaty','Rehab','Head Office'];
   var SPS=['Salah','Alaa','Ayman','Heba','Amr Ashraf'];
-  var TYPES=['maintenance','installation','uninstall','uninstall_install','pull','inspection','workshop','sale_install'];
+  var TYPES=['maintenance','installation','uninstall','uninstall_install','pull','inspection','workshop','sales'];
   var brOpts=BRANCHES.map(function(b){return '<option value="'+b+'"'+(CT.branch===b?' selected':'')+'>'+b+'</option>';}).join('');
   var spOpts=SPS.map(function(s){return '<option value="'+s+'"'+(CT.salesperson===s?' selected':'')+'>'+s+'</option>';}).join('');
   // typeLabels is now global
@@ -1091,7 +1091,7 @@ function openEditOrderInfo(){
   html+='<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">Task date</label><input type="date" id="eoi-dt" value="'+(CT.date||'')+'" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div>';
   html+='</div>';
   html+='<div style="margin-bottom:12px"><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">Description</label><textarea id="eoi-ds" rows="3" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px;resize:vertical;box-sizing:border-box">'+(CT.description||'')+'</textarea></div>';
-  if(CT.type==='sale_install'||CT.type==='sales'){html+='<div style="background:#f0f9ff;border:1px solid #b3d9f7;border-radius:8px;padding:12px;margin-top:10px"><div style="font-size:12px;font-weight:700;color:#185FA5;margin-bottom:8px">بيانات التركيب</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div><label style="font-size:11px;color:#888">تاريخ التركيب</label><input type="date" id="eoi-install-date" value="'+(CT.installation_date||'')+'"></div><div><label style="font-size:11px;color:#888">الفني</label><input id="eoi-install-tech" value="'+(CT.installation_tech||'')+'" placeholder="الفني"></div></div></div>';}
+  if(CT.type==='sales'){html+='<div style="background:#f0f9ff;border:1px solid #b3d9f7;border-radius:8px;padding:12px;margin-top:10px"><div style="font-size:12px;font-weight:700;color:#185FA5;margin-bottom:8px">بيانات التركيب</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div><label style="font-size:11px;color:#888">تاريخ التركيب</label><input type="date" id="eoi-install-date" value="'+(CT.installation_date||'')+'"></div><div><label style="font-size:11px;color:#888">الفني</label><input id="eoi-install-tech" value="'+(CT.installation_tech||'')+'" placeholder="الفني"></div></div></div>';}
   // Build address picker from customer's saved addresses
   var custAddrs2=[];
   try{var caj=JSON.parse((CT.cust&&CT.cust.addresses)||'[]');custAddrs2=caj.filter(Boolean);}catch(e){}
@@ -1146,7 +1146,7 @@ function openEditOrderInfo(){
     Object.assign(CT,updates);
     if(taxEl)CT.use_tax=taxEl.checked;
     var setEl=function(id,v){var el=document.getElementById(id);if(el)el.textContent=v;};
-    setEl('dbr',CT.branch);setEl('dsp',CT.salesperson);setEl('dty',CT.type);
+    setEl('dbr',CT.branch);setEl('dsp',CT.salesperson);setEl('dty',typeLabels[CT.type]||CT.type);
     setEl('ddate',(CT.date||'-')+(CT.time_slot?' | '+CT.time_slot:''));setEl('dds',CT.description||'-');
     setEl('dtax',CT.use_tax===false?t('tax')+': 0%':t('tax')+': 14% VAT');
     setEl('td-addr-from',CT.from_address||'-');setEl('td-addr-to',CT.to_address||'-');
@@ -1214,7 +1214,7 @@ async function loadTasks(resetPage){
       var g=grand(tk.id);
       d.innerHTML='<div style="font-size:11px;font-weight:700;color:#1D9E75">'+tk.task_num+'</div>'
         +'<div><div style="font-weight:600;font-size:13px">'+(tk.customer_name||'-')+'</div><div style="font-size:10px;color:#888;font-weight:600">'+(typeLabels[tk.type]||tk.type)+'</div>'
-        +'<div style="font-size:11px;color:#888">'+tk.branch+' &middot; '+(tk.salesperson||'-')+' &middot; '+(tk.type==='sale_install'?(tk.installation_date?'تركيب: '+tk.installation_date:'تركيب: لم يحدد'):(tk.date||'-'))+'</div></div>'
+        +'<div style="font-size:11px;color:#888">'+tk.branch+' &middot; '+(tk.salesperson||'-')+' &middot; '+(tk.type==='sales'?(tk.installation_date?'تركيب: '+tk.installation_date:'تركيب: لم يحدد'):(tk.date||'-'))+'</div></div>'
         +'<div style="font-size:12px;font-weight:700">'+(g>0?('EGP '+Math.round(g).toLocaleString()):'-')+'</div>'
         +'<div style="font-size:11px;font-weight:600;color:'+(psColor[tk.pay_status]||'#888')+'">'+(psLabel[tk.pay_status]||tk.pay_status||'-')+'</div>'
         +'<div><span class="bx '+(sm[tk.status]||'gr')+'" style="font-size:10px">'+(sl()[tk.status]||tk.status||'-')+'</span></div>';
@@ -1350,7 +1350,7 @@ async function openTask(id){
     set('dbr',CT.branch);set('dsp',CT.salesperson);set('dty',typeLabels[CT.type]||CT.type);
     // install card
     var iCard=document.getElementById('td-install-card');
-    if(CT.type==='sale_install'){
+    if(CT.type==='sales'){
       if(iCard){
         iCard.style.display='';
         iCard.innerHTML='<div style="display:flex;gap:20px;padding:10px 14px;background:#f0f9ff;border:1px solid #b3d9f7;border-radius:10px">'
@@ -1978,8 +1978,8 @@ function handleUp(input){const grid=document.getElementById('pgr');Array.from(in
 async function deleteTask(){
   if(!CT)return;
   if(!confirm(t('taskdelconfirm')+' '+CT.task_num))return;
-  // Restore inventory for sales/sale_install tasks
-  if(CT.type==='sale_install'||CT.type==='sales'){
+  // Restore inventory for sales/sales tasks
+  if(CT.type==='sales'||CT.type==='sales'){
     var{data:saleProds}=await db.from('task_products').select('inventory_id,qty').eq('task_id',CT.id);
     for(var i=0;i<(saleProds||[]).length;i++){
       var sp=saleProds[i];if(!sp.inventory_id)continue;
@@ -2021,7 +2021,7 @@ function doPrint(){
   var pd=CT.pays.reduce(function(a,p){return a+p.amount;},0);
   var rem=Math.max(0,gr-pd);
   var cu=CT.cust||{};
-  var isSales=CT.type==='sales';
+  var isSales=CT.type==='sales'||CT.type==='sales';
 
   // Product rows
   var prodRows='';
@@ -2245,13 +2245,13 @@ function openNT(){
 }
 
 function onTC(v){
-  document.getElementById('ntpc').style.display=(v==='sales'||v==='sale_install')?'block':'none';
+  document.getElementById('ntpc').style.display=(v==='sales'||v==='sales')?'block':'none';
   var addrBlock=document.getElementById('nt-addr-block');
   if(addrBlock)addrBlock.style.display=(v==='uninstall'||v==='installation'||v==='uninstall_install')?'block':'none';
   var installDateWrap=document.getElementById('nt-install-date-wrap');
-  if(installDateWrap)installDateWrap.style.display=v==='sale_install'?'':'none';
+  if(installDateWrap)installDateWrap.style.display=v==='sales'?'':'none';
   document.getElementById('ntb').innerHTML='';
-  if(v==='sale_install'){
+  if(v==='sales'){
     // Auto-add تركيب row first
     var tbody=document.getElementById('ntb');
     var tr=document.createElement('tr');
@@ -3557,7 +3557,7 @@ async function loadInv(search,brand){
   var{data}=await q;INV=data||[];body.innerHTML='';
   // Sold count from task_products
   var soldMap={};
-  var{data:soldData}=await db.from('task_products').select('inventory_id,qty,tasks!inner(type)').eq('tasks.type','sales');
+  var{data:soldData}=await db.from('task_products').select('inventory_id,qty,tasks!inner(type)').in('tasks.type',['sales']);
   (soldData||[]).forEach(function(row){if(row.inventory_id)soldMap[row.inventory_id]=(soldMap[row.inventory_id]||0)+(row.qty||0);});
   if(!data||!data.length){body.innerHTML='<tr><td colspan="9" style="text-align:center;padding:16px;color:#888">'+t('noproducts')+'</td></tr>';
     document.getElementById('iskus').textContent=0;document.getElementById('iunit').textContent=0;document.getElementById('ilow').textContent=0;return;}
@@ -4153,9 +4153,11 @@ async function finTab(type,btn){
     return;
   }
   // Sales / Maintenance / Installation / Uninstall / All
-  var typeFilter={'sales':'sales','maintenance':'maintenance','installation':'installation','uninstall':'uninstall'}[type]||null;
+  var typeFilter=type==='sales'?null:({'maintenance':'maintenance','installation':'installation','uninstall':'uninstall'}[type]||null);
+  var salesTypes=type==='sales'?['sales']:null;
   var q=db.from('tasks').select('id,task_num,customer_name,date,type,branch,salesperson,pay_status').order('date',{ascending:false});
-  if(typeFilter)q=q.eq('type',typeFilter);
+  if(salesTypes)q=q.in('type',salesTypes);
+  else if(typeFilter)q=q.eq('type',typeFilter);
   var{data:tasks3}=await q;tasks3=tasks3||[];
   var tids=tasks3.map(function(t){return t.id;});
   var prods3=[],pays3=[];
@@ -4518,7 +4520,7 @@ async function saveTask(){
     if(re){toast('Error saving products: '+re.message,true);return;}
   }
   // Deduct inventory for sales tasks
-  if(taskType==='sales'||taskType==='sale_install'){
+  if(taskType==='sales'||taskType==='sales'){
     for(var ri=0;ri<taskRows.length;ri++){
       var rr=taskRows[ri];
       if(rr.pid){
@@ -4534,7 +4536,7 @@ async function saveTask(){
 
 async function addRow(){
   var type2=document.getElementById('ntt').value;
-  var isSales2=(type2==='sales'||type2==='sale_install');
+  var isSales2=(type2==='sales'||type2==='sales');
   var tbody=document.getElementById('ntb');
   var useTax=document.getElementById('tax-toggle')?.checked!==false;
   var taxStyle=useTax?'':'display:none';
