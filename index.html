@@ -867,7 +867,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-
+<script>
 let LANG='en';
 var typeLabels={maintenance:'صيانة',installation:'تركيب',uninstall:'فك',uninstall_install:'فك و تركيب',pull:'سحب',inspection:'معاينة',workshop:'اصلاح ورشة',sales:'بيع'};
 function t(k){
@@ -1978,8 +1978,8 @@ function handleUp(input){const grid=document.getElementById('pgr');Array.from(in
 async function deleteTask(){
   if(!CT)return;
   if(!confirm(t('taskdelconfirm')+' '+CT.task_num))return;
-  // Restore inventory for sales/sales tasks
-  if(CT.type==='sales'||CT.type==='sales'){
+  // Restore inventory for sales tasks
+  if(CT.type==='sales'){
     var{data:saleProds}=await db.from('task_products').select('inventory_id,qty').eq('task_id',CT.id);
     for(var i=0;i<(saleProds||[]).length;i++){
       var sp=saleProds[i];if(!sp.inventory_id)continue;
@@ -2021,7 +2021,7 @@ function doPrint(){
   var pd=CT.pays.reduce(function(a,p){return a+p.amount;},0);
   var rem=Math.max(0,gr-pd);
   var cu=CT.cust||{};
-  var isSales=CT.type==='sales'||CT.type==='sales';
+  var isSales=CT.type==='sales';
 
   // Product rows
   var prodRows='';
@@ -4520,7 +4520,7 @@ async function saveTask(){
     if(re){toast('Error saving products: '+re.message,true);return;}
   }
   // Deduct inventory for sales tasks
-  if(taskType==='sales'||taskType==='sales'){
+  if(taskType==='sales'){
     for(var ri=0;ri<taskRows.length;ri++){
       var rr=taskRows[ri];
       if(rr.pid){
@@ -4536,7 +4536,7 @@ async function saveTask(){
 
 async function addRow(){
   var type2=document.getElementById('ntt').value;
-  var isSales2=(type2==='sales'||type2==='sales');
+  var isSales2=(type2==='sales');
   var tbody=document.getElementById('ntb');
   var useTax=document.getElementById('tax-toggle')?.checked!==false;
   var taxStyle=useTax?'':'display:none';
