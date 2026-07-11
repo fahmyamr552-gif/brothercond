@@ -1377,7 +1377,10 @@ async function openTask(id){
     // Show task-specific address if different from customer default
     var taskAddrEl=S('td-task-addr-block');
     if(taskAddrEl){
-      var displayAddr=CT.address||(CT.cust&&CT.cust.address)||null;
+      var custAddr=(CT.cust&&CT.cust.address)||null;
+      var taskAddr=CT.address||null;
+      // Show task address only if it was manually changed (different from customer address)
+      var displayAddr=custAddr||(taskAddr!==custAddr?taskAddr:null)||null;
       if(displayAddr){
         taskAddrEl.style.display='';
         set('td-task-addr',displayAddr);
