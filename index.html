@@ -1257,32 +1257,40 @@ async function loadTasks(resetPage){
 
 function sendWhatsApp(){
   if(!CT)return;
-  var phone=(CT.phone||CT.cust?.phone||CT.customers?.phone||'').replace(/[^0-9]/g,'');
-  if(!phone){toast('لا يوجد رقم هاتف للعميل',true);return;}
+  var cu=CT.cust||CT.customers||{};
+  var phone=(cu.phone||CT.phone||'').replace(/[^0-9]/g,'');
+  if(!phone){toast('no phone',true);return;}
   if(phone.startsWith('0'))phone='2'+phone;
   else if(!phone.startsWith('20'))phone='20'+phone;
-  var typeAr={maintenance:'صيانة',installation:'تركيب',sales:'مبيعات',uninstall:'فك',inspection:'معاينة'};
-  var typeName=typeAr[CT.type]||CT.type;
-  var total=(CT.prods||[]).reduce(function(s,p){return s+p.qty*p.price;},0);
-  var prods=(CT.prods||[]).map(function(p){return '* '+p.name+' x'+p.qty+' = '+(p.qty*p.price)+' j.m';}).join('\n');
-  var payStatus={paid:'مدفوع بالكامل',downpayment:'دفعة مقدمة',unpaid:'غير مدفوع'}[CT.pay_status]||CT.pay_status;
-  var taxLine='';
-  if(CT.use_tax&&total>0){var preTax=Math.round(total/1.14*100)/100;var taxAmt=Math.round((total-preTax)*100)/100;taxLine='\nقبل الضريبة: '+preTax+' ج.م | ضريبة 14%: '+taxAmt+' ج.م';}
+  var typeName=typeLabels[CT.type]||CT.type;
+  var prods=CT.prods||[];
+  var subTotal=prods.reduce(function(s,p){return s+(p.qty*(p.price||0));},0);
+  var total=CT.use_tax!==false?Math.round(subTotal*1.14):subTotal;
+  var prodsLines=prods.map(function(p){
+    var lt=p.qty*(p.price||0);
+    return '• '+p.name+' x'+p.qty+' = '+lt.toLocaleString()+' ج.م';
+  }).join('\n');
+  var payStatus={paid:'مدفوع بالكامل',downpayment:'دفعة مقدمة',unpaid:'غير مدفوع',no_payment:'بدون تحصيل'}[CT.pay_status]||CT.pay_status;
   var timeSlot=CT.time_slot?'\nالوقت: '+CT.time_slot:'';
-  var sep='----------------------------';
-  var msg='مرحباً '+CT.customer_name+'\n\n'
+  var installDate=CT.type==='sales'&&CT.installation_date?'\nتاريخ التركيب: '+CT.installation_date:'';
+  var taxLine=CT.use_tax!==false&&subTotal>0?'\n(شامل ضريبة 14%)':'';
+  var branch=CT.branch?'\nالفرع: '+CT.branch:'';
+  var custAddr=(cu.address)||CT.address||null;
+  var addr=custAddr?'\nالعنوان: '+custAddr:'';
+  var sep='────────────────────';
+  var msg='مرحباً '+CT.customer_name+'\n'
     +'تأكيد طلبك مع برازر كوند للتكييف\n'
     +sep+'\n'
     +'رقم الطلب: '+CT.task_num+'\n'
     +'النوع: '+typeName+'\n'
-    +'التاريخ: '+CT.date+timeSlot+'\n'
+    +'تاريخ: '+CT.date+timeSlot+installDate+branch+addr+'\n'
     +sep+'\n'
-    +'المنتجات:\n'+prods+'\n'
+    +'المنتجات:\n'+prodsLines+'\n'
     +sep+'\n'
-    +'الاجمالي: '+total+' ج.م'+taxLine+'\n'
+    +'الإجمالي: '+total.toLocaleString()+' ج.م'+taxLine+'\n'
     +'حالة الدفع: '+payStatus+'\n'
     +sep+'\n'
-    +'شكرا لثقتكم\nبرازر كوند للتكييف';
+    +'شكراً لثقتكم\nبرازر كوند للتكييف';
   window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(msg),'_blank');
 }
 
@@ -4968,6 +4976,106 @@ function openPlan(){
   }
 }
 // ── END DAILY PLAN ───────────────────────────────────────────
+
+async function checkInventorySync(){
+  toast('جاري الفحص...');
+  
+  // Get all sales tasks
+  var{data:salesTasks}=await db.from('tasks').select('id,task_num,date,status,type').in('type',['sales','sale_install']).order('date',{ascending:false});
+  if(!salesTasks||!salesTasks.length){toast('لا توجد طلبات مبيعات',true);return;}
+
+  // Get all task_products for these tasks
+  var taskIds=salesTasks.map(function(t){return t.id;});
+  var{data:taskProds}=await db.from('task_products').select('task_id,inventory_id,qty,name').in('task_id',taskIds);
+  taskProds=taskProds||[];
+
+  // Get all inventory items referenced
+  var invIds=[...new Set(taskProds.filter(function(p){return p.inventory_id;}).map(function(p){return p.inventory_id;}))];
+  var invMap={};
+  if(invIds.length){
+    var{data:invItems}=await db.from('inventory').select('id,brand,model,hp,qty').in('id',invIds);
+    (invItems||[]).forEach(function(i){invMap[i.id]=i;});
+  }
+
+  // Build report
+  var taskProdMap={};
+  taskProds.forEach(function(p){
+    if(!taskProdMap[p.task_id])taskProdMap[p.task_id]=[];
+    taskProdMap[p.task_id].push(p);
+  });
+
+  // For each task, check if products with inventory_id exist
+  var unlinked=[];
+  salesTasks.forEach(function(t){
+    var prods=taskProdMap[t.id]||[];
+    var invProds=prods.filter(function(p){return p.inventory_id;});
+    if(invProds.length===0 && prods.length>0){
+      unlinked.push({task:t,prods:prods});
+    }
+  });
+
+  // Show modal with results
+  var ov=document.createElement('div');
+  ov.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box';
+  var box=document.createElement('div');
+  box.style.cssText='background:#fff;border-radius:14px;padding:24px;width:700px;max-width:95vw;max-height:85vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.25)';
+  
+  var title=document.createElement('div');
+  title.style.cssText='font-size:15px;font-weight:700;margin-bottom:4px';
+  title.textContent='تقرير مزامنة المخزون';
+  
+  var sub=document.createElement('div');
+  sub.style.cssText='font-size:12px;color:#888;margin-bottom:16px';
+  sub.textContent='إجمالي طلبات البيع: '+salesTasks.length+' | غير مرتبطة بالمخزون: '+unlinked.length;
+
+  var tbl=document.createElement('table');
+  tbl.style.cssText='width:100%;border-collapse:collapse;font-size:13px';
+  tbl.innerHTML='<thead><tr style="background:#f5f5f0"><th style="padding:8px;text-align:right">رقم الطلب</th><th style="padding:8px;text-align:right">التاريخ</th><th style="padding:8px;text-align:right">المنتجات</th><th style="padding:8px;text-align:center">الحالة</th></tr></thead>';
+  var tbody=document.createElement('tbody');
+
+  salesTasks.forEach(function(t){
+    var prods=taskProdMap[t.id]||[];
+    var invProds=prods.filter(function(p){return p.inventory_id;});
+    var hasInv=invProds.length>0;
+    var tr=document.createElement('tr');
+    tr.style.borderBottom='1px solid #f0f0e8';
+    var prodNames=prods.map(function(p){return p.name;}).join(', ')||'-';
+    var statusHtml=hasInv
+      ?'<span style="background:#EAF3DE;color:#3B6D11;border-radius:6px;padding:2px 8px;font-size:11px">✓ مزامن</span>'
+      :'<button data-tid="'+t.id+'" data-tnum="'+t.task_num+'" onclick="fixTaskInventory(this.dataset.tid,this.dataset.tnum)" style="background:#E8F4FD;color:#185FA5;border:1px solid #b3d9f7;border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer">إصلاح</button>'
+    tr.innerHTML='<td style="padding:8px">'+(t.task_num||'-')+'</td>'
+      +'<td style="padding:8px">'+(t.date||'-')+'</td>'
+      +'<td style="padding:8px;max-width:200px;word-break:break-word">'+prodNames+'</td>'
+      +'<td style="padding:8px;text-align:center">'+statusHtml+'</td>';
+    tbody.appendChild(tr);
+  });
+
+  tbl.appendChild(tbody);
+  var closeBtn=document.createElement('button');
+  closeBtn.className='btn bs';closeBtn.textContent='إغلاق';closeBtn.style.marginTop='16px';
+  closeBtn.onclick=function(){ov.remove();};
+  box.appendChild(title);box.appendChild(sub);box.appendChild(tbl);box.appendChild(closeBtn);
+  ov.appendChild(box);document.body.appendChild(ov);
+}
+
+async function fixTaskInventory(taskId, taskNum){
+  if(!confirm('هل تريد خصم منتجات '+taskNum+' من المخزون؟'))return;
+  var{data:prods}=await db.from('task_products').select('inventory_id,qty').eq('task_id',taskId);
+  prods=prods||[];
+  var fixed=0;
+  for(var i=0;i<prods.length;i++){
+    var p=prods[i];
+    if(!p.inventory_id)continue;
+    var{data:inv}=await db.from('inventory').select('qty').eq('id',p.inventory_id).single();
+    if(inv){
+      await db.from('inventory').update({qty:(inv.qty||0)-p.qty}).eq('id',p.inventory_id);
+      fixed++;
+    }
+  }
+  if(fixed>0)toast('تم خصم '+fixed+' منتج من المخزون');
+  else toast('لا توجد منتجات مرتبطة بالمخزون',true);
+  checkInventorySync();
+}
 </script>
 </body>
 </html>
