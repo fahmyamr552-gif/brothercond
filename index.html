@@ -1542,6 +1542,7 @@ function openEditProds(){
   CT.prods.forEach(function(p,i){
     var tr=document.createElement('tr');
     tr.id='epr-'+i;
+    tr.dataset.invId=p.inventory_id||'';
     tr.style.borderBottom='1px solid #f0f0e8';
     var tot=Math.round(p.qty*p.price);
     var bt=useTax?Math.round(p.qty*p.price/1.14):0;
@@ -1625,21 +1626,46 @@ async function saveEditProds(){
     var name=nameEl.value.trim();
     var qty=parseInt(qtyEl?qtyEl.value:0)||0;
     var price=parseFloat(priceEl?priceEl.value:0)||0;
-    if(name&&qty>0)rows.push({task_id:CT.id,name:name,qty:qty,price:price,inventory_id:null});
+    var invId=tr.dataset.invId||null;
+    if(name&&qty>0)rows.push({task_id:CT.id,name:name,qty:qty,price:price,inventory_id:invId||null});
   });
   if(!rows.length){toast('Add at least one product',true);return;}
   _savingProds=true;
   var saveB=document.getElementById('ep-save-btn');
   if(saveB){saveB.disabled=true;saveB.textContent='Saving...';}
-  // Close modal first to prevent double-click
   document.querySelectorAll('.ep-modal').forEach(function(e){e.remove();});
-  // Delete existing products
+
+  // Step 1: Restore OLD inventory quantities
+  var isSalesTask=(CT.type==='sales'||CT.type==='sale_install');
+  if(isSalesTask){
+    var{data:oldProds}=await db.from('task_products').select('inventory_id,qty').eq('task_id',CT.id);
+    for(var i=0;i<(oldProds||[]).length;i++){
+      var op=oldProds[i];
+      if(!op.inventory_id)continue;
+      var{data:invRow}=await db.from('inventory').select('qty').eq('id',op.inventory_id).single();
+      if(invRow)await db.from('inventory').update({qty:(invRow.qty||0)+op.qty}).eq('id',op.inventory_id);
+    }
+  }
+
+  // Step 2: Delete old products
   var{error:de}=await db.from('task_products').delete().eq('task_id',CT.id);
   if(de){_savingProds=false;toast('Error deleting: '+de.message,true);return;}
-  // Insert new products
+
+  // Step 3: Insert new products
   var{error:ie}=await db.from('task_products').insert(rows);
+  if(ie){_savingProds=false;toast('Error saving: '+ie.message,true);return;}
+
+  // Step 4: Deduct NEW inventory quantities
+  if(isSalesTask){
+    for(var j=0;j<rows.length;j++){
+      var nr=rows[j];
+      if(!nr.inventory_id)continue;
+      var{data:invRow2}=await db.from('inventory').select('qty').eq('id',nr.inventory_id).single();
+      if(invRow2)await db.from('inventory').update({qty:(invRow2.qty||0)-nr.qty}).eq('id',nr.inventory_id);
+    }
+  }
+
   _savingProds=false;
-  if(ie){toast('Error saving: '+ie.message,true);return;}
   toast(t('productssaved'));
   openTask(CT.id);
 }
