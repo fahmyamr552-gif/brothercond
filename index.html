@@ -3598,7 +3598,7 @@ async function openDispatch(id){
 async function loadInv(search,brand){
   var body=document.getElementById('invb');
   if(!body)return;
-  body.innerHTML='<tr><td colspan="9" style="text-align:center;padding:16px;color:#888">'+t('loadin')+'</td></tr>';
+  body.innerHTML='<tr><td colspan="10" style="text-align:center;padding:16px;color:#888">'+t('loadin')+'</td></tr>';
   var q=db.from('inventory').select('*').order('brand');
   if(search)q=q.or(('brand.ilike.%'+(search)+'%,model.ilike.%'+(search)+'%'));
   if(brand)q=q.eq('brand',brand);
@@ -3607,7 +3607,7 @@ async function loadInv(search,brand){
   var soldMap={};
   var{data:soldData}=await db.from('task_products').select('inventory_id,qty,tasks!inner(type)').in('tasks.type',['sales']);
   (soldData||[]).forEach(function(row){if(row.inventory_id)soldMap[row.inventory_id]=(soldMap[row.inventory_id]||0)+(row.qty||0);});
-  if(!data||!data.length){body.innerHTML='<tr><td colspan="9" style="text-align:center;padding:16px;color:#888">'+t('noproducts')+'</td></tr>';
+  if(!data||!data.length){body.innerHTML='<tr><td colspan="10" style="text-align:center;padding:16px;color:#888">'+t('noproducts')+'</td></tr>';
     document.getElementById('iskus').textContent=0;document.getElementById('iunit').textContent=0;document.getElementById('ilow').textContent=0;return;}
   var low=0,units=0;
   data.forEach(function(p){
@@ -4924,7 +4924,7 @@ async function loadPlan(){
 
   function buildSection(types){
     var st=tasks.filter(function(t){return types.indexOf(t.type)>-1;});
-    if(!st.length)return '<tr><td colspan="9" style="padding:12px;text-align:center;color:#aaa">\u0644\u0627 \u062a\u0648\u062c\u062f \u0637\u0644\u0628\u0627\u062a</td></tr>';
+    if(!st.length)return '<tr><td colspan="10" style="padding:12px;text-align:center;color:#aaa">\u0644\u0627 \u062a\u0648\u062c\u062f \u0637\u0644\u0628\u0627\u062a</td></tr>';
     var groups={};var order=[];
     st.forEach(function(t){
       var tech=t.salesperson||'\u063a\u064a\u0631 \u0645\u062d\u062f\u062f';
@@ -4942,7 +4942,7 @@ async function loadPlan(){
     var h='';
     order.forEach(function(tech){
       var col=getPlanColor(tech);
-      h+='<tr style="background:#f8f8f4"><td colspan="9" style="padding:6px 10px;font-weight:700;font-size:13px">'
+      h+='<tr style="background:#f8f8f4"><td colspan="10" style="padding:6px 10px;font-weight:700;font-size:13px">'
         +(tech!=='\u063a\u064a\u0631 \u0645\u062d\u062f\u062f'
           ?'<span style="background:'+col+'22;color:'+col+';border:1px solid '+col+'44;border-radius:12px;padding:3px 12px">'+tech+'</span>'
           :'<span style="color:#aaa">\u063a\u064a\u0631 \u0645\u062d\u062f\u062f</span>')
@@ -4970,6 +4970,7 @@ async function loadPlan(){
           +'<td style="padding:6px 8px;text-align:center;font-size:12px;color:#3B6D11;font-weight:600">'+(paid>0?paid.toLocaleString()+' \u062c.\u0645':'')+'</td>'
           +'<td style="padding:6px 8px;text-align:center">'+planStatusLabel(t.status)+'</td>'
           +'<td style="padding:6px 8px;text-align:center;font-size:11px;color:#666">'+t.branch+'</td>'
+          +'<td style="padding:4px"><input type="text" placeholder="ملاحظات..." style="width:100%;font-size:11px;border:1px solid #ddd;border-radius:5px;padding:4px;box-sizing:border-box"></td>'
           +'</tr>';
       });
     });
@@ -4979,15 +4980,15 @@ async function loadPlan(){
   var ds=date.split('-').reverse().join('-');
   var th='padding:8px 10px;background:#2c2c2c;color:#fff;font-size:12px;white-space:nowrap;';
   var sh='background:#f5c518;font-weight:700;font-size:15px;padding:10px 12px;';
-  var colHeaders='<tr><th style="'+th+'">البيان</th><th style="'+th+'">العنوان</th><th style="'+th+'">عدد</th><th style="'+th+'">اسم الفني</th><th style="'+th+'">الوقت</th><th style="'+th+'">التحصيل المقدر</th><th style="'+th+'">التحصيل الفعلي</th><th style="'+th+'">الحالة</th><th style="'+th+'">الفرع</th></tr>';
+  var colHeaders='<tr><th style="'+th+'">البيان</th><th style="'+th+'">العنوان</th><th style="'+th+'">عدد</th><th style="'+th+'">اسم الفني</th><th style="'+th+'">الوقت</th><th style="'+th+'">التحصيل المقدر</th><th style="'+th+'">التحصيل الفعلي</th><th style="'+th+'">الحالة</th><th style="'+th+'">الفرع</th><th style="'+th+'">ملاحظات</th></tr>';
   var html='<div id="plan-print-area" style="font-family:Arial,sans-serif;direction:rtl">'
     +'<table style="width:100%;border-collapse:collapse;margin-bottom:24px;border:1px solid #ddd"><thead>'
-    +'<tr><td colspan="9" style="'+sh+'">\u0627\u0644\u0635\u064a\u0627\u0646\u0629</td></tr>'
-    +'<tr><td colspan="9" style="padding:6px 10px;background:#fff9e6;font-size:13px;font-weight:600">\u062a\u0627\u0631\u064a\u062e: '+ds+'</td></tr>'
+    +'<tr><td colspan="10" style="'+sh+'">\u0627\u0644\u0635\u064a\u0627\u0646\u0629</td></tr>'
+    +'<tr><td colspan="10" style="padding:6px 10px;background:#fff9e6;font-size:13px;font-weight:600">\u062a\u0627\u0631\u064a\u062e: '+ds+'</td></tr>'
     +colHeaders+'</thead><tbody>'+buildSection(maintTypes)+'</tbody></table>'
     +'<table style="width:100%;border-collapse:collapse;border:1px solid #ddd"><thead>'
-    +'<tr><td colspan="9" style="'+sh+'">\u0627\u0644\u062a\u0631\u0643\u064a\u0628\u0627\u062a</td></tr>'
-    +'<tr><td colspan="9" style="padding:6px 10px;background:#fff9e6;font-size:13px;font-weight:600">\u062a\u0627\u0631\u064a\u062e: '+ds+'</td></tr>'
+    +'<tr><td colspan="10" style="'+sh+'">\u0627\u0644\u062a\u0631\u0643\u064a\u0628\u0627\u062a</td></tr>'
+    +'<tr><td colspan="10" style="padding:6px 10px;background:#fff9e6;font-size:13px;font-weight:600">\u062a\u0627\u0631\u064a\u062e: '+ds+'</td></tr>'
     +colHeaders+'</thead><tbody>'+buildSection(instTypes)+'</tbody></table>'
     +'</div>';
   body.innerHTML=html;
@@ -5000,12 +5001,22 @@ async function savePlanField(taskId,field,value){
   else toast(field==='salesperson'?'\u062a\u0645 \u062d\u0641\u0638 \u0627\u0644\u0641\u0646\u064a':'\u062a\u0645 \u062d\u0641\u0638 \u0627\u0644\u0648\u0642\u062a');
 }
 
+function closePrintOverlay(){var el=document.getElementById('plan-print-overlay');if(el)el.remove();}
 function printPlan(){
   var area=document.getElementById('plan-print-area');
-  if(!area){toast('\u062d\u0645\u0644 \u0627\u0644\u062e\u0637\u0629 \u0623\u0648\u0644\u0627\u064b',true);return;}
-  var w=window.open('','_blank');
-  w.document.write('<html><head><meta charset="UTF-8"><style>body{font-family:Arial,sans-serif;direction:rtl;margin:20px}table{width:100%;border-collapse:collapse;margin-bottom:20px}th,td{border:1px solid #ccc;padding:6px 8px;font-size:11px}input,select{display:none}@media print{@page{size:A4 landscape;margin:10mm}}</style></head><body>'+area.innerHTML+'</body></html>');
-  w.document.close();w.focus();w.print();w.close();
+  if(!area){toast('حمل الخطة أولاً',true);return;}
+  var style='<style>body{font-family:Arial,sans-serif;direction:rtl;margin:10px}table{width:100%;border-collapse:collapse;margin-bottom:16px}th,td{border:1px solid #ccc;padding:5px 7px;font-size:10px}input[type=text],input[type=date],select{border:none;background:transparent;font-size:10px;width:100%;padding:0}input[type=text]:focus,select:focus{outline:none}@media print{@page{size:A4 landscape;margin:8mm}button{display:none}}</style>';
+  var printDiv=document.createElement('div');
+  printDiv.id='plan-print-overlay';
+  printDiv.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:#fff;z-index:99999;overflow:auto;padding:20px;box-sizing:border-box;direction:rtl';
+  printDiv.innerHTML='<div style="display:flex;justify-content:flex-end;gap:10px;margin-bottom:12px;print:none">'
+    +'<button onclick="window.print()" style="padding:8px 20px;background:#185FA5;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px">طباعة</button>'
+    +'<button onclick="closePrintOverlay()" style="padding:8px 20px;background:#888;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px">إغلاق</button>'
+    +'</div>'+area.innerHTML;
+  var styleEl=document.createElement('style');
+  styleEl.textContent='@media print{#plan-print-overlay>div:first-child{display:none}body>*:not(#plan-print-overlay){display:none}@page{size:A4 landscape;margin:8mm}}';
+  document.head.appendChild(styleEl);
+  document.body.appendChild(printDiv);
 }
 
 function openPlan(){
