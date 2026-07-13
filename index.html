@@ -4897,8 +4897,11 @@ async function loadPlan(){
   body.innerHTML='<div style="text-align:center;padding:30px;color:#888">\u062c\u0627\u0631\u064a \u0627\u0644\u062a\u062d\u0645\u064a\u0644...</div>';
   var maintTypes=['maintenance'];
   var instTypes=['installation','uninstall','uninstall_install','inspection','sales','pull'];
-  var{data:tasks}=await db.from('tasks').select('id,task_num,type,description,salesperson,time_slot,status,pay_status,branch,customer_name,installation_date,address,customer_id,customers(address)').eq('date',date).neq('status','cancelled').order('time_slot',{ascending:true,nullsFirst:false});
-  tasks=tasks||[];
+  // Fetch regular tasks by contract date (excluding sales type)
+  var{data:regularTasks}=await db.from('tasks').select('id,task_num,type,description,salesperson,time_slot,status,pay_status,branch,customer_name,installation_date,address,customer_id,customers(address)').eq('date',date).neq('status','cancelled').neq('type','sales').order('time_slot',{ascending:true,nullsFirst:false});
+  // Fetch sales tasks by installation date
+  var{data:salesTasks}=await db.from('tasks').select('id,task_num,type,description,salesperson,time_slot,status,pay_status,branch,customer_name,installation_date,address,customer_id,customers(address)').eq('installation_date',date).eq('type','sales').neq('status','cancelled').order('time_slot',{ascending:true,nullsFirst:false});
+  var tasks=(regularTasks||[]).concat(salesTasks||[]);
   var taskIds=tasks.map(function(t){return t.id;});
   var prodsMap={};var paysMap={};
   if(taskIds.length){
