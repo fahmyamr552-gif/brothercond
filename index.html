@@ -4063,12 +4063,19 @@ async function markDelivered(poId){
   if(!items?.length){toast('No items',true);return;}
   for(var i=0;i<items.length;i++){
     var it=items[i];
+    var qr=it.qty||0;
+    // Set qty_received
+    await db.from('po_items').update({qty_received:qr}).eq('id',it.id);
     if(it.inventory_id){
       var{data:inv}=await db.from('inventory').select('qty').eq('id',it.inventory_id).single();
-      if(inv)await db.from('inventory').update({qty:(inv.qty||0)+it.qty}).eq('id',it.inventory_id);
+      if(inv)await db.from('inventory').update({qty:(inv.qty||0)+qr}).eq('id',it.inventory_id);
+    }
+    if(it.spare_part_id){
+      var{data:sp}=await db.from('spare_parts').select('qty').eq('id',it.spare_part_id).single();
+      if(sp)await db.from('spare_parts').update({qty:(sp.qty||0)+qr}).eq('id',it.spare_part_id);
     }
   }
-  await db.from('purchase_orders').update({status:'received'}).eq('id',poId);
+  await db.from('purchase_orders').update({status:'received',delivery_date:new Date().toISOString().split('T')[0]}).eq('id',poId);
   toast('Received - inventory updated!');
   document.querySelectorAll('.po-modal,.receive-modal').forEach(function(e){e.remove();});
   loadPur();
