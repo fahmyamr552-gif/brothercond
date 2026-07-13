@@ -3730,6 +3730,7 @@ function updatePOItemCost(inp){
 }
 
 async function financeConfirmPO(poId){
+  if(window._confirmingPO)return;window._confirmingPO=true;
   // Read all cost inputs and save
   var inputs=document.querySelectorAll('.po-cost-inp');
   if(!inputs.length){toast('لا توجد منتجات',true);return;}
@@ -3742,8 +3743,10 @@ async function financeConfirmPO(poId){
     await db.from('po_items').update({unit_cost:cost}).eq('id',inp.dataset.id);
   }
   await db.from('purchase_orders').update({status:'pending',total:tot}).eq('id',poId);
+  window._confirmingPO=false;
   toast('تم تأكيد طلب الشراء بنجاح');
-  openPODetail(poId);
+  document.querySelectorAll('.po-modal').forEach(function(e){e.remove();});
+  loadPur();
 }
 
 async function loadPur(){
@@ -3766,7 +3769,7 @@ async function loadPur(){
     var canReturn=po.status==='received'||po.status==='partial'||po.status==='partial_return';
     var retBtn=canReturn?('<button onclick="returnProducts(\''+po.id+'\')" style="font-size:10px;padding:2px 7px;border:1px solid #E24B4A;border-radius:4px;background:#FCEBEB;color:#A32D2D;cursor:pointer;margin-right:3px">Return</button>'):'';
     var delBtn=can('delete')?('<button onclick="deletePO(\''+po.id+'\')" style="font-size:10px;padding:2px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;margin-right:3px">Del</button>'):'';
-    var confirmBtn=canConfirm?('<button onclick="confirmPODraft(\''+po.id+'\')" style="font-size:10px;padding:2px 7px;border:1px solid #185FA5;border-radius:4px;background:#E8F4FD;color:#185FA5;cursor:pointer;margin-right:3px">تأكيد الطلب</button>'):'';
+    var confirmBtn='';
     var rcvBtn=canReceive?('<button onclick="openPODetail(\''+po.id+'\')" style="font-size:10px;padding:2px 7px;border:1px solid #1D9E75;border-radius:4px;background:#EAF3DE;color:#1D9E75;cursor:pointer">'+t('receivemore')+'</button>'):'';
     var tr=document.createElement('tr');tr.style.cssText='border-bottom:1px solid #f0f0e8;cursor:pointer';
     tr.onclick=function(e){if(!e.target.tagName.match(/BUTTON/))openPODetail(po.id);};
@@ -3958,8 +3961,8 @@ function calcPOT(){
 }
 
 async function savePO(){
-  var supId=document.getElementById('posup')?.value;
-  var supNm=document.getElementById('posup')?.selectedOptions[0]?.text||'-';
+  var supId=window._selSupId||null;
+  var supNm=window._selSupName||document.getElementById('sqi')?.value||'-';
   var date=document.getElementById('podate')?.value||new Date().toISOString().slice(0,10);
   var rows=document.querySelectorAll('#potb tr');
   if(!rows.length){toast('Add at least one product',true);return;}
