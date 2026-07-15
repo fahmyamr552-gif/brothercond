@@ -3017,10 +3017,10 @@ async function reloadDispParts(warehouse){
   parts=parts||[];
   window._dispParts=parts;
   var opts='<option value="">-- اختر قطعة --</option>'+parts.map(function(p){
-    return '<option value="'+p.id+'" data-cost="'+(p.cost||0)+'" data-unit="'+p.unit+'" data-stock="'+p.qty+'">'+p.name+' ('+p.unit+') - Stock: '+p.qty+'</option>';
+    return '<option value="'+p.id+'" data-cost="'+(p.cost||0)+'" data-unit="'+p.unit+'" data-stock="'+p.qty+'">'+p.name+' ('+p.unit+') - رصيد: '+p.qty+'</option>';
   }).join('');
-  document.querySelectorAll('.disp-part-sel').forEach(function(sel){sel.innerHTML=opts;sel.onchange();});
-  toast(warehouse+' selected — '+parts.length+' parts loaded');
+  document.querySelectorAll('.disp-part-sel').forEach(function(sel){sel.innerHTML=opts;});
+  toast(warehouse+' - '+parts.length+' منتج');
 }
 
 
