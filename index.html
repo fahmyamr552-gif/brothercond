@@ -5251,7 +5251,7 @@ async function openFbForm(taskId){
     +'<div style="background:#f9f9f6;border-radius:8px;padding:10px;margin-bottom:14px;font-size:13px">'
       +'<div style="font-weight:700">'+task.customer_name+'</div>'
       +'<div style="font-size:11px;color:#888">'+(cu.phone||'-')+' &middot; '+(cu.address||'-')+'</div>'
-      +(task.completion_report?'<div style="margin-top:6px;font-size:11px;color:#666"><b>تقرير الإنجاز:</b> '+task.completion_report+'</div>':'')
+      +(task.completion_notes?'<div style="margin-top:6px;font-size:11px;color:#666"><b>تقرير الإنجاز:</b> '+task.completion_notes+'</div>':'')+(task.technician_name?'<div style="margin-top:4px;font-size:11px;color:#666"><b>الفني:</b> '+task.technician_name+'</div>':'')
     +'</div>'
     +starRow('fb-star-cc','خدمة العملاء')
     +starRow('fb-star-tech','الفنيين')
