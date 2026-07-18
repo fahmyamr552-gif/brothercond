@@ -987,7 +987,7 @@ function applyRole(){
     const pg={dash:'dash',tasks:'tasks',inv:'inv',pur:'pur',fin:'fin',cust:'cust',sup:'sup',usr:'usr'}[k];
     perms.includes(pg)?el.classList.remove('off'):el.classList.add('off');
   });
-  if(!can('usr'))document.getElementById('ni-usr').style.display='none';
+  var usrNav=document.getElementById('ni-usr');if(usrNav)usrNav.style.display=can('usr')?'':'none';
   if(can('export'))document.getElementById('expbtn').style.display='';
   // Dispatches nav - visible to inventory_manager, owner, finance
   var dispNav=document.getElementById('ni-disp');
