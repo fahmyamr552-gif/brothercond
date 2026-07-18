@@ -123,6 +123,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     <div class="ni on" id="ni-dash" onclick="go('dash',this)">&#9632; <span data-t="dashboard">Dashboard</span></div>
     <div class="ni" id="ni-tasks" onclick="go('tasks',this)">&#9632; <span data-t="tasks">Tasks</span></div>
     <div class="ni" id="ni-plan" onclick="openPlan()">&#9632; <span>خطة يومية</span></div>
+    <div class="ni" id="ni-fb" onclick="openFeedback()">&#9632; <span>آراء العملاء</span></div>
     <div class="ni" id="ni-inv" onclick="go('inv',this)">&#9632; <span data-t="inventory">Inventory</span></div>
     <div class="ni" id="ni-pur" onclick="go('pur',this)">&#9632; <span data-t="purchases">Purchases</span></div>
     <div class="ni" id="ni-fin" onclick="go('fin',this)">&#9632; <span data-t="finance">Finance</span></div>
@@ -549,6 +550,18 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     <button class="btn bs" onclick="printPlan()" style="margin-left:auto">&#128438; طباعة</button>
   </div>
   <div id="plan-body"></div>
+</div>
+
+<div class="pg" id="pg-fb">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+    <span style="font-size:16px;font-weight:700">آراء العملاء</span>
+  </div>
+  <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+    <button class="btn bs" id="fb-tab-pending" onclick="switchFbTab('pending')" style="background:#185FA5;color:#fff">بانتظار التقييم</button>
+    <button class="btn bs" id="fb-tab-satisfied" onclick="switchFbTab('satisfied')">الراضيين &#9989;</button>
+    <button class="btn bs" id="fb-tab-unsatisfied" onclick="switchFbTab('unsatisfied')">غير الراضيين &#10060;</button>
+  </div>
+  <div id="fb-body"></div>
 </div>
 
 <!-- INVENTORY -->
@@ -988,15 +1001,17 @@ function applyRole(){
     var canEmp=CU&&(CU.role==='owner'||CU.role==='admin');
     empNav.style.display=canEmp?'':'none';
   }
-}
 
+  var fbNav=document.getElementById('ni-fb');
+  if(fbNav)fbNav.style.display=(CU&&CU.role==='owner')?'':'none';
+}
 function go(pg,el){
   document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.ni').forEach(n=>n.classList.remove('on'));
   const pge=document.getElementById('pg-'+pg);
   if(pge)pge.classList.add('on');
   if(el)el.classList.add('on');
-  const titlesMap={dash:'dashboard',tasks:'tasks',inv:'inventory','np':'addproduct',pur:'purchases','npo':'newpo',fin:'finance',cust:'customers','cd':'customer',sup:'suppliers','sd':'supplier',usr:'users',disp:'dispatches','nt':'newtask','td':'tasks',plan:'خطة يومية'};
+  const titlesMap={dash:'dashboard',tasks:'tasks',inv:'inventory','np':'addproduct',pur:'purchases','npo':'newpo',fin:'finance',cust:'customers','cd':'customer',sup:'suppliers','sd':'supplier',usr:'users',disp:'dispatches','nt':'newtask','td':'tasks',plan:'خطة يومية',fb:'آراء العملاء'};
   const titles={}; Object.entries(titlesMap).forEach(([k,v])=>titles[k]=t(v));
   document.getElementById('ptitle').textContent=titles[pg]||pg;
   const ta=document.getElementById('tact');ta.innerHTML='';
@@ -5131,6 +5146,199 @@ async function fixTaskInventory(taskId, taskNum){
   else toast('لا توجد منتجات مرتبطة بالمخزون',true);
   checkInventorySync();
 }
+
+// ── FEEDBACK SECTION ─────────────────────────────────────────
+var _fbTab='pending';
+var GOOGLE_REVIEW_LINK='https://g.page/r/CYA3thiLGvwBEAE/review';
+
+function openFeedback(){
+  if(!CU||CU.role!=='owner'){toast('غير مسموح',true);return;}
+  go('fb',document.getElementById('ni-fb'));
+  switchFbTab('pending');
+}
+
+function switchFbTab(tab){
+  _fbTab=tab;
+  ['pending','satisfied','unsatisfied'].forEach(function(t){
+    var btn=document.getElementById('fb-tab-'+t);
+    if(btn){
+      if(t===tab){btn.style.background='#185FA5';btn.style.color='#fff';}
+      else{btn.style.background='';btn.style.color='';}
+    }
+  });
+  loadFeedback();
+}
+
+async function loadFeedback(){
+  var body=document.getElementById('fb-body');
+  if(!body)return;
+  body.innerHTML='<div style="text-align:center;padding:30px;color:#888">جاري التحميل...</div>';
+
+  if(_fbTab==='pending'){
+    // Completed tasks without feedback
+    var{data:doneTasks}=await db.from('tasks').select('id,task_num,type,customer_name,customer_id,date,branch,customers(phone,address)').eq('status','done').order('date',{ascending:false});
+    doneTasks=doneTasks||[];
+    var{data:existingFb}=await db.from('feedback').select('task_id');
+    var fbTaskIds=(existingFb||[]).map(function(f){return f.task_id;});
+    var pending=doneTasks.filter(function(t){return fbTaskIds.indexOf(t.id)<0;});
+    if(!pending.length){body.innerHTML='<div style="text-align:center;padding:30px;color:#888">لا توجد طلبات بانتظار التقييم &#127881;</div>';return;}
+    var html='<div style="display:flex;flex-direction:column;gap:8px">';
+    pending.forEach(function(t){
+      var cu=t.customers||{};
+      html+='<div onclick="openFbForm(\''+t.id+'\')" style="background:#fff;border:1px solid #e0ddd8;border-radius:10px;padding:12px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'
+        +'<div>'
+          +'<div style="font-size:11px;font-weight:700;color:#1D9E75">'+t.task_num+' <span style="font-size:10px;color:#888;font-weight:500">'+(typeLabels[t.type]||t.type)+'</span></div>'
+          +'<div style="font-weight:600">'+t.customer_name+'</div>'
+          +'<div style="font-size:11px;color:#888">'+(cu.phone||'-')+' &middot; '+(cu.address||'-')+'</div>'
+        +'</div>'
+        +'<div style="font-size:11px;color:#888">'+t.date+'</div>'
+        +'</div>';
+    });
+    html+='</div>';
+    body.innerHTML=html;
+  }else{
+    var satisfied=_fbTab==='satisfied';
+    var{data:fbs}=await db.from('feedback').select('*').eq('satisfied',satisfied).order('created_at',{ascending:false});
+    fbs=fbs||[];
+    if(!fbs.length){body.innerHTML='<div style="text-align:center;padding:30px;color:#888">لا توجد نتائج</div>';return;}
+    var html='<div style="display:flex;flex-direction:column;gap:10px">';
+    fbs.forEach(function(f){
+      var stars=function(n){var s='';for(var i=1;i<=5;i++){s+=i<=n?'&#9733;':'&#9734;';}return s;};
+      var followBadge=f.followed_up?'<span style="background:#EAF3DE;color:#3B6D11;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700">&#10003; تمت المتابعة</span>':'';
+      html+='<div style="background:#fff;border:1px solid '+(satisfied?'#d9ead3':'#f4cccc')+';border-radius:10px;padding:14px">'
+        +'<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:8px">'
+          +'<div>'
+            +'<div style="font-size:11px;font-weight:700;color:#1D9E75">'+(f.task_num||'-')+' <span style="font-size:10px;color:#888;font-weight:500">'+(typeLabels[f.task_type]||f.task_type||'')+'</span></div>'
+            +'<div style="font-weight:700">'+(f.customer_name||'-')+'</div>'
+            +'<div style="font-size:11px;color:#888">'+(f.customer_phone||'-')+' &middot; '+(f.customer_address||'-')+'</div>'
+          +'</div>'
+          +'<div style="text-align:left">'+followBadge+'</div>'
+        +'</div>'
+        +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:10px;font-size:12px">'
+          +'<div><span style="color:#888">خدمة العملاء:</span> <span style="color:#f5a623">'+stars(f.rating_callcenter||0)+'</span></div>'
+          +'<div><span style="color:#888">الفنيين:</span> <span style="color:#f5a623">'+stars(f.rating_technicians||0)+'</span></div>'
+          +'<div><span style="color:#888">جودة العمل:</span> <span style="color:#f5a623">'+stars(f.rating_work||0)+'</span></div>'
+        +'</div>'
+        +(f.notes?'<div style="background:#f9f9f6;border-radius:8px;padding:10px;font-size:12px;margin-bottom:10px"><span style="color:#888;font-weight:700">ملاحظات:</span> '+f.notes+'</div>':'')
+        +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
+        +(satisfied?'<button data-phone="'+(f.customer_phone||'')+'" data-name="'+(f.customer_name||'')+'" onclick="sendFbThanks(this.dataset.phone,this.dataset.name)" style="background:#25D366;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer">&#128172; شكر + رابط التقييم</button>':'')
+        +(!satisfied&&!f.followed_up?'<button data-fid="'+f.id+'" onclick="markFollowedUp(this.dataset.fid)" style="background:#185FA5;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer">&#10003; تمت المتابعة</button>':'')
+        +'</div>'
+        +'</div>';
+    });
+    html+='</div>';
+    body.innerHTML=html;
+  }
+}
+
+async function openFbForm(taskId){
+  var{data:task}=await db.from('tasks').select('*,customers(phone,address)').eq('id',taskId).single();
+  if(!task){toast('Task not found',true);return;}
+  var cu=task.customers||{};
+  var ov=document.createElement('div');
+  ov.className='fb-modal';
+  ov.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box';
+  var starRow=function(id,label){
+    var s='<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:700;margin-bottom:4px">'+label+'</div><div style="display:flex;gap:4px" id="'+id+'">';
+    for(var i=1;i<=5;i++){s+='<span data-v="'+i+'" onclick="setFbStar(\''+id+'\','+i+')" style="font-size:24px;cursor:pointer;color:#ddd">&#9733;</span>';}
+    s+='</div></div>';
+    return s;
+  };
+  var box=document.createElement('div');
+  box.style.cssText='background:#fff;border-radius:14px;padding:24px;width:500px;max-width:95vw;max-height:85vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.25);direction:rtl';
+  box.innerHTML='<div style="font-size:15px;font-weight:700;margin-bottom:4px">تقييم العميل</div>'
+    +'<div style="font-size:12px;color:#888;margin-bottom:14px">'+task.task_num+' &middot; '+(typeLabels[task.type]||task.type)+'</div>'
+    +'<div style="background:#f9f9f6;border-radius:8px;padding:10px;margin-bottom:14px;font-size:13px">'
+      +'<div style="font-weight:700">'+task.customer_name+'</div>'
+      +'<div style="font-size:11px;color:#888">'+(cu.phone||'-')+' &middot; '+(cu.address||'-')+'</div>'
+      +(task.completion_report?'<div style="margin-top:6px;font-size:11px;color:#666"><b>تقرير الإنجاز:</b> '+task.completion_report+'</div>':'')
+    +'</div>'
+    +starRow('fb-star-cc','خدمة العملاء')
+    +starRow('fb-star-tech','الفنيين')
+    +starRow('fb-star-work','جودة العمل')
+    +'<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:700;margin-bottom:4px">ملاحظات العميل</div><textarea id="fb-notes" rows="3" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box;resize:vertical"></textarea></div>'
+    +'<div style="display:flex;gap:10px;margin-bottom:16px">'
+      +'<button id="fb-sat-yes" onclick="setFbSat(true)" style="flex:1;padding:12px;border:2px solid #3B6D11;border-radius:10px;background:#fff;color:#3B6D11;font-size:14px;font-weight:700;cursor:pointer">&#128522; راضي</button>'
+      +'<button id="fb-sat-no" onclick="setFbSat(false)" style="flex:1;padding:12px;border:2px solid #A32D2D;border-radius:10px;background:#fff;color:#A32D2D;font-size:14px;font-weight:700;cursor:pointer">&#128542; غير راضي</button>'
+    +'</div>'
+    +'<div style="display:flex;gap:10px;justify-content:flex-end">'
+      +'<button class="btn bs" onclick="document.querySelectorAll(\'.fb-modal\').forEach(function(e){e.remove();})">إلغاء</button>'
+      +'<button class="btn bp" id="fb-save-btn" onclick="saveFeedback(\''+taskId+'\')">&#10003; حفظ التقييم</button>'
+    +'</div>';
+  ov.appendChild(box);
+  document.body.appendChild(ov);
+  ov.onclick=function(e){if(e.target===ov)ov.remove();};
+  window._fbStars={cc:0,tech:0,work:0};
+  window._fbSat=null;
+  window._fbTask=task;
+}
+
+function setFbStar(rowId,val){
+  var key=rowId==='fb-star-cc'?'cc':(rowId==='fb-star-tech'?'tech':'work');
+  window._fbStars[key]=val;
+  var row=document.getElementById(rowId);
+  if(row){
+    row.querySelectorAll('span').forEach(function(s){
+      s.style.color=parseInt(s.dataset.v)<=val?'#f5a623':'#ddd';
+    });
+  }
+}
+
+function setFbSat(val){
+  window._fbSat=val;
+  var yes=document.getElementById('fb-sat-yes');
+  var no=document.getElementById('fb-sat-no');
+  if(yes)yes.style.background=val===true?'#EAF3DE':'#fff';
+  if(no)no.style.background=val===false?'#fff0f0':'#fff';
+}
+
+async function saveFeedback(taskId){
+  if(window._fbSat===null){toast('اختر راضي أو غير راضي',true);return;}
+  var task=window._fbTask;
+  var cu=task.customers||{};
+  var btn=document.getElementById('fb-save-btn');
+  if(btn){btn.disabled=true;btn.textContent='جاري الحفظ...';}
+  var{error}=await db.from('feedback').insert({
+    task_id:taskId,
+    task_num:task.task_num,
+    customer_name:task.customer_name,
+    customer_phone:cu.phone||null,
+    customer_address:cu.address||null,
+    task_type:task.type,
+    notes:document.getElementById('fb-notes')?.value||null,
+    rating_callcenter:window._fbStars.cc||null,
+    rating_technicians:window._fbStars.tech||null,
+    rating_work:window._fbStars.work||null,
+    satisfied:window._fbSat,
+    created_by:CU?.full_name||CU?.username||'-'
+  });
+  if(error){toast('Error: '+error.message,true);if(btn){btn.disabled=false;btn.textContent='حفظ التقييم';}return;}
+  document.querySelectorAll('.fb-modal').forEach(function(e){e.remove();});
+  toast('تم حفظ التقييم');
+  loadFeedback();
+}
+
+async function markFollowedUp(fbId){
+  await db.from('feedback').update({followed_up:true}).eq('id',fbId);
+  toast('تمت المتابعة');
+  loadFeedback();
+}
+
+function sendFbThanks(phone,name){
+  phone=(phone||'').replace(/[^0-9]/g,'');
+  if(!phone){toast('لا يوجد رقم هاتف',true);return;}
+  if(phone.startsWith('0'))phone='2'+phone;
+  else if(!phone.startsWith('20'))phone='20'+phone;
+  var msg='عزيزنا العميل '+name+'\n\n'
+    +'نشكركم جزيل الشكر على ثقتكم في برازر كوند للتكييف، وسعدنا بخدمتكم.\n\n'
+    +'رضاكم هو هدفنا الأول، ويسعدنا دائماً سماع آرائكم.\n\n'
+    +'إذا كانت تجربتكم معنا مميزة، نرجو منكم مشاركة تقييمكم على جوجل من خلال الرابط التالي:\n'
+    +GOOGLE_REVIEW_LINK+'\n\n'
+    +'شكراً لكم مرة أخرى، ونتطلع لخدمتكم دائماً \u{1F64F}\n\n'
+    +'برازر كوند للتكييف';
+  window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(msg),'_blank');
+}
+// ── END FEEDBACK ─────────────────────────────────────────────
 </script>
 </body>
 </html>
