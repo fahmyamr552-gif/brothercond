@@ -4008,6 +4008,15 @@ async function savePO(){
   toast(t('pocreated'));go('pur',document.getElementById('ni-pur'));
 }
 
+
+async function deletePOPayment(payId,poId){
+  if(!window.confirm('حذف هذه الدفعة؟'))return;
+  var{error}=await db.from('po_payments').delete().eq('id',payId);
+  if(error){toast('Error: '+error.message,true);return;}
+  toast('تم حذف الدفعة');
+  document.querySelectorAll('.po-modal').forEach(function(e){e.remove();});
+  openPODetail(poId);
+}
 async function openPODetail(poId){
   var{data:po}=await db.from('purchase_orders').select('*').eq('id',poId).single();
   var{data:items}=await db.from('po_items').select('*').eq('po_id',poId);
@@ -4057,8 +4066,8 @@ async function openPODetail(poId){
     +'<div style="text-align:right"><button id="pod-cancel" style="padding:8px 16px;font-size:12px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer">Close</button></div>'
   +'</div>';
   overlay.innerHTML=html;document.body.appendChild(overlay);
-  document.getElementById('pod-close').onclick=function(){overlay.remove();};
-  document.getElementById('pod-cancel').onclick=function(){overlay.remove();};
+  var podClose=document.getElementById('pod-close');if(podClose)podClose.onclick=function(){overlay.remove();};
+  var podCancel=document.getElementById('pod-cancel');if(podCancel)podCancel.onclick=function(){overlay.remove();};
 }
 
 async function savePOPayment(poId){
