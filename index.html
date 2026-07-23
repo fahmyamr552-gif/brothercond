@@ -3757,7 +3757,9 @@ async function financeConfirmPO(poId){
     tot+=qty*cost;
     await db.from('po_items').update({unit_cost:cost}).eq('id',inp.dataset.id);
   }
-  await db.from('purchase_orders').update({status:'pending',total:tot}).eq('id',poId);
+  var{data:currentPO}=await db.from('purchase_orders').select('status').eq('id',poId).single();
+  var newStatus=(currentPO&&currentPO.status==='draft')?'pending':(currentPO?currentPO.status:'pending');
+  await db.from('purchase_orders').update({status:newStatus,total:tot}).eq('id',poId);
   window._confirmingPO=false;
   toast('تم تأكيد طلب الشراء بنجاح');
   document.querySelectorAll('.po-modal').forEach(function(e){e.remove();});
@@ -4033,7 +4035,8 @@ async function openPODetail(poId){
   var paidSoFar=pays.reduce(function(a,p){return a+p.amount;},0);
   var owed=Math.max(0,po.total-paidSoFar);
   var isDraft=po.status==='draft';
-    var canEditCost=isDraft&&CU&&(CU.role==='finance'||CU.role==='owner');
+    var isOwner=CU&&CU.role==='owner';
+    var canEditCost=(isDraft&&CU&&(CU.role==='finance'||CU.role==='owner'))||isOwner;
     var slabel={'draft':'مسودة','pending':'Confirmed','received':'Received','partial':'Partial','cancelled':'Cancelled','returned':'Returned'}[po.status]||po.status;
     var scolor={'draft':'#854F0B','pending':'#3B6D11','received':'#3B6D11','partial':'#185FA5','cancelled':'#A32D2D','returned':'#A32D2D'}[po.status]||'#888';
     var iRows=items.map(function(it){
@@ -4061,7 +4064,7 @@ async function openPODetail(poId){
     +'<div style="text-align:right;font-size:13px;font-weight:700;margin-bottom:14px">PO Total: '+f(po.total)+' | Paid: '+f(paidSoFar)+' | Owed: '+f(owed)+'</div>'
     +(iRows?'<div style="margin-bottom:14px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">Payments</div><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f9f9f6"><th style="padding:5px 8px;text-align:left">Amount</th><th style="padding:5px 8px;text-align:left">Method</th><th style="padding:5px 8px;text-align:left">Note</th><th style="padding:5px 8px;text-align:left">Date</th>'+(can('delete')||can('delete_payment')?'<th></th>':'')+'</tr></thead><tbody>'+payRows+'</tbody></table></div>':'')
     +'<div style="margin-bottom:14px;background:#f9f9f6;border-radius:8px;padding:12px"><div style="font-size:12px;font-weight:700;margin-bottom:8px">Record payment to supplier</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px"><input type="number" id="pop-amt" placeholder="Amount" style="padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px"><select id="pop-meth" style="padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px"><option>Cash</option><option>Bank transfer</option><option>Cheque</option><option>Instapay</option></select></div><input id="pop-note" placeholder="Note (optional)" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box;margin-bottom:8px"><button onclick="savePOPayment(\''+poId+'\')" style="padding:7px 16px;font-size:12px;border:none;border-radius:7px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:600">Save payment</button></div>'
-    +(canEditCost?'<button onclick="financeConfirmPO(\''+poId+'\')" style="width:100%;padding:10px 16px;font-size:13px;border:none;border-radius:8px;background:#185FA5;color:#fff;cursor:pointer;font-weight:700;margin-bottom:8px">✓ تأكيد الطلب وحفظ الأسعار</button>':'')
+    +(canEditCost?'<button onclick="financeConfirmPO(\''+poId+'\')" style="width:100%;padding:10px 16px;font-size:13px;border:none;border-radius:8px;background:'+(isDraft?'#185FA5':'#854F0B')+';color:#fff;cursor:pointer;font-weight:700;margin-bottom:8px">✓ '+(isDraft?'تأكيد الطلب وحفظ الأسعار':'حفظ تعديل الأسعار')+'</button>':'')
     +(po.status==='pending'||po.status==='partial'?'<button onclick="markDelivered(\''+poId+'\')" style="padding:8px 16px;font-size:12px;border:none;border-radius:8px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:600;margin-bottom:8px">'+t('markdelivered')+'</button> ':'' )
     +'<div style="text-align:right"><button id="pod-cancel" style="padding:8px 16px;font-size:12px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer">Close</button></div>'
   +'</div>';
