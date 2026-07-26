@@ -1181,6 +1181,7 @@ function openEditOrderInfo(){
     if(ads)ads.style.display=(CT.type==='uninstall'||CT.type==='installation')?'':'none';
     overlay.remove();
     toast('Order info updated');
+    openTask(CT.id);
   };
 }
 
@@ -1280,7 +1281,7 @@ function sendWhatsApp(){
   var typeName=typeLabels[CT.type]||CT.type;
   var prods=CT.prods||[];
   var subTotal=prods.reduce(function(s,p){return s+(p.qty*(p.price||0));},0);
-  var total=CT.use_tax!==false?Math.round(subTotal*1.14):subTotal;
+  var total=subTotal;
   var prodsLines=prods.map(function(p){
     var lt=p.qty*(p.price||0);
     return '• '+p.name+' x'+p.qty+' = '+lt.toLocaleString()+' ج.م';
@@ -1288,7 +1289,9 @@ function sendWhatsApp(){
   var payStatus={paid:'مدفوع بالكامل',downpayment:'دفعة مقدمة',unpaid:'غير مدفوع',no_payment:'بدون تحصيل'}[CT.pay_status]||CT.pay_status;
   var timeSlot=CT.time_slot?'\nالوقت: '+CT.time_slot:'';
   var installDate=CT.type==='sales'&&CT.installation_date?'\nتاريخ التركيب: '+CT.installation_date:'';
-  var taxLine=CT.use_tax!==false&&subTotal>0?'\n(شامل ضريبة 14%)':'';
+  var preTax=CT.use_tax!==false?Math.round(subTotal/1.14):subTotal;
+  var taxAmt=subTotal-preTax;
+  var taxLine=CT.use_tax!==false&&subTotal>0?'\nالسعر قبل الضريبة: '+preTax.toLocaleString()+' ج.م\nضريبة 14%: '+taxAmt.toLocaleString()+' ج.م':'';
   var branch=CT.branch?'\nالفرع: '+CT.branch:'';
   var custAddr=(cu.address)||CT.address||null;
   var addr=custAddr?'\nالعنوان: '+custAddr:'';
@@ -3745,23 +3748,28 @@ function updatePOItemCost(inp){
 }
 
 async function financeConfirmPO(poId){
-  if(window._confirmingPO)return;window._confirmingPO=true;
-  // Read all cost inputs and save
   var inputs=document.querySelectorAll('.po-cost-inp');
   if(!inputs.length){toast('لا توجد منتجات',true);return;}
-  var tot=0;
+  var tot=0;var saved=0;var errors=[];
   for(var i=0;i<inputs.length;i++){
     var inp=inputs[i];
     var cost=parseFloat(inp.value)||0;
-    var qty=parseFloat(inp.closest('tr').cells[1].textContent)||0;
+    var tr=inp.closest('tr');
+    var qtyText=tr?tr.cells[1].textContent.trim():'0';
+    var qty=parseFloat(qtyText)||0;
     tot+=qty*cost;
-    await db.from('po_items').update({unit_cost:cost}).eq('id',inp.dataset.id);
+    var itemId=inp.dataset.id;
+    if(!itemId){errors.push('missing id');continue;}
+    var{error:ue}=await db.from('po_items').update({unit_cost:cost}).eq('id',itemId);
+    if(ue)errors.push(ue.message);
+    else saved++;
   }
+  if(errors.length){toast('خطأ: '+errors[0],true);return;}
   var{data:currentPO}=await db.from('purchase_orders').select('status').eq('id',poId).single();
   var newStatus=(currentPO&&currentPO.status==='draft')?'pending':(currentPO?currentPO.status:'pending');
-  await db.from('purchase_orders').update({status:newStatus,total:tot}).eq('id',poId);
-  window._confirmingPO=false;
-  toast('تم تأكيد طلب الشراء بنجاح');
+  var{error:pe}=await db.from('purchase_orders').update({status:newStatus,total:tot}).eq('id',poId);
+  if(pe){toast('خطأ: '+pe.message,true);return;}
+  toast('تم حفظ '+saved+' منتج - الإجمالي: '+tot.toLocaleString()+' ج.م');
   document.querySelectorAll('.po-modal').forEach(function(e){e.remove();});
   loadPur();
 }
