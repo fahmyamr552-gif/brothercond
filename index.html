@@ -1336,7 +1336,7 @@ async function openTask(id){
     const set=(id,val)=>{const e=S(id);if(e)e.textContent=val;};
     const setV=(id,val)=>{const e=S(id);if(e)e.value=val;};
     const setD=(id,val)=>{const e=S(id);if(e)e.style.display=val;};
-    if(S('delbtn'))S('delbtn').style.display=can('delete')?'':'none';
+    if(S('delbtn'))S('delbtn').style.display=(CU&&CU.role==='owner')?'':'none';
     set('ptitle',CT.task_num);
     set('tdtitle',CT.task_num+' - '+(CT.customer_name||'-'));
     // Status buttons
@@ -2043,6 +2043,7 @@ function handleUp(input){const grid=document.getElementById('pgr');Array.from(in
 
 async function deleteTask(){
   if(!CT)return;
+  if(!CU||CU.role!=='owner'){toast('فقط المالك يمكنه حذف الطلبات',true);return;}
   if(!confirm(t('taskdelconfirm')+' '+CT.task_num))return;
   // Restore inventory for sales tasks
   if(CT.type==='sales'){
@@ -4238,7 +4239,7 @@ async function finTab(type,btn){
     return;
   }
   if(type==='outstanding'){
-    var{data:tasks2}=await db.from('tasks').select('id,task_num,customer_name,date,type,branch,salesperson,pay_status');
+    var{data:tasks2}=await db.from('tasks').select('id,task_num,customer_name,date,type,branch,salesperson,pay_status,status').neq('status','cancelled');
     var{data:prods2}=await db.from('task_products').select('task_id,qty,price');
     var{data:pays2}=await db.from('payments').select('task_id,amount,approved');
     tasks2=tasks2||[];prods2=prods2||[];pays2=pays2||[];
