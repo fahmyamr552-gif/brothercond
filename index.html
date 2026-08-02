@@ -4239,7 +4239,7 @@ async function finTab(type,btn){
     return;
   }
   if(type==='outstanding'){
-    var{data:tasks2}=await db.from('tasks').select('id,task_num,customer_name,date,type,branch,salesperson,pay_status,status').neq('status','cancelled');
+    var{data:tasks2}=await db.from('tasks').select('id,task_num,customer_name,date,type,branch,salesperson,pay_status,status').neq('status','cancel');
     var{data:prods2}=await db.from('task_products').select('task_id,qty,price');
     var{data:pays2}=await db.from('payments').select('task_id,amount,approved');
     tasks2=tasks2||[];prods2=prods2||[];pays2=pays2||[];
@@ -4254,7 +4254,7 @@ async function finTab(type,btn){
   // Sales / Maintenance / Installation / Uninstall / All
   var typeFilter=type==='sales'?null:({'maintenance':'maintenance','installation':'installation','uninstall':'uninstall'}[type]||null);
   var salesTypes=type==='sales'?['sales']:null;
-  var q=db.from('tasks').select('id,task_num,customer_name,date,type,branch,salesperson,pay_status').neq('status','cancelled').order('date',{ascending:false});
+  var q=db.from('tasks').select('id,task_num,customer_name,date,type,branch,salesperson,pay_status').neq('status','cancel').order('date',{ascending:false});
   if(salesTypes)q=q.in('type',salesTypes);
   else if(typeFilter)q=q.eq('type',typeFilter);
   var{data:tasks3}=await q;tasks3=tasks3||[];
@@ -4942,9 +4942,9 @@ async function loadPlan(){
   var maintTypes=['maintenance'];
   var instTypes=['installation','uninstall','uninstall_install','inspection','sales','pull'];
   // Fetch regular tasks by contract date (excluding sales type)
-  var{data:regularTasks}=await db.from('tasks').select('id,task_num,type,description,salesperson,time_slot,status,pay_status,branch,customer_name,installation_date,address,customer_id,customers(address)').eq('date',date).neq('status','cancelled').neq('type','sales').order('time_slot',{ascending:true,nullsFirst:false});
+  var{data:regularTasks}=await db.from('tasks').select('id,task_num,type,description,salesperson,time_slot,status,pay_status,branch,customer_name,installation_date,address,customer_id,customers(address)').eq('date',date).neq('status','cancel').neq('type','sales').order('time_slot',{ascending:true,nullsFirst:false});
   // Fetch sales tasks by installation date
-  var{data:salesTasks}=await db.from('tasks').select('id,task_num,type,description,salesperson,time_slot,status,pay_status,branch,customer_name,installation_date,address,customer_id,customers(address)').eq('installation_date',date).eq('type','sales').neq('status','cancelled').order('time_slot',{ascending:true,nullsFirst:false});
+  var{data:salesTasks}=await db.from('tasks').select('id,task_num,type,description,salesperson,time_slot,status,pay_status,branch,customer_name,installation_date,address,customer_id,customers(address)').eq('installation_date',date).eq('type','sales').neq('status','cancel').order('time_slot',{ascending:true,nullsFirst:false});
   var tasks=(regularTasks||[]).concat(salesTasks||[]);
   var taskIds=tasks.map(function(t){return t.id;});
   var prodsMap={};var paysMap={};
