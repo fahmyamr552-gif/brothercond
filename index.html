@@ -4254,7 +4254,7 @@ async function finTab(type,btn){
   // Sales / Maintenance / Installation / Uninstall / All
   var typeFilter=type==='sales'?null:({'maintenance':'maintenance','installation':'installation','uninstall':'uninstall'}[type]||null);
   var salesTypes=type==='sales'?['sales']:null;
-  var q=db.from('tasks').select('id,task_num,customer_name,date,type,branch,salesperson,pay_status').order('date',{ascending:false});
+  var q=db.from('tasks').select('id,task_num,customer_name,date,type,branch,salesperson,pay_status').neq('status','cancelled').order('date',{ascending:false});
   if(salesTypes)q=q.in('type',salesTypes);
   else if(typeFilter)q=q.eq('type',typeFilter);
   var{data:tasks3}=await q;tasks3=tasks3||[];
