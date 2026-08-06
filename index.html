@@ -125,6 +125,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     <div class="ni" id="ni-plan" onclick="openPlan()">&#9632; <span>خطة يومية</span></div>
     <div class="ni" id="ni-fb" onclick="openFeedback()">&#9632; <span>آراء العملاء</span></div>
     <div class="ni" id="ni-fu" onclick="openFollowup()">&#9632; <span>الاستكمالات</span></div>
+    <div class="ni" id="ni-ds" onclick="openDispatchOrders()">&#9632; <span>أوامر الصرف</span></div>
     <div class="ni" id="ni-inv" onclick="go('inv',this)">&#9632; <span data-t="inventory">Inventory</span></div>
     <div class="ni" id="ni-pur" onclick="go('pur',this)">&#9632; <span data-t="purchases">Purchases</span></div>
     <div class="ni" id="ni-fin" onclick="go('fin',this)">&#9632; <span data-t="finance">Finance</span></div>
@@ -580,6 +581,17 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
   <div id="fu-body"></div>
 </div>
 
+<div class="pg" id="pg-ds">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+    <span style="font-size:16px;font-weight:700">أوامر الصرف</span>
+  </div>
+  <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+    <button class="btn bs" id="ds-tab-pending" onclick="switchDsTab('pending')" style="background:#185FA5;color:#fff">بانتظار الموافقة</button>
+    <button class="btn bs" id="ds-tab-approved" onclick="switchDsTab('approved')">تم الاعتماد &#9989;</button>
+  </div>
+  <div id="ds-body"></div>
+</div>
+
 <!-- INVENTORY -->
 <div class="pg" id="pg-inv">
   <div style="display:flex;gap:8px;margin-bottom:16px">
@@ -1022,6 +1034,8 @@ function applyRole(){
   if(fbNav)fbNav.style.display=(CU&&(CU.role==='owner'||CU.role==='sales_feedback'))?'':'none';
   var fuNav=document.getElementById('ni-fu');
   if(fuNav)fuNav.style.display=(CU&&(CU.role==='owner'||CU.role==='admin'||CU.role==='salesperson'||CU.role==='sales_feedback'))?'':'none';
+  var dsNav=document.getElementById('ni-ds');
+  if(dsNav)dsNav.style.display=(CU&&(CU.role==='owner'||CU.role==='admin'||CU.role==='inventory_manager'))?'':'none';
 }
 function go(pg,el){
   document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));
@@ -1029,7 +1043,7 @@ function go(pg,el){
   const pge=document.getElementById('pg-'+pg);
   if(pge)pge.classList.add('on');
   if(el)el.classList.add('on');
-  const titlesMap={dash:'dashboard',tasks:'tasks',inv:'inventory','np':'addproduct',pur:'purchases','npo':'newpo',fin:'finance',cust:'customers','cd':'customer',sup:'suppliers','sd':'supplier',usr:'users',disp:'dispatches','nt':'newtask','td':'tasks',plan:'خطة يومية',fb:'آراء العملاء',fu:'الاستكمالات'};
+  const titlesMap={dash:'dashboard',tasks:'tasks',inv:'inventory','np':'addproduct',pur:'purchases','npo':'newpo',fin:'finance',cust:'customers','cd':'customer',sup:'suppliers','sd':'supplier',usr:'users',disp:'dispatches','nt':'newtask','td':'tasks',plan:'خطة يومية',fb:'آراء العملاء',fu:'الاستكمالات',ds:'أوامر الصرف'};
   const titles={}; Object.entries(titlesMap).forEach(([k,v])=>titles[k]=t(v));
   document.getElementById('ptitle').textContent=titles[pg]||pg;
   const ta=document.getElementById('tact');ta.innerHTML='';
@@ -5447,6 +5461,143 @@ async function markFollowupDone(taskId){
   loadFollowup();
 }
 // ── END FOLLOWUP ─────────────────────────────────────────────
+
+// ── DISPATCH ORDERS ──────────────────────────────────────────
+var _dsTab='pending';
+
+function openDispatchOrders(){
+  if(!CU||(CU.role!=='owner'&&CU.role!=='admin'&&CU.role!=='inventory_manager')){toast('غير مسموح',true);return;}
+  go('ds',document.getElementById('ni-ds'));
+  switchDsTab('pending');
+}
+
+function switchDsTab(tab){
+  _dsTab=tab;
+  ['pending','approved'].forEach(function(t){
+    var btn=document.getElementById('ds-tab-'+t);
+    if(btn){
+      if(t===tab){btn.style.background='#185FA5';btn.style.color='#fff';}
+      else{btn.style.background='';btn.style.color='';}
+    }
+  });
+  loadDispatchOrders();
+}
+
+async function loadDispatchOrders(){
+  var body=document.getElementById('ds-body');
+  if(!body)return;
+  body.innerHTML='<div style="text-align:center;padding:30px;color:#888">جاري التحميل...</div>';
+
+  var isApproved=_dsTab==='approved';
+  var{data:tasks}=await db.from('tasks').select('id,task_num,type,customer_name,date,branch,salesperson,dispatch_approved,dispatch_approved_by,dispatch_approved_at,dispatch_notes,customers(address)').in('type',['sales']).eq('dispatch_approved',isApproved).neq('status','cancel').order('date',{ascending:false});
+  tasks=tasks||[];
+
+  if(!tasks.length){body.innerHTML='<div style="text-align:center;padding:30px;color:#888">'+(isApproved?'لا توجد أوامر معتمدة':'لا توجد أوامر بانتظار الموافقة &#127881;')+'</div>';return;}
+
+  // Fetch AC products for these tasks
+  var taskIds=tasks.map(function(t){return t.id;});
+  var prodsMap={};
+  if(taskIds.length){
+    var{data:prods}=await db.from('task_products').select('task_id,name,qty,inventory_id').in('task_id',taskIds);
+    (prods||[]).forEach(function(p){
+      // Only AC units (have inventory_id linked)
+      if(!p.inventory_id)return;
+      if(!prodsMap[p.task_id])prodsMap[p.task_id]=[];
+      prodsMap[p.task_id].push(p);
+    });
+  }
+
+  var canApprove=CU&&(CU.role==='owner'||CU.role==='admin');
+  var html='<div style="display:flex;flex-direction:column;gap:10px">';
+  tasks.forEach(function(t){
+    var cu=t.customers||{};
+    var acs=prodsMap[t.id]||[];
+    var acList=acs.length?acs.map(function(p){return '&bull; '+p.name+' &times; '+p.qty;}).join('<br>'):'<span style="color:#aaa">لا توجد أجهزة</span>';
+    html+='<div style="background:#fff;border:1px solid '+(isApproved?'#d9ead3':'#f5d76e')+';border-radius:10px;padding:14px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:8px">'
+        +'<div>'
+          +'<div style="font-size:11px;font-weight:700;color:#1D9E75">'+t.task_num+'</div>'
+          +'<div style="font-weight:700">'+t.customer_name+'</div>'
+          +'<div style="font-size:11px;color:#888">'+(cu.address||'-')+(t.salesperson?' &middot; البائع: '+t.salesperson:'')+'</div>'
+        +'</div>'
+        +'<div style="font-size:11px;color:#888;text-align:left">'+t.date+'</div>'
+      +'</div>'
+      +'<div style="background:#f9f9f6;border-radius:8px;padding:10px;font-size:13px;margin-bottom:10px"><span style="color:#888;font-weight:700">الأجهزة:</span><br>'+acList+'</div>';
+    if(isApproved){
+      html+='<div style="background:#eafaf0;border-radius:8px;padding:8px;font-size:12px;margin-bottom:10px;color:#3B6D11"><b>لا مانع من الصرف</b> &mdash; اعتمد بواسطة: '+(t.dispatch_approved_by||'-')+(t.dispatch_approved_at?' في '+t.dispatch_approved_at.slice(0,10):'')+(t.dispatch_notes?'<br>ملاحظات: '+t.dispatch_notes:'')+'</div>'
+        +'<button data-tid="'+t.id+'" onclick="printDispatchOrder(this.dataset.tid)" style="background:#185FA5;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer">&#128438; طباعة أمر الصرف</button>';
+    }else if(canApprove){
+      html+='<div style="margin-bottom:8px"><input id="ds-note-'+t.id+'" placeholder="ملاحظات (اختياري)" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:12px;box-sizing:border-box"></div>'
+        +'<button data-tid="'+t.id+'" onclick="approveDispatch(this.dataset.tid)" style="background:#3B6D11;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer">&#10003; لا مانع من الصرف</button>';
+    }else{
+      html+='<div style="color:#854F0B;font-size:12px">&#9203; بانتظار موافقة الإدارة</div>';
+    }
+    html+='</div>';
+  });
+  html+='</div>';
+  body.innerHTML=html;
+}
+
+async function approveDispatch(taskId){
+  var noteEl=document.getElementById('ds-note-'+taskId);
+  var notes=noteEl?noteEl.value.trim():'';
+  var{error}=await db.from('tasks').update({
+    dispatch_approved:true,
+    dispatch_approved_by:CU?.full_name||CU?.username||'-',
+    dispatch_approved_at:new Date().toISOString(),
+    dispatch_notes:notes||null
+  }).eq('id',taskId);
+  if(error){toast('Error: '+error.message,true);return;}
+  toast('تم الاعتماد - لا مانع من الصرف');
+  loadDispatchOrders();
+}
+
+async function printDispatchOrder(taskId){
+  var{data:task}=await db.from('tasks').select('*,customers(address,phone)').eq('id',taskId).single();
+  if(!task){toast('Task not found',true);return;}
+  var cu=task.customers||{};
+  var{data:prods}=await db.from('task_products').select('name,qty,inventory_id').eq('task_id',taskId);
+  var acs=(prods||[]).filter(function(p){return p.inventory_id;});
+  var acRows=acs.map(function(p,i){
+    return '<tr><td style="border:1px solid #333;padding:8px;text-align:center">'+(i+1)+'</td><td style="border:1px solid #333;padding:8px">'+p.name+'</td><td style="border:1px solid #333;padding:8px;text-align:center">'+p.qty+'</td></tr>';
+  }).join('');
+
+  var area=document.createElement('div');
+  area.id='ds-print-overlay';
+  area.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:#fff;z-index:99999;overflow:auto;padding:30px;box-sizing:border-box;direction:rtl;font-family:Arial,sans-serif';
+  area.innerHTML='<div style="display:flex;justify-content:flex-end;gap:10px;margin-bottom:20px">'
+      +'<button onclick="window.print()" style="padding:8px 20px;background:#185FA5;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px">طباعة</button>'
+      +'<button onclick="var e=document.getElementById(\'ds-print-overlay\');if(e)e.remove()" style="padding:8px 20px;background:#888;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px">إغلاق</button>'
+    +'</div>'
+    +'<div style="max-width:700px;margin:0 auto;border:2px solid #333;padding:30px">'
+      +'<div style="text-align:center;margin-bottom:20px"><div style="font-size:22px;font-weight:700">برازر كوند للتكييف</div><div style="font-size:18px;font-weight:700;margin-top:8px;background:#f5c518;display:inline-block;padding:4px 20px;border-radius:6px">أمر صرف أجهزة</div></div>'
+      +'<div style="display:flex;justify-content:space-between;margin-bottom:16px;font-size:14px">'
+        +'<div><b>رقم الطلب:</b> '+task.task_num+'</div>'
+        +'<div><b>التاريخ:</b> '+task.date+'</div>'
+      +'</div>'
+      +'<div style="margin-bottom:8px;font-size:14px"><b>اسم العميل:</b> '+task.customer_name+'</div>'
+      +'<div style="margin-bottom:8px;font-size:14px"><b>العنوان:</b> '+(cu.address||'-')+'</div>'
+      +'<div style="margin-bottom:16px;font-size:14px"><b>البائع:</b> '+(task.salesperson||'-')+'</div>'
+      +'<table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:14px">'
+        +'<thead><tr style="background:#f0f0e8"><th style="border:1px solid #333;padding:8px;width:50px">#</th><th style="border:1px solid #333;padding:8px">الجهاز</th><th style="border:1px solid #333;padding:8px;width:80px">الكمية</th></tr></thead>'
+        +'<tbody>'+(acRows||'<tr><td colspan="3" style="border:1px solid #333;padding:8px;text-align:center;color:#888">لا توجد أجهزة</td></tr>')+'</tbody>'
+      +'</table>'
+      +'<div style="border:2px solid #3B6D11;border-radius:8px;padding:16px;margin-bottom:20px;background:#f0faf0">'
+        +'<div style="font-size:18px;font-weight:700;color:#3B6D11;text-align:center;margin-bottom:8px">&#10003; لا مانع من الصرف</div>'
+        +'<div style="font-size:13px;text-align:center">اعتمد بواسطة: <b>'+(task.dispatch_approved_by||'-')+'</b>'+(task.dispatch_approved_at?' &mdash; '+task.dispatch_approved_at.slice(0,10):'')+'</div>'
+        +(task.dispatch_notes?'<div style="font-size:12px;text-align:center;margin-top:6px;color:#666">'+task.dispatch_notes+'</div>':'')
+      +'</div>'
+      +'<div style="display:flex;justify-content:space-between;margin-top:40px;font-size:13px">'
+        +'<div style="text-align:center"><div style="border-top:1px solid #333;padding-top:6px;width:150px">توقيع المستلم</div></div>'
+        +'<div style="text-align:center"><div style="border-top:1px solid #333;padding-top:6px;width:150px">توقيع أمين المخزن</div></div>'
+      +'</div>'
+    +'</div>';
+  var styleEl=document.createElement('style');
+  styleEl.textContent='@media print{#ds-print-overlay>div:first-child{display:none}body>*:not(#ds-print-overlay){display:none}@page{size:A4;margin:10mm}}';
+  document.head.appendChild(styleEl);
+  document.body.appendChild(area);
+}
+// ── END DISPATCH ORDERS ──────────────────────────────────────
 </script>
 </body>
 </html>
