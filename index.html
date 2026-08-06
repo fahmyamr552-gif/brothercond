@@ -1,4 +1,4 @@
-<!DOCTYPE html><!-- v20260623_214330 -->
+<!DOCTYPE html><!-- v20260802_113700 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -124,6 +124,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     <div class="ni" id="ni-tasks" onclick="go('tasks',this)">&#9632; <span data-t="tasks">Tasks</span></div>
     <div class="ni" id="ni-plan" onclick="openPlan()">&#9632; <span>خطة يومية</span></div>
     <div class="ni" id="ni-fb" onclick="openFeedback()">&#9632; <span>آراء العملاء</span></div>
+    <div class="ni" id="ni-fu" onclick="openFollowup()">&#9632; <span>الاستكمالات</span></div>
     <div class="ni" id="ni-inv" onclick="go('inv',this)">&#9632; <span data-t="inventory">Inventory</span></div>
     <div class="ni" id="ni-pur" onclick="go('pur',this)">&#9632; <span data-t="purchases">Purchases</span></div>
     <div class="ni" id="ni-fin" onclick="go('fin',this)">&#9632; <span data-t="finance">Finance</span></div>
@@ -374,6 +375,10 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
         <input type="checkbox" id="cok" style="width:auto">
         <label for="cok" style="font-size:13px;cursor:pointer;color:#111" data-t="customerconfirmed">Customer confirmed & satisfied</label>
       </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:8px;background:#fff9e6;padding:8px;border-radius:8px;border:1px solid #f5d76e">
+        <input type="checkbox" id="cneedfollow" style="width:auto">
+        <label for="cneedfollow" style="font-size:13px;cursor:pointer;color:#854F0B;font-weight:600">&#9888;&#65039; يحتاج استكمال (طلب متابعة)</label>
+      </div>
       <div style="display:flex;justify-content:flex-end;margin-top:10px">
         <button class="btn bp" onclick="saveComp()">&#10003; <span data-t="save">Save completion</span></button>
       </div>
@@ -562,6 +567,17 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     <button class="btn bs" id="fb-tab-unsatisfied" onclick="switchFbTab('unsatisfied')">غير الراضيين &#10060;</button>
   </div>
   <div id="fb-body"></div>
+</div>
+
+<div class="pg" id="pg-fu">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+    <span style="font-size:16px;font-weight:700">الاستكمالات</span>
+  </div>
+  <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+    <button class="btn bs" id="fu-tab-pending" onclick="switchFuTab('pending')" style="background:#185FA5;color:#fff">يحتاج استكمال</button>
+    <button class="btn bs" id="fu-tab-done" onclick="switchFuTab('done')">تم الاستكمال &#9989;</button>
+  </div>
+  <div id="fu-body"></div>
 </div>
 
 <!-- INVENTORY -->
@@ -1004,6 +1020,8 @@ function applyRole(){
 
   var fbNav=document.getElementById('ni-fb');
   if(fbNav)fbNav.style.display=(CU&&(CU.role==='owner'||CU.role==='sales_feedback'))?'':'none';
+  var fuNav=document.getElementById('ni-fu');
+  if(fuNav)fuNav.style.display=(CU&&(CU.role==='owner'||CU.role==='admin'||CU.role==='salesperson'||CU.role==='sales_feedback'))?'':'none';
 }
 function go(pg,el){
   document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));
@@ -1011,7 +1029,7 @@ function go(pg,el){
   const pge=document.getElementById('pg-'+pg);
   if(pge)pge.classList.add('on');
   if(el)el.classList.add('on');
-  const titlesMap={dash:'dashboard',tasks:'tasks',inv:'inventory','np':'addproduct',pur:'purchases','npo':'newpo',fin:'finance',cust:'customers','cd':'customer',sup:'suppliers','sd':'supplier',usr:'users',disp:'dispatches','nt':'newtask','td':'tasks',plan:'خطة يومية',fb:'آراء العملاء'};
+  const titlesMap={dash:'dashboard',tasks:'tasks',inv:'inventory','np':'addproduct',pur:'purchases','npo':'newpo',fin:'finance',cust:'customers','cd':'customer',sup:'suppliers','sd':'supplier',usr:'users',disp:'dispatches','nt':'newtask','td':'tasks',plan:'خطة يومية',fb:'آراء العملاء',fu:'الاستكمالات'};
   const titles={}; Object.entries(titlesMap).forEach(([k,v])=>titles[k]=t(v));
   document.getElementById('ptitle').textContent=titles[pg]||pg;
   const ta=document.getElementById('tact');ta.innerHTML='';
@@ -1956,6 +1974,7 @@ async function saveComp(){
     technician_name:techName2,
     technician_note:document.getElementById('ctn').value,
     customer_confirmed:document.getElementById('cok').checked,
+    needs_followup:document.getElementById('cneedfollow')?document.getElementById('cneedfollow').checked:false,
     status:'done'
   }).eq('id',CT.id);
   if(error){toast('Error: '+error.message,true);return;}
@@ -4792,16 +4811,16 @@ function onPS2(sel){
 }
 
 async function saveProd(){
-  var br=document.getElementById('nbr')?.value?.trim();
-  var md=document.getElementById('nmd')?.value?.trim();
-  var hp=document.getElementById('nhp')?.value?.trim();
+  var br=document.getElementById('npbr')?.value?.trim();
+  var md=document.getElementById('npmd')?.value?.trim();
+  var hp=document.getElementById('nphp')?.value?.trim();
   if(!br||!md||!hp){toast('Fill brand, model and capacity',true);return;}
   var pid=document.getElementById('np-edit-id')?.value;
-  var data={brand:br,model:md,hp:hp,unit_type:document.getElementById('nut')?.value,cooling:document.getElementById('nco')?.value,ac_type:document.getElementById('nat')?.value,qty:parseInt(document.getElementById('niq')?.value)||0,price:parseFloat(document.getElementById('nup')?.value)||0,cost:parseFloat(document.getElementById('nuc')?.value)||0,low_stock_alert:parseInt(document.getElementById('nla')?.value)||1};
+  var data={brand:br,model:md,hp:hp,unit_type:document.getElementById('nput')?.value,cooling:document.getElementById('npco')?.value,ac_type:document.getElementById('npac')?.value,qty:parseInt(document.getElementById('npqt')?.value)||0,price:parseFloat(document.getElementById('nppr')?.value)||0,low_stock_alert:parseInt(document.getElementById('nplw')?.value)||1};
   var{error}=pid?await db.from('inventory').update(data).eq('id',pid):await db.from('inventory').insert(data);
   if(error){toast('Error: '+error.message,true);return;}
   toast(pid?t('productupdated'):t('productsaved'));
-  document.getElementById('np-edit-id').value='';
+  var editId=document.getElementById('np-edit-id');if(editId)editId.value='';
   go('inv',document.getElementById('ni-inv'));
 }
 
@@ -5361,6 +5380,73 @@ function sendFbThanks(phone,name){
   window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(msg),'_blank');
 }
 // ── END FEEDBACK ─────────────────────────────────────────────
+
+// ── FOLLOWUP SECTION ─────────────────────────────────────────
+var _fuTab='pending';
+
+function openFollowup(){
+  if(!CU||(CU.role!=='owner'&&CU.role!=='admin'&&CU.role!=='salesperson'&&CU.role!=='sales_feedback')){toast('غير مسموح',true);return;}
+  go('fu',document.getElementById('ni-fu'));
+  switchFuTab('pending');
+}
+
+function switchFuTab(tab){
+  _fuTab=tab;
+  ['pending','done'].forEach(function(t){
+    var btn=document.getElementById('fu-tab-'+t);
+    if(btn){
+      if(t===tab){btn.style.background='#185FA5';btn.style.color='#fff';}
+      else{btn.style.background='';btn.style.color='';}
+    }
+  });
+  loadFollowup();
+}
+
+async function loadFollowup(){
+  var body=document.getElementById('fu-body');
+  if(!body)return;
+  body.innerHTML='<div style="text-align:center;padding:30px;color:#888">جاري التحميل...</div>';
+
+  var isPending=_fuTab==='pending';
+  var{data:tasks}=await db.from('tasks').select('id,task_num,type,customer_name,customer_id,date,branch,completion_notes,technician_name,followup_notes,customers(address)').eq('needs_followup',true).eq('followup_done',!isPending).order('date',{ascending:false});
+  tasks=tasks||[];
+
+  if(!tasks.length){body.innerHTML='<div style="text-align:center;padding:30px;color:#888">'+(isPending?'لا توجد استكمالات معلقة &#127881;':'لا توجد استكمالات مكتملة')+'</div>';return;}
+
+  var html='<div style="display:flex;flex-direction:column;gap:10px">';
+  tasks.forEach(function(t){
+    var cu=t.customers||{};
+    html+='<div style="background:#fff;border:1px solid '+(isPending?'#f5d76e':'#d9ead3')+';border-radius:10px;padding:14px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:8px">'
+        +'<div>'
+          +'<div style="font-size:11px;font-weight:700;color:#1D9E75">'+t.task_num+' <span style="font-size:10px;color:#888;font-weight:500">'+(typeLabels[t.type]||t.type)+'</span></div>'
+          +'<div style="font-weight:700">'+t.customer_name+'</div>'
+          +'<div style="font-size:11px;color:#888">'+(cu.address||'-')+'</div>'
+        +'</div>'
+        +'<div style="font-size:11px;color:#888;text-align:left">'+t.date+(t.technician_name?'<br>الفني: '+t.technician_name:'')+'</div>'
+      +'</div>'
+      +(t.completion_notes?'<div style="background:#f9f9f6;border-radius:8px;padding:10px;font-size:12px;margin-bottom:10px"><span style="color:#888;font-weight:700">تقرير الإنجاز (المطلوب):</span> '+t.completion_notes+'</div>':'')
+      +(!isPending&&t.followup_notes?'<div style="background:#eafaf0;border-radius:8px;padding:10px;font-size:12px;margin-bottom:10px"><span style="color:#3B6D11;font-weight:700">ملاحظات الاستكمال:</span> '+t.followup_notes+'</div>':'');
+    if(isPending){
+      html+='<div style="margin-bottom:8px"><textarea id="fu-note-'+t.id+'" rows="2" placeholder="اكتب ما تم في الاستكمال..." style="width:100%;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:12px;box-sizing:border-box;resize:vertical"></textarea></div>'
+        +'<button data-tid="'+t.id+'" onclick="markFollowupDone(this.dataset.tid)" style="background:#3B6D11;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer">&#10003; تم الاستكمال</button>';
+    }
+    html+='</div>';
+  });
+  html+='</div>';
+  body.innerHTML=html;
+}
+
+async function markFollowupDone(taskId){
+  var noteEl=document.getElementById('fu-note-'+taskId);
+  var notes=noteEl?noteEl.value.trim():'';
+  if(!notes){toast('اكتب ملاحظات الاستكمال أولاً',true);return;}
+  var{error}=await db.from('tasks').update({followup_done:true,followup_notes:notes}).eq('id',taskId);
+  if(error){toast('Error: '+error.message,true);return;}
+  toast('تم إغلاق الاستكمال');
+  loadFollowup();
+}
+// ── END FOLLOWUP ─────────────────────────────────────────────
 </script>
 </body>
 </html>
