@@ -122,10 +122,10 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
   <div class="nv">
     <div class="ni on" id="ni-dash" onclick="go('dash',this)">&#9632; <span data-t="dashboard">Dashboard</span></div>
     <div class="ni" id="ni-tasks" onclick="go('tasks',this)">&#9632; <span data-t="tasks">Tasks</span></div>
-    <div class="ni" id="ni-plan" onclick="openPlan()">&#9632; <span>خطة يومية</span></div>
-    <div class="ni" id="ni-fb" onclick="openFeedback()">&#9632; <span>آراء العملاء</span></div>
-    <div class="ni" id="ni-fu" onclick="openFollowup()">&#9632; <span>الاستكمالات</span></div>
-    <div class="ni" id="ni-ds" onclick="openDispatchOrders()">&#9632; <span>أوامر الصرف</span></div>
+    <div class="ni" id="ni-plan" onclick="openPlan()">&#9632; <span data-t="navplan">خطة يومية</span></div>
+    <div class="ni" id="ni-fb" onclick="openFeedback()">&#9632; <span data-t="navfeedback">آراء العملاء</span></div>
+    <div class="ni" id="ni-fu" onclick="openFollowup()">&#9632; <span data-t="navfollowup">الاستكمالات</span></div>
+    <div class="ni" id="ni-ds" onclick="openDispatchOrders()">&#9632; <span data-t="navdispatch">أوامر الصرف</span></div>
     <div class="ni" id="ni-inv" onclick="go('inv',this)">&#9632; <span data-t="inventory">Inventory</span></div>
     <div class="ni" id="ni-pur" onclick="go('pur',this)">&#9632; <span data-t="purchases">Purchases</span></div>
     <div class="ni" id="ni-fin" onclick="go('fin',this)">&#9632; <span data-t="finance">Finance</span></div>
@@ -5613,6 +5613,19 @@ const POL_AR=`تسعير الأنابيب: 1.5-2.25 حصان 950 ج.م/م، 3 ح
 window.T={
   en:{
     
+    navfeedback:'Feedback',navfollowup:'Follow-ups',navdispatch:'Dispatch Orders',navplan:'Daily Plan',
+    fbtitle:'Customer Feedback',fbpending:'Awaiting Rating',fbsatisfied:'Satisfied',fbunsatisfied:'Unsatisfied',
+    fbratecc:'Call Center',fbratetech:'Technicians',fbratework:'Work Quality',fbnotes:'Customer Notes',
+    fbsat:'Satisfied',fbunsat:'Unsatisfied',fbsave:'Save Rating',fbthanks:'Thanks + Review Link',
+    fbfollowedup:'Followed Up',fbwaiting:'No pending ratings',fbnoresults:'No results',
+    futitle:'Follow-ups',fupending:'Needs Follow-up',fudone:'Done',funotes:'Follow-up notes...',
+    fudonebtn:'Follow-up Done',funopending:'No pending follow-ups',funeeds:'Needs Follow-up',
+    dstitle:'Dispatch Orders',dspending:'Awaiting Approval',dsapproved:'Approved',
+    dsapprovebtn:'No Objection to Dispatch',dsprint:'Print Dispatch Order',dswaiting:'Awaiting management approval',
+    dsdevices:'Devices',dsnopending:'No orders awaiting approval',dsnoappr:'No approved orders',
+    needfollow:'Needs Follow-up (request)',
+
+    
     dashboard:'Dashboard',tasks:'Tasks',inventory:'Inventory',purchases:'Purchases',
     finance:'Finance',customers:'Customers',suppliers:'Suppliers',users:'Users',
     signout:'Sign out',signin:'Sign in',username:'Username',password:'Password',
@@ -5695,6 +5708,18 @@ window.T={
   },
   ar:{
     
+    navfeedback:'آراء العملاء',navfollowup:'الاستكمالات',navdispatch:'أوامر الصرف',navplan:'خطة يومية',
+    fbtitle:'آراء العملاء',fbpending:'بانتظار التقييم',fbsatisfied:'الراضيين',fbunsatisfied:'غير الراضيين',
+    fbratecc:'خدمة العملاء',fbratetech:'الفنيين',fbratework:'جودة العمل',fbnotes:'ملاحظات العميل',
+    fbsat:'راضي',fbunsat:'غير راضي',fbsave:'حفظ التقييم',fbthanks:'شكر + رابط التقييم',
+    fbfollowedup:'تمت المتابعة',fbwaiting:'لا توجد طلبات بانتظار التقييم',fbnoresults:'لا توجد نتائج',
+    futitle:'الاستكمالات',fupending:'يحتاج استكمال',fudone:'تم الاستكمال',funotes:'اكتب ما تم في الاستكمال...',
+    fudonebtn:'تم الاستكمال',funopending:'لا توجد استكمالات معلقة',funeeds:'يحتاج استكمال',
+    dstitle:'أوامر الصرف',dspending:'بانتظار الموافقة',dsapproved:'تم الاعتماد',
+    dsapprovebtn:'لا مانع من الصرف',dsprint:'طباعة أمر الصرف',dswaiting:'بانتظار موافقة الإدارة',
+    dsdevices:'الأجهزة',dsnopending:'لا توجد أوامر بانتظار الموافقة',dsnoappr:'لا توجد أوامر معتمدة',
+    needfollow:'يحتاج استكمال (طلب متابعة)',
+
     dashboard:'الرئيسية',tasks:'المهام',inventory:'المخزون',purchases:'المشتريات',
     finance:'المالية',customers:'العملاء',suppliers:'الموردون',users:'المستخدمون',
     signout:'تسجيل الخروج',signin:'تسجيل الدخول',username:'اسم المستخدم',password:'كلمة المرور',
