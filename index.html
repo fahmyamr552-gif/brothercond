@@ -5805,6 +5805,7 @@ window.T={
 LANG='en';
 function setLang(l,btn){
   LANG=l;
+  try{localStorage.setItem('bc_lang',l);}catch(e){}
   document.querySelectorAll('.lbtn').forEach(function(b){b.classList.remove('on');});
   if(btn)btn.classList.add('on');
   var app=document.getElementById('app');
