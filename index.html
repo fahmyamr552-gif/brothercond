@@ -5870,6 +5870,8 @@ function applyTranslations(){
 // Auto-restore login on page load/refresh
 (function restoreSession(){
   try{
+    var savedLang=localStorage.getItem('bc_lang');
+    if(savedLang&&savedLang!==LANG){var langBtn=document.querySelector('.lbtn[onclick*="'+savedLang+'"]');setLang(savedLang,langBtn);}
     const saved=localStorage.getItem('bc_user');
     if(!saved)return;
     CU=JSON.parse(saved);
