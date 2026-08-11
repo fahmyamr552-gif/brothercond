@@ -1033,7 +1033,7 @@ function applyRole(){
   var fbNav=document.getElementById('ni-fb');
   if(fbNav)fbNav.style.display=(CU&&(CU.role==='owner'||CU.role==='sales_feedback'))?'':'none';
   var fuNav=document.getElementById('ni-fu');
-  if(fuNav)fuNav.style.display=(CU&&(CU.role==='owner'||CU.role==='admin'||CU.role==='salesperson'||CU.role==='sales_feedback'))?'':'none';
+  if(fuNav)fuNav.style.display=(CU&&(CU.role==='owner'||CU.role==='admin'||CU.role==='salesperson'||CU.role==='sales_feedback'||CU.role==='inventory_manager'))?'':'none';
   var dsNav=document.getElementById('ni-ds');
   if(dsNav)dsNav.style.display=(CU&&(CU.role==='owner'||CU.role==='admin'||CU.role==='inventory_manager'))?'':'none';
 }
@@ -5399,7 +5399,7 @@ function sendFbThanks(phone,name){
 var _fuTab='pending';
 
 function openFollowup(){
-  if(!CU||(CU.role!=='owner'&&CU.role!=='admin'&&CU.role!=='salesperson'&&CU.role!=='sales_feedback')){toast('غير مسموح',true);return;}
+  if(!CU||(CU.role!=='owner'&&CU.role!=='admin'&&CU.role!=='salesperson'&&CU.role!=='sales_feedback'&&CU.role!=='inventory_manager')){toast('غير مسموح',true);return;}
   go('fu',document.getElementById('ni-fu'));
   switchFuTab('pending');
 }
