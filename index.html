@@ -5867,11 +5867,25 @@ function applyTranslations(){
   if(tact){var firstBtn=tact.querySelector('button');if(firstBtn&&firstBtn._tkey)firstBtn.textContent='+ '+t(firstBtn._tkey);}
 }
 
+// Restore saved language on page load
+(function restoreLang(){
+  try{
+    var savedLang=localStorage.getItem('bc_lang');
+    if(savedLang&&(savedLang==='ar'||savedLang==='en')){
+      var btns=document.querySelectorAll('.lbtn');
+      var targetBtn=null;
+      btns.forEach(function(b){
+        var oc=b.getAttribute('onclick')||'';
+        if(oc.indexOf("'"+savedLang+"'")>=0)targetBtn=b;
+      });
+      setLang(savedLang,targetBtn);
+    }
+  }catch(e){console.log('Lang restore error:',e);}
+})();
+
 // Auto-restore login on page load/refresh
 (function restoreSession(){
   try{
-    var savedLang=localStorage.getItem('bc_lang');
-    if(savedLang&&savedLang!==LANG){var langBtn=document.querySelector('.lbtn[onclick*="'+savedLang+'"]');setLang(savedLang,langBtn);}
     const saved=localStorage.getItem('bc_user');
     if(!saved)return;
     CU=JSON.parse(saved);
