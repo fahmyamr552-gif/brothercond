@@ -2329,6 +2329,10 @@ function openNT(){
   document.getElementById('csg').style.display='none';
   document.getElementById('ntwn').style.display='none';
   document.getElementById('ntds').value='';
+  var taskAddrInp=document.getElementById('nt-task-address');if(taskAddrInp)taskAddrInp.value='';
+  var addrBlockInner=document.getElementById('nt-addr-block-inner');if(addrBlockInner)addrBlockInner.innerHTML='';
+  var fromA=document.getElementById('nt-addr-from');if(fromA)fromA.value='';
+  var toA=document.getElementById('nt-addr-to');if(toA)toA.value='';
   document.getElementById('ntdate').value=new Date().toISOString().slice(0,10);
   var taxToggle=document.getElementById('tax-toggle');
   if(taxToggle)taxToggle.checked=true;
