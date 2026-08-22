@@ -4319,9 +4319,9 @@ async function returnProducts(poId){
 
 async function loadFinStats(){
   try{
-    var r1=await db.from('tasks').select('id,date,status').neq('status','cancel');
-    var r2=await db.from('task_products').select('task_id,qty,price');
-    var r3=await db.from('payments').select('task_id,amount,approved');
+    var r1=await db.from('tasks').select('id,date,status').neq('status','cancel').limit(10000);
+    var r2=await db.from('task_products').select('task_id,qty,price').limit(20000);
+    var r3=await db.from('payments').select('task_id,amount,approved').limit(20000);
     var tasks=r1.data||[];var prods=r2.data||[];var pays=r3.data||[];
     var grand=function(id){return prods.filter(function(p){return p.task_id===id;}).reduce(function(a,p){return a+p.qty*p.price;},0);};
     var paidFn=function(id){return pays.filter(function(p){return p.task_id===id&&p.approved!==false;}).reduce(function(a,p){return a+p.amount;},0);};
@@ -4366,9 +4366,9 @@ async function finTab(type,btn){
     return;
   }
   if(type==='outstanding'){
-    var{data:tasks2}=await db.from('tasks').select('id,task_num,customer_name,date,type,branch,salesperson,pay_status,status').neq('status','cancel');
-    var{data:prods2}=await db.from('task_products').select('task_id,qty,price');
-    var{data:pays2}=await db.from('payments').select('task_id,amount,approved');
+    var{data:tasks2}=await db.from('tasks').select('id,task_num,customer_name,date,type,branch,salesperson,pay_status,status').neq('status','cancel').limit(10000);
+    var{data:prods2}=await db.from('task_products').select('task_id,qty,price').limit(20000);
+    var{data:pays2}=await db.from('payments').select('task_id,amount,approved').limit(20000);
     tasks2=tasks2||[];prods2=prods2||[];pays2=pays2||[];
     var grand2=function(id){return(prods2||[]).filter(function(p){return p.task_id===id;}).reduce(function(a,p){return a+p.qty*p.price;},0);};
     var paid2=function(id){return(pays2||[]).filter(function(p){return p.task_id===id&&p.approved!==false;}).reduce(function(a,p){return a+p.amount;},0);};
@@ -5744,11 +5744,11 @@ async function loadDailyReport(dateStr){
 
   try{
     // Fetch tasks for this date
-    var{data:allTasks}=await db.from('tasks').select('id,task_num,type,customer_name,date,branch,salesperson,status,technician_name,created_at,customers(address)');
+    var{data:allTasks}=await db.from('tasks').select('id,task_num,type,customer_name,date,installation_date,branch,salesperson,status,technician_name,created_at,customers(address)').limit(10000);
     allTasks=allTasks||[];
-    var{data:allProds}=await db.from('task_products').select('task_id,qty,price');
+    var{data:allProds}=await db.from('task_products').select('task_id,qty,price').limit(20000);
     allProds=allProds||[];
-    var{data:allPays}=await db.from('payments').select('task_id,amount,method,approved,created_at');
+    var{data:allPays}=await db.from('payments').select('task_id,amount,method,approved,created_at').limit(20000);
     allPays=allPays||[];
 
     var grand=function(id){return allProds.filter(function(p){return p.task_id===id;}).reduce(function(a,p){return a+p.qty*p.price;},0);};
@@ -5756,7 +5756,7 @@ async function loadDailyReport(dateStr){
     var payStatus=function(id){var g=grand(id),p=paidFn(id);if(g<=0)return'-';if(p<=0)return'unpaid';if(p<g)return'partial';return'paid';};
 
     // Tasks with this date (completed/done work)
-    var dayTasks=allTasks.filter(function(t){return t.date===dateStr;});
+    var dayTasks=allTasks.filter(function(t){if(t.type==='sales'||t.type==='بيع مباشر'){return t.installation_date===dateStr;}return t.date===dateStr;});
     var doneTasks=dayTasks.filter(function(t){return t.status==='done'||t.status==='completed'||t.status==='field_done';});
     var cancelledTasks=dayTasks.filter(function(t){return t.status==='cancel';});
 
