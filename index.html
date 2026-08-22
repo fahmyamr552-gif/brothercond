@@ -3881,6 +3881,17 @@ async function loadPur(){
   body.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:#888">'+t('loadin')+'</td></tr>';
   var{data:pos}=await db.from('purchase_orders').select('*').order('created_at',{ascending:false});
   pos=pos||[];
+  var poItemsMap={};
+  try{
+    var poIds=pos.map(function(p){return p.id;});
+    if(poIds.length){
+      var itemsRes=await db.from('po_items').select('po_id,product_name,inventory_id,qty').in('po_id',poIds);
+      (itemsRes.data||[]).forEach(function(it){
+        if(!poItemsMap[it.po_id])poItemsMap[it.po_id]=[];
+        poItemsMap[it.po_id].push(it);
+      });
+    }
+  }catch(e){}
   if(!pos.length){body.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:#888">'+t('nopos')+'</td></tr>';return;}
   var sids=[...new Set(pos.map(function(p){return p.supplier_id;}).filter(Boolean))];
   var snMap={};
@@ -3902,11 +3913,18 @@ async function loadPur(){
     tr.innerHTML='<td style="padding:8px 10px;font-weight:700;color:#1D9E75">'+po.po_num+'</td>'
       +'<td style="padding:8px 10px">'+(snMap[po.supplier_id]||po.supplier_name||'-')+'</td>'
       +'<td style="padding:8px 10px">'+po.date+'</td>'
-      +'<td style="padding:8px 10px;text-align:center">'+(po.item_count||'-')+' items</td>'
+      +'<td style="padding:8px 10px;text-align:center">'+((poItemsMap[po.id]||[]).length||po.item_count||'-')+' items</td>'
       +'<td style="padding:8px 10px;font-weight:700">'+f(po.total)+'</td>'
       +'<td style="padding:8px 10px"><span style="font-size:11px;padding:2px 8px;border-radius:4px;font-weight:700;background:'+sc+'22;color:'+sc+'">'+sl+'</span></td>'
       +'<td style="padding:8px 10px">'+confirmBtn+retBtn+delBtn+rcvBtn+'</td>';
     body.appendChild(tr);
+    var prevItems=poItemsMap[po.id]||[];
+    if(prevItems.length){
+      var prodNames=prevItems.map(function(it){return (it.product_name||'-')+(it.qty?' ('+it.qty+')':'');}).join(' • ');
+      var prevTr=document.createElement('tr');
+      prevTr.innerHTML='<td colspan="7" style="padding:2px 14px 10px;font-size:11px;color:#888;border-bottom:1px solid #f0f0e8">📦 '+prodNames+'</td>';
+      body.appendChild(prevTr);
+    }
   });
 }
 
