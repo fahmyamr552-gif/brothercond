@@ -3885,8 +3885,16 @@ async function loadPur(){
   try{
     var poIds=pos.map(function(p){return p.id;});
     if(poIds.length){
-      var itemsRes=await db.from('po_items').select('po_id,product_name,inventory_id,qty').in('po_id',poIds);
-      (itemsRes.data||[]).forEach(function(it){
+      var itemsRes=await db.from('po_items').select('po_id,product_name,inventory_id,spare_part_id,qty').in('po_id',poIds);
+      var itemsList=itemsRes.data||[];
+      // Resolve inventory names
+      var invIds2=itemsList.map(function(it){return it.inventory_id;}).filter(Boolean);
+      var spIds2=itemsList.map(function(it){return it.spare_part_id;}).filter(Boolean);
+      var invNameMap={};var spNameMap={};
+      if(invIds2.length){var ivr=await db.from('inventory').select('id,brand,model,hp').in('id',invIds2);(ivr.data||[]).forEach(function(iv){invNameMap[iv.id]=[iv.brand,iv.model,iv.hp].filter(Boolean).join(' ');});}
+      if(spIds2.length){var spr=await db.from('spare_parts').select('id,name').in('id',spIds2);(spr.data||[]).forEach(function(sp){spNameMap[sp.id]=sp.name;});}
+      itemsList.forEach(function(it){
+        it._name=it.product_name||invNameMap[it.inventory_id]||spNameMap[it.spare_part_id]||'-';
         if(!poItemsMap[it.po_id])poItemsMap[it.po_id]=[];
         poItemsMap[it.po_id].push(it);
       });
@@ -3920,7 +3928,7 @@ async function loadPur(){
     body.appendChild(tr);
     var prevItems=poItemsMap[po.id]||[];
     if(prevItems.length){
-      var prodNames=prevItems.map(function(it){return (it.product_name||'-')+(it.qty?' ('+it.qty+')':'');}).join(' • ');
+      var prodNames=prevItems.map(function(it){return (it._name||it.product_name||'-')+(it.qty?' ('+it.qty+')':'');}).join(' • ');
       var prevTr=document.createElement('tr');
       prevTr.innerHTML='<td colspan="7" style="padding:2px 14px 10px;font-size:11px;color:#888;border-bottom:1px solid #f0f0e8">📦 '+prodNames+'</td>';
       body.appendChild(prevTr);
