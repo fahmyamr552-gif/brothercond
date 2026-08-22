@@ -5744,6 +5744,23 @@ async function loadDailyReport(dateStr){
     var{data:allPOs}=await db.from('purchase_orders').select('id,po_num,supplier_name,date,total,status,created_at');
     allPOs=allPOs||[];
     var dayPOs=allPOs.filter(function(po){return(po.date===dateStr)||(po.created_at&&po.created_at.slice(0,10)===dateStr);});
+    // Fetch items for these POs with name resolution
+    var poItemsMap2={};
+    var dayPoIds=dayPOs.map(function(po){return po.id;});
+    if(dayPoIds.length){
+      var pir=await db.from('po_items').select('po_id,product_name,inventory_id,spare_part_id,qty').in('po_id',dayPoIds);
+      var pilist=pir.data||[];
+      var pinvIds=pilist.map(function(x){return x.inventory_id;}).filter(Boolean);
+      var pspIds=pilist.map(function(x){return x.spare_part_id;}).filter(Boolean);
+      var pinvMap={};var pspMap={};
+      if(pinvIds.length){var pir2=await db.from('inventory').select('id,brand,model,hp').in('id',pinvIds);(pir2.data||[]).forEach(function(iv){pinvMap[iv.id]=[iv.brand,iv.model,iv.hp].filter(Boolean).join(' ');});}
+      if(pspIds.length){var psr=await db.from('spare_parts').select('id,name').in('id',pspIds);(psr.data||[]).forEach(function(sp){pspMap[sp.id]=sp.name;});}
+      pilist.forEach(function(it){
+        var nm=it.product_name||pinvMap[it.inventory_id]||pspMap[it.spare_part_id]||'-';
+        if(!poItemsMap2[it.po_id])poItemsMap2[it.po_id]=[];
+        poItemsMap2[it.po_id].push(nm+(it.qty?' ('+it.qty+')':''));
+      });
+    }
     var{data:allPoPays}=await db.from('po_payments').select('amount,created_at,po_id');
     allPoPays=allPoPays||[];
     var dayPoPays=allPoPays.filter(function(p){return p.created_at&&p.created_at.slice(0,10)===dateStr;});
@@ -5809,7 +5826,8 @@ async function loadDailyReport(dateStr){
     }).join('')||'<tr><td colspan="4" style="text-align:center;color:#aaa">لا توجد مدفوعات</td></tr>';
 
     var poRows=dayPOs.map(function(po){
-      return '<tr><td>'+(po.supplier_name||'-')+'</td><td>طلب شراء</td><td>'+(po.status||'-')+'</td><td class="rep-money-out">'+repArNum(po.total)+'</td></tr>';
+      var prods=(poItemsMap2[po.id]||[]).join(' • ')||'-';
+      return '<tr><td>'+(po.supplier_name||'-')+'</td><td style="font-size:11px;color:#666">'+prods+'</td><td>'+(po.status||'-')+'</td><td class="rep-money-out">'+repArNum(po.total)+'</td></tr>';
     }).join('');
     var poPayRows=dayPoPays.map(function(p){
       return '<tr><td>-</td><td>دفعة لمورد</td><td>مدفوع</td><td class="rep-money-out">'+repArNum(p.amount)+'</td></tr>';
@@ -5854,7 +5872,7 @@ async function loadDailyReport(dateStr){
           +'<div class="rep-sec"><div class="rep-sh">🆕 المهام الجديدة <span class="rep-count">'+newTasks.length+'</span></div><table class="rep-tbl"><thead><tr><th>الطلب</th><th>العميل</th><th>النوع</th><th>الفرع</th><th>القيمة</th></tr></thead><tbody>'+newRows+'</tbody></table></div>'
           +'<div class="rep-sec"><div class="rep-sh">❌ المهام الملغاة <span class="rep-count" style="background:#FCEBEB;color:#A32D2D">'+cancelledTasks.length+'</span></div><table class="rep-tbl"><thead><tr><th>الطلب</th><th>العميل</th><th>النوع</th><th>الفرع</th><th>القيمة</th></tr></thead><tbody>'+cancelRows+'</tbody></table></div>'
           +'<div class="rep-sec"><div class="rep-sh">💰 المدفوعات المستلمة <span class="rep-count">'+dayPays.length+'</span></div><table class="rep-tbl"><thead><tr><th>العميل</th><th>الطلب</th><th>المبلغ</th><th>الطريقة</th></tr></thead><tbody>'+payRows+'</tbody></table></div>'
-          +'<div class="rep-sec"><div class="rep-sh">🛒 المشتريات والموردين</div><table class="rep-tbl"><thead><tr><th>المورد</th><th>النوع</th><th>الحالة</th><th>المبلغ</th></tr></thead><tbody>'+purchaseRows+'</tbody></table></div>'
+          +'<div class="rep-sec"><div class="rep-sh">🛒 المشتريات والموردين</div><table class="rep-tbl"><thead><tr><th>المورد</th><th>المنتجات</th><th>الحالة</th><th>المبلغ</th></tr></thead><tbody>'+purchaseRows+'</tbody></table></div>'
           +'<div class="rep-sec"><div class="rep-sh">📌 لقطة المستحقات (إجمالي كلي)</div><div class="rep-breakdown"><div class="rep-chip"><span class="rc-l">مستحق على العملاء</span><b class="rep-money">'+repArNum(custOutstanding)+'</b></div><div class="rep-chip"><span class="rc-l">عملاء مدينين</span><b>'+custDebtors+'</b></div></div></div>'
           +'<div style="text-align:center;margin-top:20px"><button onclick="printDailyReport()" style="background:#185FA5;color:#fff;border:none;border-radius:10px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer">🖨️ طباعة التقرير</button></div>'
         +'</div>'
