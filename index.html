@@ -93,6 +93,59 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
 .si{display:flex;align-items:center;gap:8px;padding:8px 10px;background:#f9f9f6;border:1px solid #e0ddd8;border-radius:8px;margin-bottom:6px}
 .uz{border:2px dashed #ccc;border-radius:8px;padding:14px;text-align:center;cursor:pointer;color:#888;font-size:12px;background:#f9f9f6}
 .pg{background:#f5f5f0;border:1px solid #e0ddd8;border-radius:8px;margin-bottom:6px}
+
+.rep-report{background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06);direction:rtl}
+.rep-head{background:linear-gradient(135deg,#0F6E56,#1D9E75);color:#fff;padding:24px 28px}
+.rep-head-top{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px}
+.rep-co{font-size:20px;font-weight:800}
+.rep-sub{font-size:13px;opacity:.85;margin-top:2px}
+.rep-datepick{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.15);padding:8px 14px;border-radius:10px}
+.rep-datepick label{font-size:12px}
+.rep-datepick input{border:none;background:transparent;color:#fff;font-size:14px;font-family:inherit}
+.rep-datepick input::-webkit-calendar-picker-indicator{filter:invert(1)}
+.rep-summary{background:rgba(255,255,255,.12);border-radius:10px;padding:12px 16px;margin-top:16px;font-size:14px;line-height:1.7}
+.rep-cont{padding:24px 28px}
+.rep-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:24px}
+.rep-kpi{background:#fff;border:1px solid #e8e6de;border-radius:12px;padding:14px 16px;position:relative;overflow:hidden}
+.rep-kpi::before{content:'';position:absolute;top:0;right:0;width:4px;height:100%}
+.rep-kpi.rk-green::before{background:#1D9E75}
+.rep-kpi.rk-blue::before{background:#185FA5}
+.rep-kpi.rk-red::before{background:#A32D2D}
+.rep-kpi.rk-amber::before{background:#EF9F27}
+.rep-kpi .rk-l{font-size:11px;color:#8a8a82;margin-bottom:6px;font-weight:600}
+.rep-kpi .rk-v{font-size:22px;font-weight:800;line-height:1}
+.rep-kpi .rk-h{font-size:11px;color:#8a8a82;margin-top:5px}
+.rep-fin{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:14px;margin-bottom:24px}
+.rep-net{background:linear-gradient(135deg,#0F6E56,#1D9E75);color:#fff;border-radius:14px;padding:20px}
+.rep-net .rn-l{font-size:13px;opacity:.9}
+.rep-net .rn-v{font-size:30px;font-weight:800;margin-top:6px}
+.rep-net .rn-sub{font-size:12px;opacity:.85;margin-top:8px}
+.rep-in,.rep-out{border-radius:14px;padding:20px;border:1px solid #e8e6de;background:#fff}
+.rep-in .ri-l,.rep-out .ro-l{font-size:13px;color:#8a8a82}
+.rep-in .ri-v{font-size:24px;font-weight:800;color:#0F6E56;margin-top:6px}
+.rep-out .ro-v{font-size:24px;font-weight:800;color:#A32D2D;margin-top:6px}
+.rep-in .ri-d,.rep-out .ro-d{font-size:11px;color:#8a8a82;margin-top:6px}
+.rep-sec{margin-bottom:26px}
+.rep-sh{font-size:15px;font-weight:800;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.rep-count{background:#EAF3DE;color:#0F6E56;font-size:12px;font-weight:700;padding:2px 10px;border-radius:20px}
+.rep-breakdown{display:flex;gap:8px;flex-wrap:wrap}
+.rep-chip{background:#fff;border:1px solid #e8e6de;border-radius:10px;padding:8px 14px;font-size:12px;display:flex;align-items:center;gap:8px}
+.rep-chip b{font-size:15px;font-weight:800}
+.rep-chip .rc-l{color:#8a8a82}
+.rep-tbl{width:100%;border-collapse:collapse;font-size:13px;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e8e6de}
+.rep-tbl th{text-align:right;padding:10px 12px;background:#f7f6f1;color:#6a6a62;font-weight:700;font-size:11px;border-bottom:1px solid #e8e6de}
+.rep-tbl td{padding:10px 12px;border-bottom:1px solid #f2f1ea}
+.rep-tbl tr:last-child td{border-bottom:none}
+.rep-mini td{padding:7px 12px;font-size:12px}
+.rep-badge{display:inline-block;padding:2px 9px;border-radius:6px;font-size:11px;font-weight:700}
+.rep-badge.rb-type{background:#E6F1FB;color:#185FA5}
+.rep-badge.rb-paid{background:#EAF3DE;color:#0F6E56}
+.rep-badge.rb-partial{background:#FAEEDA;color:#854F0B}
+.rep-badge.rb-unpaid{background:#FCEBEB;color:#A32D2D}
+.rep-money{font-weight:700;color:#0F6E56}
+.rep-money-out{font-weight:700;color:#A32D2D}
+.rep-twocol{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:26px}
+@media(max-width:640px){.rep-fin{grid-template-columns:1fr}.rep-twocol{grid-template-columns:1fr}}
 </style>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
@@ -126,6 +179,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     <div class="ni" id="ni-fb" onclick="openFeedback()">&#9632; <span data-t="navfeedback">آراء العملاء</span></div>
     <div class="ni" id="ni-fu" onclick="openFollowup()">&#9632; <span data-t="navfollowup">الاستكمالات</span></div>
     <div class="ni" id="ni-ds" onclick="openDispatchOrders()">&#9632; <span data-t="navdispatch">أوامر الصرف</span></div>
+    <div class="ni" id="ni-rep" onclick="openDailyReport()">&#9632; <span data-t="navreport">التقرير اليومي</span></div>
     <div class="ni" id="ni-inv" onclick="go('inv',this)">&#9632; <span data-t="inventory">Inventory</span></div>
     <div class="ni" id="ni-pur" onclick="go('pur',this)">&#9632; <span data-t="purchases">Purchases</span></div>
     <div class="ni" id="ni-fin" onclick="go('fin',this)">&#9632; <span data-t="finance">Finance</span></div>
@@ -592,6 +646,10 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
   <div id="ds-body"></div>
 </div>
 
+<div class="pg" id="pg-rep">
+  <div id="rep-body" style="max-width:100%"></div>
+</div>
+
 <!-- INVENTORY -->
 <div class="pg" id="pg-inv">
   <div style="display:flex;gap:8px;margin-bottom:16px">
@@ -1036,6 +1094,8 @@ function applyRole(){
   if(fuNav)fuNav.style.display=(CU&&(CU.role==='owner'||CU.role==='admin'||CU.role==='salesperson'||CU.role==='sales_feedback'||CU.role==='inventory_manager'))?'':'none';
   var dsNav=document.getElementById('ni-ds');
   if(dsNav)dsNav.style.display=(CU&&(CU.role==='owner'||CU.role==='admin'||CU.role==='inventory_manager'))?'':'none';
+  var repNav=document.getElementById('ni-rep');
+  if(repNav)repNav.style.display=(CU&&CU.role==='owner')?'':'none';
 }
 function go(pg,el){
   document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));
@@ -1043,7 +1103,7 @@ function go(pg,el){
   const pge=document.getElementById('pg-'+pg);
   if(pge)pge.classList.add('on');
   if(el)el.classList.add('on');
-  const titlesMap={dash:'dashboard',tasks:'tasks',inv:'inventory','np':'addproduct',pur:'purchases','npo':'newpo',fin:'finance',cust:'customers','cd':'customer',sup:'suppliers','sd':'supplier',usr:'users',disp:'dispatches','nt':'newtask','td':'tasks',plan:'خطة يومية',fb:'آراء العملاء',fu:'الاستكمالات',ds:'أوامر الصرف'};
+  const titlesMap={dash:'dashboard',tasks:'tasks',inv:'inventory','np':'addproduct',pur:'purchases','npo':'newpo',fin:'finance',cust:'customers','cd':'customer',sup:'suppliers','sd':'supplier',usr:'users',disp:'dispatches','nt':'newtask','td':'tasks',plan:'خطة يومية',fb:'آراء العملاء',fu:'الاستكمالات',ds:'أوامر الصرف',rep:'التقرير اليومي'};
   const titles={}; Object.entries(titlesMap).forEach(([k,v])=>titles[k]=t(v));
   document.getElementById('ptitle').textContent=titles[pg]||pg;
   const ta=document.getElementById('tact');ta.innerHTML='';
@@ -5603,6 +5663,190 @@ async function printDispatchOrder(taskId){
   document.body.appendChild(area);
 }
 // ── END DISPATCH ORDERS ──────────────────────────────────────
+
+// ── DAILY REPORT (owner only, read-only) ─────────────────────
+function openDailyReport(){
+  if(!CU||CU.role!=='owner'){toast('غير مسموح',true);return;}
+  go('rep',document.getElementById('ni-rep'));
+  var today=new Date().toISOString().split('T')[0];
+  var body=document.getElementById('rep-body');
+  if(body)body.innerHTML='<div style="text-align:center;padding:40px;color:#888">اختر التاريخ لعرض التقرير...</div>';
+  loadDailyReport(today);
+}
+
+function repArNum(n){
+  n=Math.round(n||0);
+  return n.toLocaleString('en-US');
+}
+
+async function loadDailyReport(dateStr){
+  var body=document.getElementById('rep-body');
+  if(!body)return;
+  body.innerHTML='<div style="text-align:center;padding:40px;color:#888">جاري تحميل التقرير...</div>';
+
+  try{
+    // Fetch tasks for this date
+    var{data:allTasks}=await db.from('tasks').select('id,task_num,type,customer_name,date,branch,salesperson,status,technician_name,created_at,customers(address)');
+    allTasks=allTasks||[];
+    var{data:allProds}=await db.from('task_products').select('task_id,qty,price');
+    allProds=allProds||[];
+    var{data:allPays}=await db.from('payments').select('task_id,amount,method,approved,created_at');
+    allPays=allPays||[];
+
+    var grand=function(id){return allProds.filter(function(p){return p.task_id===id;}).reduce(function(a,p){return a+p.qty*p.price;},0);};
+    var paidFn=function(id){return allPays.filter(function(p){return p.task_id===id&&p.approved!==false;}).reduce(function(a,p){return a+p.amount;},0);};
+    var payStatus=function(id){var g=grand(id),p=paidFn(id);if(g<=0)return'-';if(p<=0)return'unpaid';if(p<g)return'partial';return'paid';};
+
+    // Tasks with this date (completed/done work)
+    var dayTasks=allTasks.filter(function(t){return t.date===dateStr;});
+    var doneTasks=dayTasks.filter(function(t){return t.status==='done'||t.status==='completed';});
+    var cancelledTasks=dayTasks.filter(function(t){return t.status==='cancel';});
+
+    // New tasks created this date (by created_at)
+    var newTasks=allTasks.filter(function(t){return t.created_at&&t.created_at.slice(0,10)===dateStr;});
+
+    // Payments made this date
+    var dayPays=allPays.filter(function(p){return p.created_at&&p.created_at.slice(0,10)===dateStr&&p.approved!==false;});
+    var totalCollected=dayPays.reduce(function(a,p){return a+(p.amount||0);},0);
+    var cashCollected=dayPays.filter(function(p){return(p.method||'').indexOf('كاش')>=0||(p.method||'').toLowerCase().indexOf('cash')>=0;}).reduce(function(a,p){return a+(p.amount||0);},0);
+    var transferCollected=totalCollected-cashCollected;
+
+    // PO activity this date
+    var{data:allPOs}=await db.from('purchase_orders').select('id,po_num,supplier_name,date,total,status,created_at');
+    allPOs=allPOs||[];
+    var dayPOs=allPOs.filter(function(po){return(po.date===dateStr)||(po.created_at&&po.created_at.slice(0,10)===dateStr);});
+    var{data:allPoPays}=await db.from('po_payments').select('amount,created_at,po_id');
+    allPoPays=allPoPays||[];
+    var dayPoPays=allPoPays.filter(function(p){return p.created_at&&p.created_at.slice(0,10)===dateStr;});
+    var totalSpent=dayPoPays.reduce(function(a,p){return a+(p.amount||0);},0);
+    var newPOValue=dayPOs.reduce(function(a,po){return a+(po.total||0);},0);
+
+    // KPIs
+    var completedValue=doneTasks.reduce(function(a,t){return a+grand(t.id);},0);
+    var newTasksValue=newTasks.reduce(function(a,t){return a+grand(t.id);},0);
+    var cancelledValue=cancelledTasks.reduce(function(a,t){return a+grand(t.id);},0);
+    var completionRate=dayTasks.length?Math.round(doneTasks.length/dayTasks.length*100):0;
+    var collectionRate=completedValue>0?Math.round(totalCollected/completedValue*100):0;
+    var avgTask=doneTasks.length?Math.round(completedValue/doneTasks.length):0;
+    var netCash=totalCollected-totalSpent;
+
+    // Breakdown by type
+    var byType={};
+    doneTasks.forEach(function(t){var lbl=typeLabels[t.type]||t.type;byType[lbl]=(byType[lbl]||0)+1;});
+    // Breakdown by technician
+    var byTech={};
+    doneTasks.forEach(function(t){var tech=t.salesperson||t.technician_name||'غير محدد';if(!byTech[tech])byTech[tech]={c:0,v:0};byTech[tech].c++;byTech[tech].v+=grand(t.id);});
+    // Breakdown by branch
+    var byBranch={};
+    doneTasks.forEach(function(t){var br=t.branch||'غير محدد';if(!byBranch[br])byBranch[br]={c:0,v:0};byBranch[br].c++;byBranch[br].v+=grand(t.id);});
+
+    // Overall outstanding (all non-cancelled, due)
+    var todayStr=new Date().toISOString().split('T')[0];
+    var custOutstanding=0,custDebtors=0;
+    allTasks.filter(function(t){return t.status!=='cancel';}).forEach(function(t){
+      var g=grand(t.id),p=paidFn(t.id);
+      if(g>0&&p<g&&(!t.date||t.date<=todayStr)){custOutstanding+=(g-p);custDebtors++;}
+    });
+
+    // Build HTML
+    var dateObj=new Date(dateStr+'T00:00:00');
+    var dayName=['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'][dateObj.getDay()];
+
+    var typeChips=Object.keys(byType).map(function(k){return '<div class="rep-chip"><span class="rc-l">'+k+'</span><b>'+byType[k]+'</b></div>';}).join('')||'<span style="color:#aaa;font-size:12px">لا يوجد</span>';
+
+    var techRows=Object.keys(byTech).map(function(k){return '<tr><td>'+k+'</td><td>'+byTech[k].c+'</td><td class="rep-money">'+repArNum(byTech[k].v)+'</td></tr>';}).join('')||'<tr><td colspan="3" style="text-align:center;color:#aaa">لا يوجد</td></tr>';
+    var branchRows=Object.keys(byBranch).map(function(k){return '<tr><td>'+k+'</td><td>'+byBranch[k].c+'</td><td class="rep-money">'+repArNum(byBranch[k].v)+'</td></tr>';}).join('')||'<tr><td colspan="3" style="text-align:center;color:#aaa">لا يوجد</td></tr>';
+
+    var psLabel={paid:'مدفوع',partial:'جزئي',unpaid:'غير مدفوع','-':'-'};
+    var psBadge={paid:'rb-paid',partial:'rb-partial',unpaid:'rb-unpaid','-':''};
+
+    var doneRows=doneTasks.map(function(t){
+      var ps=payStatus(t.id);
+      return '<tr><td>'+t.task_num+'</td><td>'+t.customer_name+'</td><td><span class="rep-badge rb-type">'+(typeLabels[t.type]||t.type)+'</span></td><td>'+(t.salesperson||t.technician_name||'-')+'</td><td>'+(t.branch||'-')+'</td><td class="rep-money">'+repArNum(grand(t.id))+'</td><td><span class="rep-badge '+psBadge[ps]+'">'+psLabel[ps]+'</span></td></tr>';
+    }).join('')||'<tr><td colspan="7" style="text-align:center;color:#aaa">لا توجد مهام منجزة</td></tr>';
+
+    var newRows=newTasks.map(function(t){
+      return '<tr><td>'+t.task_num+'</td><td>'+t.customer_name+'</td><td><span class="rep-badge rb-type">'+(typeLabels[t.type]||t.type)+'</span></td><td>'+(t.branch||'-')+'</td><td class="rep-money">'+repArNum(grand(t.id))+'</td></tr>';
+    }).join('')||'<tr><td colspan="5" style="text-align:center;color:#aaa">لا توجد مهام جديدة</td></tr>';
+
+    var cancelRows=cancelledTasks.map(function(t){
+      return '<tr><td>'+t.task_num+'</td><td>'+t.customer_name+'</td><td><span class="rep-badge rb-type">'+(typeLabels[t.type]||t.type)+'</span></td><td>'+(t.branch||'-')+'</td><td class="rep-money-out">'+repArNum(grand(t.id))+'</td></tr>';
+    }).join('')||'<tr><td colspan="5" style="text-align:center;color:#aaa">لا توجد مهام ملغاة</td></tr>';
+
+    var taskIdToNum={};allTasks.forEach(function(t){taskIdToNum[t.id]=t.task_num;});
+    var taskIdToCust={};allTasks.forEach(function(t){taskIdToCust[t.id]=t.customer_name;});
+    var payRows=dayPays.map(function(p){
+      return '<tr><td>'+(taskIdToCust[p.task_id]||'-')+'</td><td>'+(taskIdToNum[p.task_id]||'-')+'</td><td class="rep-money">'+repArNum(p.amount)+'</td><td>'+(p.method||'-')+'</td></tr>';
+    }).join('')||'<tr><td colspan="4" style="text-align:center;color:#aaa">لا توجد مدفوعات</td></tr>';
+
+    var poRows=dayPOs.map(function(po){
+      return '<tr><td>'+(po.supplier_name||'-')+'</td><td>طلب شراء</td><td>'+(po.status||'-')+'</td><td class="rep-money-out">'+repArNum(po.total)+'</td></tr>';
+    }).join('');
+    var poPayRows=dayPoPays.map(function(p){
+      return '<tr><td>-</td><td>دفعة لمورد</td><td>مدفوع</td><td class="rep-money-out">'+repArNum(p.amount)+'</td></tr>';
+    }).join('');
+    var purchaseRows=(poRows+poPayRows)||'<tr><td colspan="4" style="text-align:center;color:#aaa">لا يوجد نشاط مشتريات</td></tr>';
+
+    var netSign=netCash>=0?'+':'';
+    var netColor=netCash>=0?'':'style="color:#ffcccc"';
+
+    var html=''
+      +'<div class="rep-report">'
+        +'<div class="rep-head">'
+          +'<div class="rep-head-top">'
+            +'<div><div class="rep-co">برازر كوند للتكييف</div><div class="rep-sub">التقرير اليومي للإدارة</div></div>'
+            +'<div style="text-align:left">'
+              +'<div class="rep-datepick"><label>التاريخ:</label><input type="date" id="rep-date" value="'+dateStr+'" onchange="loadDailyReport(this.value)"></div>'
+              +'<div style="margin-top:8px;font-size:12px;opacity:.85">'+dayName+' '+dateStr+'</div>'
+            +'</div>'
+          +'</div>'
+          +'<div class="rep-summary">📌 <b>ملخص اليوم:</b> تم إنجاز <b>'+doneTasks.length+' مهمة</b> من <b>'+dayTasks.length+' مجدولة</b> ('+completionRate+'٪) — تحصيل <b>'+repArNum(totalCollected)+' ج.م</b> ومصروفات <b>'+repArNum(totalSpent)+' ج.م</b> — <b>صافي '+netSign+repArNum(netCash)+' ج.م</b>'+(doneTasks.length?' — متوسط المهمة <b>'+repArNum(avgTask)+' ج.م</b>':'')+'</div>'
+        +'</div>'
+        +'<div class="rep-cont">'
+          +'<div class="rep-kpis">'
+            +'<div class="rep-kpi rk-green"><div class="rk-l">مهام منجزة</div><div class="rk-v">'+doneTasks.length+'</div><div class="rk-h">من '+dayTasks.length+' ('+completionRate+'٪)</div></div>'
+            +'<div class="rep-kpi rk-blue"><div class="rk-l">مهام جديدة</div><div class="rk-v">'+newTasks.length+'</div><div class="rk-h">بقيمة '+repArNum(newTasksValue)+'</div></div>'
+            +'<div class="rep-kpi rk-green"><div class="rk-l">تحصيل اليوم</div><div class="rk-v rep-money">'+repArNum(totalCollected)+'</div><div class="rk-h">'+dayPays.length+' دفعة</div></div>'
+            +'<div class="rep-kpi rk-red"><div class="rk-l">مصروفات موردين</div><div class="rk-v rep-money-out">'+repArNum(totalSpent)+'</div><div class="rk-h">'+dayPoPays.length+' دفعة</div></div>'
+            +'<div class="rep-kpi rk-amber"><div class="rk-l">معدل التحصيل</div><div class="rk-v">'+collectionRate+'٪</div><div class="rk-h">من قيمة اليوم</div></div>'
+            +'<div class="rep-kpi rk-red"><div class="rk-l">مهام ملغاة</div><div class="rk-v">'+cancelledTasks.length+'</div><div class="rk-h">بقيمة '+repArNum(cancelledValue)+'</div></div>'
+          +'</div>'
+          +'<div class="rep-fin">'
+            +'<div class="rep-net"><div class="rn-l">صافي التدفق النقدي</div><div class="rn-v" '+netColor+'>'+netSign+repArNum(netCash)+'</div><div class="rn-sub">ج.م — (داخل − خارج)</div></div>'
+            +'<div class="rep-in"><div class="ri-l">💰 داخل (تحصيل)</div><div class="ri-v">'+repArNum(totalCollected)+'</div><div class="ri-d">كاش '+repArNum(cashCollected)+' · تحويل '+repArNum(transferCollected)+'</div></div>'
+            +'<div class="rep-out"><div class="ro-l">🛒 خارج (موردين)</div><div class="ro-v">'+repArNum(totalSpent)+'</div><div class="ro-d">'+dayPoPays.length+' دفعة</div></div>'
+          +'</div>'
+          +'<div class="rep-sec"><div class="rep-sh">📊 المهام حسب النوع</div><div class="rep-breakdown">'+typeChips+'</div></div>'
+          +'<div class="rep-twocol">'
+            +'<div><div class="rep-sh" style="font-size:14px">👷 حسب الفني</div><table class="rep-tbl rep-mini"><thead><tr><th>الفني</th><th>مهام</th><th>تحصيل</th></tr></thead><tbody>'+techRows+'</tbody></table></div>'
+            +'<div><div class="rep-sh" style="font-size:14px">🏢 حسب الفرع</div><table class="rep-tbl rep-mini"><thead><tr><th>الفرع</th><th>مهام</th><th>تحصيل</th></tr></thead><tbody>'+branchRows+'</tbody></table></div>'
+          +'</div>'
+          +'<div class="rep-sec"><div class="rep-sh">✅ المهام المنجزة <span class="rep-count">'+doneTasks.length+'</span></div><table class="rep-tbl"><thead><tr><th>الطلب</th><th>العميل</th><th>النوع</th><th>الفني</th><th>الفرع</th><th>القيمة</th><th>الدفع</th></tr></thead><tbody>'+doneRows+'</tbody></table></div>'
+          +'<div class="rep-sec"><div class="rep-sh">🆕 المهام الجديدة <span class="rep-count">'+newTasks.length+'</span></div><table class="rep-tbl"><thead><tr><th>الطلب</th><th>العميل</th><th>النوع</th><th>الفرع</th><th>القيمة</th></tr></thead><tbody>'+newRows+'</tbody></table></div>'
+          +'<div class="rep-sec"><div class="rep-sh">❌ المهام الملغاة <span class="rep-count" style="background:#FCEBEB;color:#A32D2D">'+cancelledTasks.length+'</span></div><table class="rep-tbl"><thead><tr><th>الطلب</th><th>العميل</th><th>النوع</th><th>الفرع</th><th>القيمة</th></tr></thead><tbody>'+cancelRows+'</tbody></table></div>'
+          +'<div class="rep-sec"><div class="rep-sh">💰 المدفوعات المستلمة <span class="rep-count">'+dayPays.length+'</span></div><table class="rep-tbl"><thead><tr><th>العميل</th><th>الطلب</th><th>المبلغ</th><th>الطريقة</th></tr></thead><tbody>'+payRows+'</tbody></table></div>'
+          +'<div class="rep-sec"><div class="rep-sh">🛒 المشتريات والموردين</div><table class="rep-tbl"><thead><tr><th>المورد</th><th>النوع</th><th>الحالة</th><th>المبلغ</th></tr></thead><tbody>'+purchaseRows+'</tbody></table></div>'
+          +'<div class="rep-sec"><div class="rep-sh">📌 لقطة المستحقات (إجمالي كلي)</div><div class="rep-breakdown"><div class="rep-chip"><span class="rc-l">مستحق على العملاء</span><b class="rep-money">'+repArNum(custOutstanding)+'</b></div><div class="rep-chip"><span class="rc-l">عملاء مدينين</span><b>'+custDebtors+'</b></div></div></div>'
+          +'<div style="text-align:center;margin-top:20px"><button onclick="printDailyReport()" style="background:#185FA5;color:#fff;border:none;border-radius:10px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer">🖨️ طباعة التقرير</button></div>'
+        +'</div>'
+      +'</div>';
+    body.innerHTML=html;
+  }catch(e){
+    body.innerHTML='<div style="text-align:center;padding:40px;color:#A32D2D">خطأ في تحميل التقرير: '+e.message+'</div>';
+  }
+}
+
+function printDailyReport(){
+  var rep=document.querySelector('.rep-report');
+  if(!rep)return;
+  var styleEl=document.createElement('style');
+  styleEl.id='rep-print-style';
+  styleEl.textContent='@media print{body>*:not(#app){display:none}#app>*:not(.ct){display:none}.nav,.sb,.tb{display:none!important}.pg:not(#pg-rep){display:none!important}#pg-rep{display:block!important}.rep-report button,.rep-datepick{display:none!important}.rep-head,.rep-net{-webkit-print-color-adjust:exact;print-color-adjust:exact}@page{size:A4;margin:10mm}}';
+  document.head.appendChild(styleEl);
+  window.print();
+  setTimeout(function(){var s=document.getElementById('rep-print-style');if(s)s.remove();},1000);
+}
+// ── END DAILY REPORT ─────────────────────────────────────────
 </script>
 </body>
 </html>
@@ -5619,7 +5863,7 @@ window.T={
   en:{
     
     navfeedback:'Feedback',navfollowup:'Follow-ups',navdispatch:'Dispatch Orders',navplan:'Daily Plan',
-    employees:'Employees',dispatches:'Dispatches',
+    employees:'Employees',dispatches:'Dispatches',navreport:'Daily Report',
     fbtitle:'Customer Feedback',fbpending:'Awaiting Rating',fbsatisfied:'Satisfied',fbunsatisfied:'Unsatisfied',
     fbratecc:'Call Center',fbratetech:'Technicians',fbratework:'Work Quality',fbnotes:'Customer Notes',
     fbsat:'Satisfied',fbunsat:'Unsatisfied',fbsave:'Save Rating',fbthanks:'Thanks + Review Link',
@@ -5715,7 +5959,7 @@ window.T={
   ar:{
     
     navfeedback:'آراء العملاء',navfollowup:'الاستكمالات',navdispatch:'أوامر الصرف',navplan:'خطة يومية',
-    employees:'الموظفون',dispatches:'أوامر الصرف للورشة',
+    employees:'الموظفون',dispatches:'أوامر الصرف للورشة',navreport:'التقرير اليومي',
     fbtitle:'آراء العملاء',fbpending:'بانتظار التقييم',fbsatisfied:'الراضيين',fbunsatisfied:'غير الراضيين',
     fbratecc:'خدمة العملاء',fbratetech:'الفنيين',fbratework:'جودة العمل',fbnotes:'ملاحظات العميل',
     fbsat:'راضي',fbunsat:'غير راضي',fbsave:'حفظ التقييم',fbthanks:'شكر + رابط التقييم',
