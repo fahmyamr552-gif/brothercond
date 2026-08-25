@@ -2872,80 +2872,85 @@ async function submitForApproval(dispId){
 
 
 async function cancelDispatch(dispId){
-  if(!can('delete')&&!can('delete_payment')){toast('No permission',true);return;}
-  if(!confirm('Cancel this dispatch? Inventory will be restored.'))return;
-  var{data:disp}=await db.from('dispatches').select('status,dispatch_type').eq('id',dispId).single();
-  if(!disp)return;
-  var{data:items}=await db.from('dispatch_items').select('*').eq('dispatch_id',dispId);
-  items=items||[];
-  // Restore inventory based on dispatch type (regardless of status)
-  if(disp.dispatch_type==='مستهلك'||disp.dispatch_type==='بيع مباشر'){
-    // These types deduct qty immediately - always restore
-    for(var i=0;i<items.length;i++){
-      var it=items[i];
-      if(it.part_id){
-        var{data:sp}=await db.from('spare_parts').select('qty').eq('id',it.part_id).single();
-        if(sp)await db.from('spare_parts').update({qty:(sp.qty||0)+it.qty_out}).eq('id',it.part_id);
+  try{
+    if(!confirm(LANG==='ar'?'حذف أمر الصرف؟ سيتم استرداد المخزون.':'Cancel this dispatch? Inventory will be restored.'))return;
+    toast(LANG==='ar'?'جاري الحذف...':'Deleting...');
+    var{data:disp,error:dErr}=await db.from('dispatches').select('status,dispatch_type,date,created_by').eq('id',dispId).single();
+    if(dErr){toast('Error: '+dErr.message,true);return;}
+    if(!disp){toast(LANG==='ar'?'غير موجود':'Not found',true);return;}
+    var{data:items}=await db.from('dispatch_items').select('*').eq('dispatch_id',dispId);
+    items=items||[];
+
+    // Restore inventory based on dispatch type
+    if(disp.dispatch_type==='مستهلك'||disp.dispatch_type==='بيع مباشر'){
+      for(var i=0;i<items.length;i++){
+        var it=items[i];
+        if(it.part_id){
+          var{data:sp}=await db.from('spare_parts').select('qty').eq('id',it.part_id).single();
+          if(sp)await db.from('spare_parts').update({qty:(sp.qty||0)+(it.qty_out||0)}).eq('id',it.part_id);
+        }
       }
-    }
-  } else if(disp.dispatch_type==='عهدة'){
-    // Restore custody_qty for remaining unreturned qty
-    for(var i=0;i<items.length;i++){
-      var it=items[i];
-      if(it.part_id){
-        var remaining=it.qty_out-(it.qty_returned||0);
-        if(remaining>0){
-          var{data:sp}=await db.from('spare_parts').select('custody_qty').eq('id',it.part_id).single();
-          if(sp)await db.from('spare_parts').update({custody_qty:Math.max(0,(sp.custody_qty||0)-remaining)}).eq('id',it.part_id);
+    } else if(disp.dispatch_type==='عهدة'){
+      for(var i2=0;i2<items.length;i2++){
+        var it2=items[i2];
+        if(it2.part_id){
+          var remaining=(it2.qty_out||0)-(it2.qty_returned||0);
+          if(remaining>0){
+            var{data:sp2}=await db.from('spare_parts').select('custody_qty').eq('id',it2.part_id).single();
+            if(sp2)await db.from('spare_parts').update({custody_qty:Math.max(0,(sp2.custody_qty||0)-remaining)}).eq('id',it2.part_id);
+          }
+        }
+      }
+    } else {
+      // عادي or old - only restore if confirmed (inventory was deducted)
+      if(disp.status==='confirmed'){
+        var{data:assignments}=await db.from('dispatch_assignments').select('qty,dispatch_item_id,part_id').eq('dispatch_id',dispId);
+        assignments=assignments||[];
+        for(var i3=0;i3<assignments.length;i3++){
+          var a=assignments[i3];
+          var partId=a.part_id||null;
+          if(!partId&&a.dispatch_item_id){
+            var{data:di}=await db.from('dispatch_items').select('part_id').eq('id',a.dispatch_item_id).single();
+            if(di&&di.part_id)partId=di.part_id;
+          }
+          if(partId){
+            var{data:sp3}=await db.from('spare_parts').select('qty').eq('id',partId).single();
+            if(sp3)await db.from('spare_parts').update({qty:(sp3.qty||0)+(a.qty||0)}).eq('id',partId);
+          }
         }
       }
     }
-  } else {
-    // عادي (or NULL/old dispatches) — only deducts on approval via assignments
-    if(disp.status!=='confirmed')return; // nothing deducted if not confirmed
-    var{data:assignments}=await db.from('dispatch_assignments').select('qty,dispatch_item_id').eq('dispatch_id',dispId);
-    var asgnItemIds=(assignments||[]).map(function(a){return a.dispatch_item_id;}).filter(Boolean);
-    if(asgnItemIds.length){
-      var{data:ditems}=await db.from('dispatch_items').select('id,part_id').in('id',asgnItemIds);
-      var itemPartMap={};
-      (ditems||[]).forEach(function(d){itemPartMap[d.id]=d.part_id;});
-      for(var i=0;i<(assignments||[]).length;i++){
-        var a=assignments[i];
-        var partId=itemPartMap[a.dispatch_item_id];
-        if(partId){
-          var{data:sp}=await db.from('spare_parts').select('qty').eq('id',partId).single();
-          if(sp)await db.from('spare_parts').update({qty:(sp.qty||0)+a.qty}).eq('id',partId);
-        }
+
+    // For بيع مباشر: delete linked task + payments
+    if(disp.dispatch_type==='بيع مباشر'){
+      var{data:linkedTasks}=await db.from('tasks').select('id').eq('type','بيع مباشر').eq('date',disp.date).eq('created_by',disp.created_by);
+      for(var ti=0;ti<(linkedTasks||[]).length;ti++){
+        var tid=linkedTasks[ti].id;
+        await db.from('payments').delete().eq('task_id',tid);
+        await db.from('task_products').delete().eq('task_id',tid);
+        await db.from('tasks').delete().eq('id',tid);
       }
     }
-  }
-  // For بيع مباشر: also delete the linked task + payment
-  if(disp.dispatch_type==='بيع مباشر'){
-    // Find linked task by matching date + created_by + type
-    var{data:linkedTasks}=await db.from('tasks').select('id').eq('type','بيع مباشر').eq('date',disp.date).eq('created_by',disp.created_by);
-    for(var i=0;i<(linkedTasks||[]).length;i++){
-      var tid=linkedTasks[i].id;
-      await db.from('payments').delete().eq('task_id',tid);
-      await db.from('task_products').delete().eq('task_id',tid);
-      await db.from('tasks').delete().eq('id',tid);
+
+    // Delete dispatch records
+    await db.from('dispatch_assignments').delete().eq('dispatch_id',dispId);
+    await db.from('dispatch_items').delete().eq('dispatch_id',dispId);
+    var{error:delErr}=await db.from('dispatches').delete().eq('id',dispId);
+    if(delErr){toast('Error deleting: '+delErr.message,true);return;}
+
+    // Verify it was actually deleted
+    var{data:stillThere}=await db.from('dispatches').select('id').eq('id',dispId);
+    if(stillThere&&stillThere.length){
+      toast(LANG==='ar'?'فشل الحذف - صلاحيات قاعدة البيانات (RLS)':'Delete blocked - database permissions (RLS)',true);
+      return;
     }
+
+    document.querySelectorAll('.disp-overlay').forEach(function(e){e.remove();});
+    toast(LANG==='ar'?'تم الحذف واسترداد المخزون':'Deleted and inventory restored');
+    loadDispatches();
+  }catch(e){
+    toast((LANG==='ar'?'خطأ: ':'Error: ')+(e.message||e),true);
   }
-  // For بيع مباشر: also delete the linked task + payments
-  if(disp.dispatch_type==='بيع مباشر'){
-    var{data:linkedTasks}=await db.from('tasks').select('id').eq('type','بيع مباشر').eq('date',disp.date).eq('created_by',disp.created_by);
-    for(var ti=0;ti<(linkedTasks||[]).length;ti++){
-      var tid=linkedTasks[ti].id;
-      await db.from('payments').delete().eq('task_id',tid);
-      await db.from('task_products').delete().eq('task_id',tid);
-      await db.from('tasks').delete().eq('id',tid);
-    }
-  }
-  await db.from('dispatch_assignments').delete().eq('dispatch_id',dispId);
-  await db.from('dispatch_items').delete().eq('dispatch_id',dispId);
-  await db.from('dispatches').delete().eq('id',dispId);
-  document.querySelectorAll('.disp-overlay').forEach(function(e){e.remove();});
-  toast('✅ تم الحذف واسترداد المخزون');
-  loadDispatches();
 }
 
 async function approveDispatch(dispId){
