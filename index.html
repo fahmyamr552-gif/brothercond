@@ -5874,7 +5874,7 @@ async function loadDispatchOrders(){
         +'<button data-tid="'+t.id+'" onclick="printDispatchOrder(this.dataset.tid)" style="background:#185FA5;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer">&#128438; طباعة أمر الصرف</button>';
     }else if(canApprove){
       html+='<div style="margin-bottom:8px"><input id="ds-note-'+t.id+'" placeholder="ملاحظات (اختياري)" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:12px;box-sizing:border-box"></div>'
-        +'<button data-tid="'+t.id+'" onclick="approveDispatch(this.dataset.tid)" style="background:#3B6D11;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer">&#10003; لا مانع من الصرف</button>';
+        +'<button data-tid="'+t.id+'" onclick="approveACDispatch(this.dataset.tid)" style="background:#3B6D11;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer">&#10003; لا مانع من الصرف</button>';
     }else{
       html+='<div style="color:#854F0B;font-size:12px">&#9203; بانتظار موافقة الإدارة</div>';
     }
@@ -5884,7 +5884,7 @@ async function loadDispatchOrders(){
   body.innerHTML=html;
 }
 
-async function approveDispatch(taskId){
+async function approveACDispatch(taskId){
   var noteEl=document.getElementById('ds-note-'+taskId);
   var notes=noteEl?noteEl.value.trim():'';
   var{error}=await db.from('tasks').update({
