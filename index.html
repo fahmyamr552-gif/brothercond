@@ -2977,9 +2977,17 @@ async function approveDispatch(dispId){
       }
     }
 
-    // Update status to confirmed
-    var{error}=await db.from('dispatches').update({status:'confirmed'}).eq('id',dispId);
+    // Update status to confirmed - return the row to verify
+    var{data:updRows,error}=await db.from('dispatches').update({status:'confirmed'}).eq('id',dispId).select();
     if(error){toast('Error: '+error.message,true);return;}
+    if(!updRows||!updRows.length){
+      toast(LANG==='ar'?'فشل التحديث - صلاحيات قاعدة البيانات تمنع التعديل (RLS)':'Update blocked - database permissions (RLS) prevent this',true);
+      return;
+    }
+    if(updRows[0].status!=='confirmed'){
+      toast(LANG==='ar'?'لم تتغير الحالة':'Status did not change',true);
+      return;
+    }
     toast(LANG==='ar'?('تم تأكيد أمر الصرف! خُصمت '+deducted+' قطعة من المخزون'):'Dispatch confirmed! '+deducted+' parts deducted.');
     document.querySelectorAll('.disp-overlay').forEach(function(e){e.remove();});
     loadDispatches();
