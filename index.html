@@ -2950,10 +2950,11 @@ async function cancelDispatch(dispId){
 
 async function approveDispatch(dispId){
   try{
+    toast(LANG==='ar'?'جاري التأكيد...':'Confirming...');
     // Prevent double approval
     var{data:checkDisp}=await db.from('dispatches').select('status').eq('id',dispId).single();
     if(checkDisp&&checkDisp.status==='confirmed'){toast(LANG==='ar'?'تم التأكيد مسبقاً':'Already confirmed!',true);return;}
-    if(!confirm(LANG==='ar'?'تأكيد أمر الصرف؟ سيتم خصم القطع من المخزون.':'Approve this dispatch? Inventory will be deducted.'))return;
+    // confirmation removed - direct action
 
     // Get assignments and deduct inventory
     var{data:assignments}=await db.from('dispatch_assignments').select('*').eq('dispatch_id',dispId);
@@ -3352,7 +3353,7 @@ async function loadDispatches(){
         +'<div style="margin-top:4px"><span style="font-size:10px;padding:1px 8px;border-radius:8px;font-weight:700;background:'+(d.warehouse==='مخزن رئيسي'?'#EAF3DE':'#E8F4FD')+';color:'+(d.warehouse==='مخزن رئيسي'?'#1D9E75':'#185FA5')+'">'+( d.warehouse||'مخزن تجمع')+'</span></div>'
       +'</div>'
       +'<div style="display:flex;align-items:center;gap:10px">'
-        +(isPending&&isApprover?'<span style="font-size:11px;background:#1D9E75;color:#fff;padding:4px 12px;border-radius:6px;font-weight:700;cursor:pointer">✓ Confirm now</span>':'')
+        +(isPending&&isApprover?'<span data-did="'+d.id+'" onclick="event.stopPropagation();approveDispatch(this.dataset.did)" style="font-size:11px;background:#1D9E75;color:#fff;padding:4px 12px;border-radius:6px;font-weight:700;cursor:pointer">✓ تأكيد الآن</span>':'')
         +'<span style="font-size:11px;padding:3px 10px;border-radius:6px;font-weight:700;background:'+(statusColor[d.status]||'#888')+'22;color:'+(statusColor[d.status]||'#888')+'">'+(statusLabel[d.status]||d.status)+'</span>'
       +'</div>'
     +'</div>';
