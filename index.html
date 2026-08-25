@@ -768,6 +768,10 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
 
 <!-- PURCHASES -->
 <div class="pg" id="pg-pur">
+  <div style="margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <input id="pur-search" oninput="filterPurBySearch(this.value)" placeholder="ابحث باسم المنتج..." style="flex:1;min-width:200px;padding:9px 14px;border:1px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box">
+    <button class="btn bs" onclick="document.getElementById('pur-search').value='';filterPurBySearch('')" style="font-size:12px">مسح</button>
+  </div>
   <div class="cd" style="padding:0;overflow:hidden;margin-bottom:10px">
     <table style="table-layout:fixed;width:100%">
       <thead><tr><th style="width:65px" data-t="ponum">PO #</th><th data-t="supplier">Supplier</th><th style="width:100px" data-t="date">Date</th><th style="width:70px" data-t="items">Items</th><th style="width:110px" data-t="total">Total</th><th style="width:90px" data-t="status">Status</th><th style="width:130px">Action</th></tr></thead>
@@ -3290,7 +3294,7 @@ async function loadDispatches(){
     var isPending=d.status==='pending_confirm';
     var cardStyle='padding:14px 16px;background:'+(isPending?'#FFF8E1':'#fff')+';border:1px solid '+(isPending?'#F5A623':'#e8e8e0')+';border-radius:10px;margin-bottom:8px;cursor:pointer;display:flex;justify-content:space-between;align-items:center'+(isPending?';box-shadow:0 2px 8px rgba(245,166,35,.15)':'');
     return '<div data-did="'+d.id+'" onclick="openDispatch(this.dataset.did)" style="'+cardStyle+'">'
-      +'<div><div style="font-weight:700;font-size:14px">'+d.technician_name+'</div>'
+      +'<div><div style="font-weight:700;font-size:14px">'+(d.dispatch_num?'<span style="color:#1D9E75;font-size:12px;margin-left:6px">'+d.dispatch_num+'</span> ':'')+d.technician_name+'</div>'
         +'<div style="font-size:12px;color:#888;margin-top:2px">'+d.date+' &middot; by '+d.created_by+(d.notes?' &middot; '+d.notes:'')+'</div>'
         +'<div style="margin-top:4px"><span style="font-size:10px;padding:1px 8px;border-radius:8px;font-weight:700;background:'+(d.warehouse==='مخزن رئيسي'?'#EAF3DE':'#E8F4FD')+';color:'+(d.warehouse==='مخزن رئيسي'?'#1D9E75':'#185FA5')+'">'+( d.warehouse||'مخزن تجمع')+'</span></div>'
       +'</div>'
@@ -3494,7 +3498,13 @@ async function saveNewDispatch(){
   if(btn){btn.disabled=true;btn.textContent='جارٍ الحفظ...';}
   var resetBtn=function(){if(btn){btn.disabled=false;btn.textContent='✓ إنشاء التوزيع';}};
   // Create dispatch record
+  // Generate serial dispatch number
+  var{data:lastDisp}=await db.from('dispatches').select('dispatch_num').not('dispatch_num','is',null).order('dispatch_num',{ascending:false}).limit(1);
+  var lastDN=(lastDisp&&lastDisp.length)?lastDisp[0].dispatch_num:'DS-00000';
+  var lastDNum=parseInt((lastDN||'DS-00000').replace(/[^0-9]/g,''))||0;
+  var dispatchNum='DS-'+String(lastDNum+1).padStart(5,'0');
   var{data:disp,error}=await db.from('dispatches').insert({
+    dispatch_num:dispatchNum,
     technician_name:tech||'بيع مباشر',date:date,notes:notes,
     status:'open',created_by:CU.full_name||CU.username,
     warehouse:warehouse,dispatch_type:dispType
@@ -3580,6 +3590,70 @@ async function saveNewDispatch(){
   loadDispatches();
 }
 
+
+
+async function printSparePartsDispatch(dispId){
+  var{data:disp}=await db.from('dispatches').select('*').eq('id',dispId).single();
+  var{data:assignments}=await db.from('dispatch_assignments').select('*').eq('dispatch_id',dispId);
+  if(!disp){toast('\u062e\u0637\u0623',true);return;}
+  assignments=assignments||[];
+
+  var rowsHtml='';
+  var totalQty=0;
+  assignments.forEach(function(a,i){
+    totalQty+=(parseFloat(a.qty)||0);
+    rowsHtml+='<tr>'
+      +'<td style="padding:8px;border:1px solid #ccc;text-align:center">'+(i+1)+'</td>'
+      +'<td style="padding:8px;border:1px solid #ccc">'+(a.part_name||'-')+'</td>'
+      +'<td style="padding:8px;border:1px solid #ccc;text-align:center">'+(a.qty||0)+' '+(a.unit||'')+'</td>'
+      +'<td style="padding:8px;border:1px solid #ccc">'+(a.task_num||'-')+'</td>'
+      +'<td style="padding:8px;border:1px solid #ccc">'+(a.customer_name||'-')+'</td>'
+      +'</tr>';
+  });
+  if(!rowsHtml)rowsHtml='<tr><td colspan="5" style="padding:16px;text-align:center;color:#999;border:1px solid #ccc">\u0644\u0627 \u062a\u0648\u062c\u062f \u0642\u0637\u0639</td></tr>';
+
+  var dnum=disp.dispatch_num||'-';
+  var overlay=document.createElement('div');
+  overlay.id='sp-disp-print-overlay';
+  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:#fff;z-index:999999;overflow:auto;direction:rtl;padding:0';
+
+  var html='<div style="max-width:800px;margin:0 auto;padding:30px;font-family:\'Segoe UI\',Tahoma,sans-serif;color:#1a1a1a">'
+    +'<div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #0F6E56;padding-bottom:16px;margin-bottom:20px">'
+      +'<div><div style="font-size:24px;font-weight:800;color:#0F6E56">\u0628\u0631\u0627\u0632\u0631 \u0643\u0648\u0646\u062f \u0644\u0644\u062a\u0643\u064a\u064a\u0641</div>'
+        +'<div style="font-size:15px;color:#555;margin-top:4px">\u0623\u0645\u0631 \u0635\u0631\u0641 \u0642\u0637\u0639 \u063a\u064a\u0627\u0631</div></div>'
+      +'<div style="text-align:left"><div style="background:#0F6E56;color:#fff;padding:8px 16px;border-radius:8px;font-size:18px;font-weight:800">'+dnum+'</div></div>'
+    +'</div>'
+    +'<div style="display:flex;gap:30px;margin-bottom:20px;font-size:14px">'
+      +'<div><b>\u0627\u0644\u0641\u0646\u064a:</b> '+(disp.technician_name||'-')+'</div>'
+      +'<div><b>\u0627\u0644\u062a\u0627\u0631\u064a\u062e:</b> '+(disp.date||'-')+'</div>'
+      +'<div><b>\u0627\u0644\u0645\u062e\u0632\u0646:</b> '+(disp.warehouse||'-')+'</div>'
+    +'</div>'
+    +'<table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:20px">'
+      +'<thead><tr style="background:#0F6E56;color:#fff">'
+        +'<th style="padding:10px;border:1px solid #0F6E56">#</th>'
+        +'<th style="padding:10px;border:1px solid #0F6E56">\u0627\u0644\u0642\u0637\u0639\u0629</th>'
+        +'<th style="padding:10px;border:1px solid #0F6E56">\u0627\u0644\u0643\u0645\u064a\u0629</th>'
+        +'<th style="padding:10px;border:1px solid #0F6E56">\u0631\u0642\u0645 \u0627\u0644\u0645\u0647\u0645\u0629</th>'
+        +'<th style="padding:10px;border:1px solid #0F6E56">\u0627\u0644\u0639\u0645\u064a\u0644</th>'
+      +'</tr></thead><tbody>'+rowsHtml+'</tbody></table>'
+    +(disp.notes?'<div style="background:#f7f6f1;border-radius:8px;padding:12px;font-size:13px;margin-bottom:24px"><b>\u0645\u0644\u0627\u062d\u0638\u0627\u062a:</b> '+disp.notes+'</div>':'')
+    +'<div style="display:flex;justify-content:space-between;margin-top:50px;font-size:13px">'
+      +'<div style="text-align:center"><div style="border-top:1px solid #333;padding-top:6px;width:180px">\u062a\u0648\u0642\u064a\u0639 \u0623\u0645\u064a\u0646 \u0627\u0644\u0645\u062e\u0632\u0646</div></div>'
+      +'<div style="text-align:center"><div style="border-top:1px solid #333;padding-top:6px;width:180px">\u062a\u0648\u0642\u064a\u0639 \u0627\u0644\u0641\u0646\u064a \u0627\u0644\u0645\u0633\u062a\u0644\u0645</div></div>'
+    +'</div>'
+    +'<div style="text-align:center;margin-top:40px" class="no-print">'
+      +'<button onclick="window.print()" style="background:#185FA5;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer;margin-left:8px">\u0637\u0628\u0627\u0639\u0629</button>'
+      +'<button onclick="document.getElementById(\'sp-disp-print-overlay\').remove()" style="background:#888;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;cursor:pointer">\u0625\u063a\u0644\u0627\u0642</button>'
+    +'</div>'
+    +'</div>';
+  overlay.innerHTML=html;
+
+  var styleEl=document.createElement('style');
+  styleEl.id='sp-disp-print-style';
+  styleEl.textContent='@media print{body>*:not(#sp-disp-print-overlay){display:none!important}#sp-disp-print-overlay{position:static!important}.no-print{display:none!important}@page{size:A4;margin:12mm}}';
+  document.head.appendChild(styleEl);
+  document.body.appendChild(overlay);
+}
 
 async function openDispatch(id){
   var{data:disp}=await db.from('dispatches').select('*').eq('id',id).single();
@@ -3678,6 +3752,12 @@ async function openDispatch(id){
   var closeBtn=document.createElement('button');
   closeBtn.textContent=td('Close');closeBtn.className='btn bs';closeBtn.onclick=function(){overlay.remove();};
   ftr.appendChild(closeBtn);
+  var printDispBtn=document.createElement('button');
+  printDispBtn.innerHTML='🖨 طباعة أمر صرف';
+  printDispBtn.className='btn';
+  printDispBtn.style.cssText='background:#185FA5;color:#fff';
+  printDispBtn.onclick=function(){printSparePartsDispatch(id);};
+  ftr.appendChild(printDispBtn);
   if(isApprover){
     var cancelDispBtn=document.createElement('button');
     cancelDispBtn.innerHTML='&#10005; '+td('Cancel & Delete');cancelDispBtn.className='btn bs';
@@ -3908,6 +3988,54 @@ async function financeConfirmPO(poId){
   loadPur();
 }
 
+
+async function filterPurBySearch(query){
+  query=(query||'').trim().toLowerCase();
+  var body=document.getElementById('pob');
+  if(!body)return;
+  if(!query){loadPur();return;}
+  body.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:#888">جاري البحث...</td></tr>';
+  var itemsRes=await db.from('po_items').select('po_id,product_name,inventory_id,spare_part_id,qty').limit(20000);
+  var allItems=itemsRes.data||[];
+  var invIds=allItems.map(function(x){return x.inventory_id;}).filter(Boolean);
+  var spIds=allItems.map(function(x){return x.spare_part_id;}).filter(Boolean);
+  var invMap={};var spMap={};
+  if(invIds.length){var ir=await db.from('inventory').select('id,brand,model,hp').in('id',invIds).limit(20000);(ir.data||[]).forEach(function(iv){invMap[iv.id]=[iv.brand,iv.model,iv.hp].filter(Boolean).join(' ');});}
+  if(spIds.length){var sr=await db.from('spare_parts').select('id,name').in('id',spIds).limit(20000);(sr.data||[]).forEach(function(sp){spMap[sp.id]=sp.name;});}
+  var matchPoIds={};
+  allItems.forEach(function(it){
+    var nm=(it.product_name||invMap[it.inventory_id]||spMap[it.spare_part_id]||'').toLowerCase();
+    if(nm.indexOf(query)>=0){
+      if(!matchPoIds[it.po_id])matchPoIds[it.po_id]=[];
+      matchPoIds[it.po_id].push((it.product_name||invMap[it.inventory_id]||spMap[it.spare_part_id]||'-')+(it.qty?' ('+it.qty+')':''));
+    }
+  });
+  var poIds=Object.keys(matchPoIds);
+  if(!poIds.length){body.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:#888">لا توجد طلبات بهذا المنتج</td></tr>';return;}
+  var posRes=await db.from('purchase_orders').select('*').in('id',poIds).order('created_at',{ascending:false});
+  var pos=posRes.data||[];
+  var sids=[];pos.forEach(function(p){if(p.supplier_id&&sids.indexOf(p.supplier_id)<0)sids.push(p.supplier_id);});
+  var snMap={};
+  if(sids.length){var sr2=await db.from('suppliers').select('id,name').in('id',sids);(sr2.data||[]).forEach(function(s){snMap[s.id]=s.name;});}
+  body.innerHTML='';
+  pos.forEach(function(po){
+    var slabel={draft:'مسودة',pending:'مؤكد',received:'مستلم',partial:'جزئي',cancelled:'ملغي',returned:'مرتجع'}[po.status]||po.status;
+    var tr=document.createElement('tr');
+    tr.style.cursor='pointer';
+    tr.onclick=function(){openPODetail(po.id);};
+    tr.innerHTML='<td style="padding:8px 10px;font-weight:700;color:#1D9E75">'+po.po_num+'</td>'
+      +'<td style="padding:8px 10px">'+(snMap[po.supplier_id]||po.supplier_name||'-')+'</td>'
+      +'<td style="padding:8px 10px">'+po.date+'</td>'
+      +'<td style="padding:8px 10px;text-align:center">'+(matchPoIds[po.id].length)+'</td>'
+      +'<td style="padding:8px 10px;font-weight:700">'+f(po.total)+'</td>'
+      +'<td style="padding:8px 10px">'+slabel+'</td>'
+      +'<td style="padding:8px 10px"></td>';
+    body.appendChild(tr);
+    var prevTr=document.createElement('tr');
+    prevTr.innerHTML='<td colspan="7" style="padding:2px 14px 10px;font-size:11px;color:#185FA5;border-bottom:1px solid #f0f0e8">🔍 '+matchPoIds[po.id].join(' • ')+'</td>';
+    body.appendChild(prevTr);
+  });
+}
 async function loadPur(){
   var body=document.getElementById('pob');
   if(!body)return;
