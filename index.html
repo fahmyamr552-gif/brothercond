@@ -3323,6 +3323,18 @@ async function filterDispBySearch(query){
       matchDispIds[a.dispatch_id].push(a);
     }
   });
+  // Also search بيع مباشر dispatches (customer_name stored on the dispatch itself, items in dispatch_items)
+  var dmRes=await db.from('dispatches').select('id,customer_name').ilike('customer_name','%'+query+'%').limit(5000);
+  var dmDisps=dmRes.data||[];
+  for(var di=0;di<dmDisps.length;di++){
+    var dm=dmDisps[di];
+    if(!matchDispIds[dm.id]){
+      // Fetch its items from dispatch_items
+      var diRes=await db.from('dispatch_items').select('part_name,qty_out,unit').eq('dispatch_id',dm.id);
+      matchDispIds[dm.id]=(diRes.data||[]).map(function(it){return{customer_name:dm.customer_name,part_name:it.part_name,qty:it.qty_out,unit:it.unit};});
+      if(!matchDispIds[dm.id].length){matchDispIds[dm.id]=[{customer_name:dm.customer_name,part_name:'-',qty:''}];}
+    }
+  }
   var dispIds=Object.keys(matchDispIds);
   if(!dispIds.length){body.innerHTML='<div style="padding:30px;text-align:center;color:#888">لا توجد أوامر صرف لهذا العميل</div>';return;}
   var dRes=await db.from('dispatches').select('*').in('id',dispIds).order('created_at',{ascending:false});
@@ -3607,6 +3619,8 @@ async function saveNewDispatch(){
     var payMethod=document.getElementById('ds-pay-method')?.value||'كاش';
     var useTax=document.getElementById('ds-tax')?.checked||false;
     if(!custName){toast('أدخل اسم العميل',true);resetBtn();return;}
+    // Store customer name on the dispatch record for search & print
+    await db.from('dispatches').update({customer_name:custName}).eq('id',disp.id);
     // Price: user enters price INCLUDING tax → extract pre-tax
     var totalWithTax=items.reduce(function(s,it){return s+it.qty_out*it.unit_price;},0);
     var preTax=useTax?Math.round(totalWithTax/1.14*100)/100:totalWithTax;
@@ -3664,6 +3678,11 @@ async function printSparePartsDispatch(dispId){
   var{data:assignments}=await db.from('dispatch_assignments').select('*').eq('dispatch_id',dispId);
   if(!disp){toast('\u062e\u0637\u0623',true);return;}
   assignments=assignments||[];
+  // If no assignments (بيع مباشر / مستهلك / عهدة), read items from dispatch_items instead
+  if(!assignments.length){
+    var{data:ditems}=await db.from('dispatch_items').select('*').eq('dispatch_id',dispId);
+    assignments=(ditems||[]).map(function(it){return{part_name:it.part_name,qty:it.qty_out,unit:it.unit,task_num:'-',customer_name:disp.customer_name||'-'};});
+  }
 
   var rowsHtml='';
   var totalQty=0;
