@@ -2949,30 +2949,42 @@ async function cancelDispatch(dispId){
 }
 
 async function approveDispatch(dispId){
-  // Prevent double approval
-  var{data:checkDisp}=await db.from('dispatches').select('status').eq('id',dispId).single();
-  if(checkDisp&&checkDisp.status==='confirmed'){toast('Already confirmed!',true);return;}
-  if(!confirm(LANG==='ar'?'تأكيد أمر الصرف؟ سيتم خصم القطع من المخزون.':'Approve this dispatch? Inventory will be deducted.'))return;
-  // Get assignments and deduct inventory
-  var{data:assignments}=await db.from('dispatch_assignments').select('*').eq('dispatch_id',dispId);
-  for(var i=0;i<(assignments||[]).length;i++){
-    var a=assignments[i];
-    if(a.part_id||a.dispatch_item_id){
-      // Get part_id from dispatch_item
-      var{data:item}=await db.from('dispatch_items').select('part_id').eq('id',a.dispatch_item_id).single();
-      if(item&&item.part_id){
-        var{data:sp}=await db.from('spare_parts').select('qty').eq('id',item.part_id).single();
+  try{
+    // Prevent double approval
+    var{data:checkDisp}=await db.from('dispatches').select('status').eq('id',dispId).single();
+    if(checkDisp&&checkDisp.status==='confirmed'){toast(LANG==='ar'?'تم التأكيد مسبقاً':'Already confirmed!',true);return;}
+    if(!confirm(LANG==='ar'?'تأكيد أمر الصرف؟ سيتم خصم القطع من المخزون.':'Approve this dispatch? Inventory will be deducted.'))return;
+
+    // Get assignments and deduct inventory
+    var{data:assignments}=await db.from('dispatch_assignments').select('*').eq('dispatch_id',dispId);
+    assignments=assignments||[];
+    var deducted=0;
+    for(var i=0;i<assignments.length;i++){
+      var a=assignments[i];
+      var partId=a.part_id||null;
+      // If no direct part_id, resolve from dispatch_item
+      if(!partId&&a.dispatch_item_id){
+        var{data:item}=await db.from('dispatch_items').select('part_id').eq('id',a.dispatch_item_id).single();
+        if(item&&item.part_id)partId=item.part_id;
+      }
+      if(partId){
+        var{data:sp}=await db.from('spare_parts').select('qty').eq('id',partId).single();
         if(sp){
-          await db.from('spare_parts').update({qty:(sp.qty||0)-a.qty}).eq('id',item.part_id);
+          await db.from('spare_parts').update({qty:(sp.qty||0)-(a.qty||0)}).eq('id',partId);
+          deducted++;
         }
       }
     }
+
+    // Update status to confirmed
+    var{error}=await db.from('dispatches').update({status:'confirmed'}).eq('id',dispId);
+    if(error){toast('Error: '+error.message,true);return;}
+    toast(LANG==='ar'?('تم تأكيد أمر الصرف! خُصمت '+deducted+' قطعة من المخزون'):'Dispatch confirmed! '+deducted+' parts deducted.');
+    document.querySelectorAll('.disp-overlay').forEach(function(e){e.remove();});
+    loadDispatches();
+  }catch(e){
+    toast((LANG==='ar'?'خطأ: ':'Error: ')+(e.message||e),true);
   }
-  var{error}=await db.from('dispatches').update({status:'confirmed'}).eq('id',dispId);
-  if(error){toast('Error: '+error.message,true);return;}
-  toast('Dispatch approved! Inventory updated.');
-  document.querySelectorAll('.disp-overlay').forEach(function(e){e.remove();});
-  loadDispatches();
 }
 
 
