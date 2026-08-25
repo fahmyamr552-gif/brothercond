@@ -2862,7 +2862,7 @@ async function submitForApproval(dispId){
     alert('Cannot submit: '+missing.join(', '));
     return;
   }
-  if(!confirm('"+(LANG==="ar"?"إرسال للموافقة":"Submit for approval")+"? You cannot edit after this.'))return;
+  if(!confirm(LANG==='ar'?'إرسال للموافقة؟ لا يمكن التعديل بعد ذلك.':'Submit for approval? You cannot edit after this.'))return;
   var{error}=await db.from('dispatches').update({status:'pending_confirm'}).eq('id',dispId);
   if(error){toast('Error: '+error.message,true);return;}
   toast('Submitted for approval!');
@@ -2952,7 +2952,7 @@ async function approveDispatch(dispId){
   // Prevent double approval
   var{data:checkDisp}=await db.from('dispatches').select('status').eq('id',dispId).single();
   if(checkDisp&&checkDisp.status==='confirmed'){toast('Already confirmed!',true);return;}
-  if(!confirm('Approve this dispatch? Inventory will be deducted.'))return;
+  if(!confirm(LANG==='ar'?'تأكيد أمر الصرف؟ سيتم خصم القطع من المخزون.':'Approve this dispatch? Inventory will be deducted.'))return;
   // Get assignments and deduct inventory
   var{data:assignments}=await db.from('dispatch_assignments').select('*').eq('dispatch_id',dispId);
   for(var i=0;i<(assignments||[]).length;i++){
@@ -3820,7 +3820,7 @@ async function openDispatch(id){
     submitBtn.onclick=function(){submitForApproval(id);};
     ftr.appendChild(saveBtn);ftr.appendChild(assignBtn);ftr.appendChild(submitBtn);
   }
-  if(isApprover&&disp.status==='pending_confirm'){
+  if(isApprover&&(disp.status==='pending_confirm'||disp.status==='open')){
     var approveBtn=document.createElement('button');
     approveBtn.innerHTML='&#10003; '+td('Approve & Confirm');approveBtn.className='btn bp';
     approveBtn.onclick=function(){approveDispatch(id);};
