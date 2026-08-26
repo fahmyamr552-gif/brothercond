@@ -3195,7 +3195,7 @@ async function loadCustodyView(){
     (d.dispatch_items||[]).forEach(function(it){
       var remaining=it.qty_out-(it.qty_returned||0);
       if(remaining>0){
-        byTech[d.technician_name].push({part_name:it.part_name,qty_out:it.qty_out,qty_returned:it.qty_returned||0,remaining:remaining,unit:it.unit,date:d.date,disp_id:d.id,item_id:it.id,part_id:it.part_id});
+        byTech[d.technician_name].push({part_name:it.part_name,qty_out:it.qty_out,qty_returned:it.qty_returned||0,remaining:remaining,unit:it.unit,date:d.date,disp_id:d.id,item_id:it.id,part_id:it.part_id,dispatch_num:d.dispatch_num});
       }
     });
   });
@@ -3219,7 +3219,10 @@ async function loadCustodyView(){
     return '<div style="background:#fff;border:1px solid #eee;border-radius:10px;padding:16px;margin-bottom:12px">'
       +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
         +'<div><span style="font-size:15px;font-weight:700">&#128100; '+tech+'</span><span style="font-size:11px;color:#888;margin-left:8px">'+totalParts+' قطع في العهدة</span></div>'
+        +'<div style="display:flex;gap:6px">'
+        +'<button data-did="'+dispId+'" onclick="printSparePartsDispatch(this.dataset.did)" style="padding:6px 12px;border:none;border-radius:7px;background:#185FA5;color:#fff;cursor:pointer;font-size:12px;font-weight:700">🖨️ طباعة</button>'
         +'<button data-disp="'+dispId+'" data-tech="'+tech+'" onclick="submitCustodyReturn(this)" style="padding:6px 14px;border:none;border-radius:7px;background:#1D9E75;color:#fff;cursor:pointer;font-size:12px;font-weight:700">&#8617; تسجيل الاستلام</button>'
+        +'</div>'
       +'</div>'
       +partRows
     +'</div>';
@@ -3280,18 +3283,22 @@ async function loadConsumedView(){
   var rows=disps.map(function(d){
     var parts=(d.dispatch_items||[]).map(function(it){return it.part_name+' ('+it.qty_out+' '+it.unit+')';}).join('، ');
     return '<tr style="border-bottom:1px solid #f0f0e8">'
+      +'<td style="padding:10px 12px;color:#1D9E75;font-weight:700;font-size:12px">'+(d.dispatch_num||'-')+'</td>'
       +'<td style="padding:10px 12px;color:#888;font-size:12px">'+d.date+'</td>'
       +'<td style="padding:10px 12px;font-weight:600">'+d.technician_name+'</td>'
       +'<td style="padding:10px 12px">'+parts+'</td>'
       +'<td style="padding:10px 12px;color:#888;font-size:11px">'+(d.warehouse||'')+'</td>'
+      +'<td style="padding:10px 12px"><button data-did="'+d.id+'" onclick="printSparePartsDispatch(this.dataset.did)" style="background:#185FA5;color:#fff;border:none;border-radius:6px;padding:4px 12px;font-size:11px;cursor:pointer">🖨️ طباعة</button></td>'
     +'</tr>';
   }).join('');
   container.innerHTML='<table style="width:100%;border-collapse:collapse;font-size:13px">'
     +'<thead><tr style="background:#f5f5f0">'
-    +'<th style="padding:10px 12px;text-align:left">التاريخ</th>'
-    +'<th style="padding:10px 12px;text-align:left">الفني</th>'
-    +'<th style="padding:10px 12px;text-align:left">القطع المستهلكة</th>'
-    +'<th style="padding:10px 12px;text-align:left">المخزن</th>'
+    +'<th style="padding:10px 12px;text-align:right">رقم الأمر</th>'
+    +'<th style="padding:10px 12px;text-align:right">التاريخ</th>'
+    +'<th style="padding:10px 12px;text-align:right">الفني</th>'
+    +'<th style="padding:10px 12px;text-align:right">القطع المستهلكة</th>'
+    +'<th style="padding:10px 12px;text-align:right">المخزن</th>'
+    +'<th style="padding:10px 12px;text-align:right"></th>'
     +'</tr></thead><tbody>'+rows+'</tbody></table>';
 }
 
@@ -3323,8 +3330,8 @@ async function filterDispBySearch(query){
       matchDispIds[a.dispatch_id].push(a);
     }
   });
-  // Also search بيع مباشر dispatches (customer_name stored on the dispatch itself, items in dispatch_items)
-  var dmRes=await db.from('dispatches').select('id,customer_name').ilike('customer_name','%'+query+'%').limit(5000);
+  // Also search ALL dispatches by customer_name OR technician_name (covers بيع مباشر, عهدة, مستهلك)
+  var dmRes=await db.from('dispatches').select('id,customer_name,technician_name,dispatch_num,dispatch_type').or('customer_name.ilike.%'+query+'%,technician_name.ilike.%'+query+'%,dispatch_num.ilike.%'+query+'%').limit(5000);
   var dmDisps=dmRes.data||[];
   for(var di=0;di<dmDisps.length;di++){
     var dm=dmDisps[di];
