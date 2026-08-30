@@ -6117,8 +6117,29 @@ async function loadDailyReport(dateStr){
     }).join('');
     var purchaseRows=(poRows+poPayRows)||'<tr><td colspan="4" style="text-align:center;color:#aaa">لا يوجد نشاط مشتريات</td></tr>';
 
+    // ── Fetch dispatch activity for this date ──
+    // AC dispatch orders (approved on this date, from tasks)
+    var acDispatches=allTasks.filter(function(t){
+      return t.dispatch_approved&&t.dispatch_approved_at&&t.dispatch_approved_at.slice(0,10)===dateStr;
+    });
+    // Spare parts dispatches (from dispatches table, by date)
+    var{data:spDispatches}=await db.from('dispatches').select('*,dispatch_items(*)').eq('date',dateStr).order('created_at',{ascending:false});
+    spDispatches=spDispatches||[];
+
     var netSign=netCash>=0?'+':'';
     var netColor=netCash>=0?'':'style="color:#ffcccc"';
+
+    // Build AC dispatch rows
+    var acDispRows=acDispatches.map(function(t){
+      return '<tr><td>'+(t.task_num||'-')+'</td><td>'+(t.customer_name||'-')+'</td><td>'+(t.salesperson||'-')+'</td><td style="font-size:11px;color:#888">'+(t.dispatch_approved_by||'-')+'</td></tr>';
+    }).join('')||'<tr><td colspan="4" style="text-align:center;color:#aaa">لا يوجد صرف أجهزة</td></tr>';
+
+    // Build spare parts dispatch rows
+    var spDispRows=spDispatches.map(function(d){
+      var parts=(d.dispatch_items||[]).map(function(it){return (it.part_name||'-')+' ('+(it.qty_out||0)+')';}).join('، ')||'-';
+      var typeLbl={'عادي':'عادي','بيع مباشر':'بيع مباشر','عهدة':'عهدة','مستهلك':'مستهلك'}[d.dispatch_type]||d.dispatch_type||'-';
+      return '<tr><td style="color:#1D9E75;font-weight:700">'+(d.dispatch_num||'-')+'</td><td>'+(d.technician_name||d.customer_name||'-')+'</td><td style="font-size:11px">'+typeLbl+'</td><td style="font-size:11px;color:#666">'+parts+'</td></tr>';
+    }).join('')||'<tr><td colspan="4" style="text-align:center;color:#aaa">لا يوجد صرف قطع غيار</td></tr>';
 
     var html=''
       +'<div class="rep-report">'
@@ -6156,6 +6177,8 @@ async function loadDailyReport(dateStr){
           +'<div class="rep-sec"><div class="rep-sh">❌ المهام الملغاة <span class="rep-count" style="background:#FCEBEB;color:#A32D2D">'+cancelledTasks.length+'</span></div><table class="rep-tbl"><thead><tr><th>الطلب</th><th>العميل</th><th>النوع</th><th>الفرع</th><th>القيمة</th></tr></thead><tbody>'+cancelRows+'</tbody></table></div>'
           +'<div class="rep-sec"><div class="rep-sh">💰 المدفوعات المستلمة <span class="rep-count">'+dayPays.length+'</span></div><table class="rep-tbl"><thead><tr><th>العميل</th><th>الطلب</th><th>المبلغ</th><th>الطريقة</th></tr></thead><tbody>'+payRows+'</tbody></table></div>'
           +'<div class="rep-sec"><div class="rep-sh">🛒 المشتريات والموردين</div><table class="rep-tbl"><thead><tr><th>المورد</th><th>المنتجات</th><th>الحالة</th><th>المبلغ</th></tr></thead><tbody>'+purchaseRows+'</tbody></table></div>'
+          +'<div class="rep-sec"><div class="rep-sh">📦 صرف الأجهزة (أوامر الصرف) <span class="rep-count">'+acDispatches.length+'</span></div><table class="rep-tbl"><thead><tr><th>الطلب</th><th>العميل</th><th>البائع</th><th>اعتمده</th></tr></thead><tbody>'+acDispRows+'</tbody></table></div>'
+          +'<div class="rep-sec"><div class="rep-sh">🔧 صرف قطع الغيار <span class="rep-count">'+spDispatches.length+'</span></div><table class="rep-tbl"><thead><tr><th>رقم الأمر</th><th>الفني/العميل</th><th>النوع</th><th>القطع</th></tr></thead><tbody>'+spDispRows+'</tbody></table></div>'
           +'<div class="rep-sec"><div class="rep-sh">📌 لقطة المستحقات (إجمالي كلي)</div><div class="rep-breakdown"><div class="rep-chip"><span class="rc-l">مستحق على العملاء</span><b class="rep-money">'+repArNum(custOutstanding)+'</b></div><div class="rep-chip"><span class="rc-l">عملاء مدينين</span><b>'+custDebtors+'</b></div></div></div>'
           +'<div style="text-align:center;margin-top:20px"><button onclick="printDailyReport()" style="background:#185FA5;color:#fff;border:none;border-radius:10px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer">🖨️ طباعة التقرير</button></div>'
         +'</div>'
