@@ -1064,8 +1064,8 @@ async function doSignIn(){
     document.getElementById('srole').textContent=ROLES[CU.role]?.l||CU.role;
     document.getElementById('sbranch').textContent=CU.branch;
     applyRole();
-    if(CU.role==='salesperson')go('tasks',document.getElementById('ni-tasks'));
-    else go('dash',document.getElementById('ni-dash'));
+    if(CU.role==='owner')go('dash',document.getElementById('ni-dash'));
+    else go('tasks',document.getElementById('ni-tasks'));
   }catch(err){
     console.error('Login error:',err);
     const errEl2=document.getElementById('le');
@@ -1082,6 +1082,8 @@ function applyRole(){
   ['dash','tasks','inv','pur','fin','cust','sup','usr'].forEach(k=>{
     const el=document.getElementById('ni-'+k);if(!el)return;
     const pg={dash:'dash',tasks:'tasks',inv:'inv',pur:'pur',fin:'fin',cust:'cust',sup:'sup',usr:'usr'}[k];
+    // Dashboard is owner-only
+    if(k==='dash'){(CU&&CU.role==='owner')?el.classList.remove('off'):el.classList.add('off');return;}
     perms.includes(pg)?el.classList.remove('off'):el.classList.add('off');
   });
   var usrNav=document.getElementById('ni-usr');if(usrNav)usrNav.style.display=can('usr')?'':'none';
@@ -6517,8 +6519,8 @@ function applyTranslations(){
     document.getElementById('srole').textContent=(window.ROLES||{})[CU.role]?.l||CU.role;
     document.getElementById('sbranch').textContent=CU.branch;
     applyRole();
-    if(CU.role==='salesperson')go('tasks',document.getElementById('ni-tasks'));
-    else go('dash',document.getElementById('ni-dash'));
+    if(CU.role==='owner')go('dash',document.getElementById('ni-dash'));
+    else go('tasks',document.getElementById('ni-tasks'));
   }catch(e){
     console.log('Session restore error:',e);
     try{localStorage.removeItem('bc_user');}catch(e2){}
