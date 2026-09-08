@@ -4771,6 +4771,17 @@ function normalizePhone(ph){
   return out;
 }
 
+async function checkPhoneDuplicate(phone){
+  var norm=normalizePhone(phone);
+  if(!norm||norm.length<6)return null; // too short to check
+  var{data:allC}=await db.from('customers').select('id,full_name,phone').limit(20000);
+  allC=allC||[];
+  for(var i=0;i<allC.length;i++){
+    if(normalizePhone(allC[i].phone)===norm)return allC[i];
+  }
+  return null;
+}
+
 async function loadMergeGroups(){
   var body=document.getElementById('merge-body');
   if(!body)return;
@@ -4899,6 +4910,12 @@ function addAddrRow(val){
 
 async function saveAC(){
   var nm=document.getElementById('acn')?.value.trim();if(!nm){toast('Name required',true);return;}
+  var acPhone=document.getElementById('acp')?.value||'';
+  var dup=await checkPhoneDuplicate(acPhone);
+  if(dup){
+    toast(LANG==='ar'?('⚠️ هذا الرقم مسجل للعميل: '+dup.full_name):('⚠️ Phone already exists: '+dup.full_name),true);
+    return;
+  }
   var addrs=Array.from(document.querySelectorAll('.addr-inp')).map(function(i){return i.value.trim();}).filter(Boolean);
   var{error}=await db.from('customers').insert({full_name:nm,phone:document.getElementById('acp')?.value,phone2:document.getElementById('acp2')?.value,address:addrs[0]||'',addresses:JSON.stringify(addrs),id_number:document.getElementById('aci')?.value});
   if(error){toast('Error: '+error.message,true);return;}
@@ -5135,6 +5152,12 @@ async function saveTask(){
   if(document.getElementById('ncc').checked){
     var nm=document.getElementById('ncn')?.value.trim();
     if(!nm){toast(t('fullname')+' required',true);return;}
+    var ncPhone=document.getElementById('ncp')?.value||'';
+    var ncDup=await checkPhoneDuplicate(ncPhone);
+    if(ncDup){
+      toast(LANG==='ar'?('⚠️ الرقم مسجل مسبقاً للعميل: '+ncDup.full_name+' - ابحث عنه واختره'):('⚠️ Phone belongs to existing customer: '+ncDup.full_name+' - search and select them'),true);
+      return;
+    }
     var{data:nc,error}=await db.from('customers').insert({full_name:nm,phone:document.getElementById('ncp')?.value,phone2:document.getElementById('ncp2')?.value,address:document.getElementById('nca')?.value,id_number:document.getElementById('nci')?.value}).select().single();
     if(error){toast('Error: '+error.message,true);return;}
     cid=nc.id;customerName=nm;
