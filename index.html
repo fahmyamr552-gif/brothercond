@@ -4757,6 +4757,20 @@ async function openMergeTool(){
   loadMergeGroups();
 }
 
+
+function normalizePhone(ph){
+  if(!ph)return '';
+  // Convert Arabic-Indic digits to English + strip non-digits
+  var arabicDigits={'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'};
+  var out='';
+  for(var i=0;i<ph.length;i++){
+    var ch=ph[i];
+    if(arabicDigits[ch])out+=arabicDigits[ch];
+    else if(ch>='0'&&ch<='9')out+=ch;
+  }
+  return out;
+}
+
 async function loadMergeGroups(){
   var body=document.getElementById('merge-body');
   if(!body)return;
@@ -4772,7 +4786,7 @@ async function loadMergeGroups(){
   // Group by normalized phone
   var byPhone={};
   custs.forEach(function(c){
-    var ph=(c.phone||'').replace(/\s/g,'').trim();
+    var ph=normalizePhone(c.phone);
     if(!ph)return;
     if(!byPhone[ph])byPhone[ph]=[];
     byPhone[ph].push(c);
