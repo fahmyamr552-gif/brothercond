@@ -252,6 +252,10 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
 </div>
 
 <!-- TASKS LIST -->
+<div class="pg" id="pg-mydash">
+  <div id="mydash-body" style="max-width:100%"></div>
+</div>
+
 <div class="pg" id="pg-tasks">
   <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
     <input placeholder="Search..." data-t-ph="search" style="flex:1;min-width:140px" id="tq" oninput="loadTasksDebounced()">
@@ -1102,6 +1106,7 @@ async function doSignIn(){
     document.getElementById('sbranch').textContent=CU.branch;
     applyRole();
     if(CU.role==='owner')go('dash',document.getElementById('ni-dash'));
+    else if(CU.role==='salesperson'||CU.role==='technician')go('mydash',document.getElementById('ni-dash'));
     else go('tasks',document.getElementById('ni-tasks'));
   }catch(err){
     console.error('Login error:',err);
@@ -1120,7 +1125,7 @@ function applyRole(){
     const el=document.getElementById('ni-'+k);if(!el)return;
     const pg={dash:'dash',tasks:'tasks',inv:'inv',pur:'pur',fin:'fin',cust:'cust',sup:'sup',usr:'usr'}[k];
     // Dashboard is owner-only
-    if(k==='dash'){(CU&&CU.role==='owner')?el.classList.remove('off'):el.classList.add('off');return;}
+    if(k==='dash'){(CU&&(CU.role==='owner'||CU.role==='salesperson'||CU.role==='technician'))?el.classList.remove('off'):el.classList.add('off');return;}
     perms.includes(pg)?el.classList.remove('off'):el.classList.add('off');
   });
   var usrNav=document.getElementById('ni-usr');if(usrNav)usrNav.style.display=can('usr')?'':'none';
@@ -1172,14 +1177,15 @@ function go(pg,el){
   const pge=document.getElementById('pg-'+pg);
   if(pge)pge.classList.add('on');
   if(el)el.classList.add('on');
-  const titlesMap={dash:'dashboard',tasks:'tasks',inv:'inventory','np':'addproduct',pur:'purchases','npo':'newpo',fin:'finance',cust:'customers','cd':'customer',sup:'suppliers','sd':'supplier',usr:'users',disp:'dispatches','nt':'newtask','td':'tasks',plan:'خطة يومية',fb:'آراء العملاء',fu:'الاستكمالات',ds:'أوامر الصرف',rep:'التقرير اليومي',ded:'الخصومات'};
+  const titlesMap={dash:'dashboard',tasks:'tasks',inv:'inventory','np':'addproduct',pur:'purchases','npo':'newpo',fin:'finance',cust:'customers','cd':'customer',sup:'suppliers','sd':'supplier',usr:'users',disp:'dispatches','nt':'newtask','td':'tasks',plan:'خطة يومية',fb:'آراء العملاء',fu:'الاستكمالات',ds:'أوامر الصرف',rep:'التقرير اليومي',ded:'الخصومات',mydash:'لوحتي'};
   const titles={}; Object.entries(titlesMap).forEach(([k,v])=>titles[k]=t(v));
   document.getElementById('ptitle').textContent=titles[pg]||pg;
   const ta=document.getElementById('tact');ta.innerHTML='';
   const btnKeys={tasks:'newtask',inv:'addproduct',pur:'newpo',cust:'addcustomer',sup:'addsupplier'};
   const btnFns={tasks:function(){openNT();},inv:function(){openAddInvModal()},pur:function(){openNewPO();},cust:function(){openAC();},sup:function(){openAS();}};
   if(btnKeys[pg]){const b=document.createElement('button');b.className='btn bs bp';b.textContent='+ '+t(btnKeys[pg]);b._tkey=btnKeys[pg];b.onclick=btnFns[pg];ta.appendChild(b);}
-  if(pg==='dash')loadDash();
+  if(pg==='dash'){if(CU&&CU.role==='owner'){loadDash();}else{go('mydash',document.getElementById('ni-dash'));}}
+  if(pg==='mydash')loadRoleDashboard();
   if(pg==='tasks')loadTasks();
   if(pg==='inv')loadInv();
   if(pg==='pur')loadPur();
@@ -6479,7 +6485,7 @@ async function loadDeductions(){
       +'<button onclick="saveDeduction()" style="background:#A32D2D;color:#fff;border:none;border-radius:8px;padding:9px 20px;font-size:13px;font-weight:700;cursor:pointer">حفظ الخصم</button>'
     +'</div>';
   }
-  var rows=deds.map(function(d){
+  var rows=filteredDeds.map(function(d){
     var delBtn=isOwner?'<td style="padding:9px 10px"><span data-did="'+d.id+'" onclick="deleteDeduction(this.dataset.did)" style="color:#ccc;cursor:pointer;font-size:16px">✕</span></td>':'';
     return '<tr style="border-bottom:1px solid #f0f0e8">'
       +'<td style="padding:9px 10px;font-weight:600">'+(d.employee_name||'-')+'</td>'
@@ -6491,8 +6497,25 @@ async function loadDeductions(){
       +delBtn
     +'</tr>';
   }).join('')||'<tr><td colspan="7" style="text-align:center;padding:20px;color:#aaa">لا توجد خصومات</td></tr>';
+  // Build filter options from all employees in deductions
+  var empSet={};deds.forEach(function(d){if(d.employee_name)empSet[d.employee_name]=1;});
+  var filterEmpOpts='<option value="">كل الموظفين</option>'+Object.keys(empSet).map(function(e){return '<option value="'+e+'"'+(window._dedFilterEmp===e?' selected':'')+'>'+e+'</option>';}).join('');
+  // Apply active filters
+  var fEmp=window._dedFilterEmp||'';
+  var fMonth=window._dedFilterMonth||'';
+  var filteredDeds=deds.filter(function(d){
+    if(fEmp&&d.employee_name!==fEmp)return false;
+    if(fMonth&&(!d.date||d.date.slice(0,7)!==fMonth))return false;
+    return true;
+  });
   html+='<div class="cd" style="padding:0;overflow:hidden">'
-    +'<div style="padding:14px 18px;font-weight:800;font-size:15px;border-bottom:1px solid #f0efe8">📋 كل الخصومات ('+deds.length+')</div>'
+    +'<div style="padding:14px 18px;border-bottom:1px solid #f0efe8">'
+    +'<div style="font-weight:800;font-size:15px;margin-bottom:10px">📋 الخصومات ('+filteredDeds.length+')</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    +'<select id="ded-filter-emp" onchange="window._dedFilterEmp=this.value;loadDeductions()" style="padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px">'+filterEmpOpts+'</select>'
+    +'<input id="ded-filter-month" type="month" value="'+fMonth+'" onchange="window._dedFilterMonth=this.value;loadDeductions()" style="padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px">'
+    +'<button onclick="window._dedFilterEmp=\'\';window._dedFilterMonth=\'\';loadDeductions()" style="padding:7px 14px;border:1px solid #ddd;border-radius:8px;background:#fff;font-size:12px;cursor:pointer">مسح</button>'
+    +'</div></div>'
     +'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:520px">'
     +'<thead><tr style="background:#f7f6f1"><th style="padding:9px 10px;text-align:right;font-size:12px;color:#666">الموظف</th><th style="padding:9px 10px;text-align:right;font-size:12px;color:#666">النوع</th><th style="padding:9px 10px;text-align:right;font-size:12px;color:#666">القيمة</th><th style="padding:9px 10px;text-align:right;font-size:12px;color:#666">السبب</th><th style="padding:9px 10px;text-align:right;font-size:12px;color:#666">التاريخ</th><th style="padding:9px 10px;text-align:right;font-size:12px;color:#666">أضافه</th>'+(isOwner?'<th></th>':'')+'</tr></thead>'
     +'<tbody>'+rows+'</tbody></table></div>'
@@ -6521,6 +6544,91 @@ async function deleteDeduction(id){
   toast('تم الحذف');
   loadDeductions();
 }
+
+// ── ROLE-BASED DASHBOARDS ─────────────────────────────────────
+async function loadRoleDashboard(){
+  var body=document.getElementById('mydash-body');
+  if(!body)return;
+  body.innerHTML='<div style="text-align:center;padding:30px;color:#888">جاري التحميل...</div>';
+  var role=CU?CU.role:'';
+  if(role==='salesperson'){return loadSalesDashboard(body);}
+  if(role==='technician'){return loadTechDashboard(body);}
+  // fallback
+  body.innerHTML='<div style="padding:30px;text-align:center;color:#888">لا توجد لوحة مخصصة</div>';
+}
+
+async function loadSalesDashboard(body){
+  var myName=CU.full_name||CU.username;
+  var todayStr=new Date().toISOString().slice(0,10);
+  var monthStr=todayStr.slice(0,7);
+
+  // Fetch my tasks
+  var{data:myTasks}=await db.from('tasks').select('id,task_num,type,customer_name,date,status,installation_date').eq('salesperson',myName).limit(10000);
+  myTasks=myTasks||[];
+
+  // Today's tasks (by date, or installation_date for sales)
+  var todayTasks=myTasks.filter(function(t){
+    if(t.type==='sales'||t.type==='بيع مباشر')return t.installation_date===todayStr;
+    return t.date===todayStr;
+  });
+  // Completed this month
+  var completedMonth=myTasks.filter(function(t){
+    return (t.status==='done'||t.status==='field_done'||t.status==='completed')&&t.date&&t.date.slice(0,7)===monthStr;
+  });
+  // Pending
+  var pendingTasks=myTasks.filter(function(t){return t.status==='pending'||t.status==='progress';});
+
+  // AC units sold this month (task_products with inventory_id in my tasks this month)
+  var myMonthTaskIds=myTasks.filter(function(t){return t.date&&t.date.slice(0,7)===monthStr&&t.status!=='cancel';}).map(function(t){return t.id;});
+  var acSold=0;
+  if(myMonthTaskIds.length){
+    var{data:tps}=await db.from('task_products').select('task_id,qty,inventory_id').in('task_id',myMonthTaskIds).limit(20000);
+    (tps||[]).forEach(function(p){if(p.inventory_id)acSold+=(p.qty||0);});
+  }
+
+  // My deductions
+  var{data:myDeds}=await db.from('deductions').select('*').eq('employee_name',myName).order('date',{ascending:false}).limit(1000);
+  myDeds=myDeds||[];
+
+  var typeLabels2={maintenance:'صيانة',installation:'تركيب',uninstall:'فك',uninstall_install:'فك و تركيب',pull:'سحب',inspection:'معاينة',workshop:'اصلاح ورشة',sales:'بيع'};
+  var stLabel={pending:'معلق',progress:'جاري',field_done:'مكتمل',done:'مكتمل',completed:'مكتمل',cancel:'ملغي'};
+  var stColor={pending:'#FAEEDA;color:#854F0B',progress:'#E6F1FB;color:#185FA5',field_done:'#EAF3DE;color:#0F6E56',done:'#EAF3DE;color:#0F6E56',completed:'#EAF3DE;color:#0F6E56',cancel:'#FCEBEB;color:#A32D2D'};
+
+  var todayRows=todayTasks.map(function(t){
+    return '<tr><td style="padding:9px 10px;font-weight:600">'+t.task_num+'</td><td style="padding:9px 10px">'+(t.customer_name||'-')+'</td><td style="padding:9px 10px">'+(typeLabels2[t.type]||t.type)+'</td><td style="padding:9px 10px"><span style="font-size:11px;padding:2px 8px;border-radius:5px;background:'+(stColor[t.status]||'#eee;color:#888')+';font-weight:600">'+(stLabel[t.status]||t.status)+'</span></td></tr>';
+  }).join('')||'<tr><td colspan="4" style="text-align:center;padding:16px;color:#aaa">لا توجد مهام اليوم</td></tr>';
+
+  var dedRows=myDeds.map(function(d){
+    return '<tr><td style="padding:9px 10px">'+(d.ded_type||'-')+'</td><td style="padding:9px 10px;font-weight:700;color:#A32D2D">'+(d.ded_value||'-')+'</td><td style="padding:9px 10px">'+(d.reason||'-')+'</td><td style="padding:9px 10px;color:#888;font-size:12px">'+(d.date||'-')+'</td></tr>';
+  }).join('')||'<tr><td colspan="4" style="text-align:center;padding:16px;color:#aaa">لا توجد خصومات</td></tr>';
+
+  var html=''
+    +'<div style="background:linear-gradient(135deg,#0F6E56,#1D9E75);color:#fff;border-radius:14px;padding:20px 24px;margin-bottom:18px">'
+      +'<div style="font-size:20px;font-weight:800">أهلاً '+myName+' '+wave+'</div>'
+      +'<div style="font-size:13px;opacity:.9;margin-top:4px">لوحتك الخاصة — مهامك وأدائك</div>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px">'
+      +'<div class="cd" style="padding:16px;border-right:4px solid #185FA5"><div style="font-size:12px;color:#888;margin-bottom:6px">مهامي اليوم</div><div style="font-size:24px;font-weight:800">'+todayTasks.length+'</div></div>'
+      +'<div class="cd" style="padding:16px;border-right:4px solid #1D9E75"><div style="font-size:12px;color:#888;margin-bottom:6px">المكتملة (الشهر)</div><div style="font-size:24px;font-weight:800">'+completedMonth.length+'</div></div>'
+      +'<div class="cd" style="padding:16px;border-right:4px solid #EF9F27"><div style="font-size:12px;color:#888;margin-bottom:6px">قيد الانتظار</div><div style="font-size:24px;font-weight:800">'+pendingTasks.length+'</div></div>'
+      +'<div class="cd" style="padding:16px;border-right:4px solid #0F6E56"><div style="font-size:12px;color:#888;margin-bottom:6px">أجهزة بعتها (الشهر)</div><div style="font-size:24px;font-weight:800">'+acSold+'</div></div>'
+    +'</div>'
+    +'<div class="cd" style="padding:0;overflow:hidden;margin-bottom:16px">'
+      +'<div style="padding:14px 18px;font-weight:800;font-size:15px;border-bottom:1px solid #f0efe8">'+clip+' مهامي اليوم</div>'
+      +'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:400px"><thead><tr style="background:#f7f6f1"><th style="padding:8px 10px;text-align:right;font-size:12px;color:#666">الطلب</th><th style="padding:8px 10px;text-align:right;font-size:12px;color:#666">العميل</th><th style="padding:8px 10px;text-align:right;font-size:12px;color:#666">النوع</th><th style="padding:8px 10px;text-align:right;font-size:12px;color:#666">الحالة</th></tr></thead><tbody>'+todayRows+'</tbody></table></div>'
+    +'</div>'
+    +'<div class="cd" style="padding:0;overflow:hidden">'
+      +'<div style="padding:14px 18px;font-weight:800;font-size:15px;border-bottom:1px solid #f0efe8">'+minus+' خصوماتي</div>'
+      +'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:400px"><thead><tr style="background:#f7f6f1"><th style="padding:8px 10px;text-align:right;font-size:12px;color:#666">النوع</th><th style="padding:8px 10px;text-align:right;font-size:12px;color:#666">القيمة</th><th style="padding:8px 10px;text-align:right;font-size:12px;color:#666">السبب</th><th style="padding:8px 10px;text-align:right;font-size:12px;color:#666">التاريخ</th></tr></thead><tbody>'+dedRows+'</tbody></table></div>'
+      +'<div style="padding:10px 18px;font-size:11px;color:#999">للعرض فقط</div>'
+    +'</div>';
+  body.innerHTML=html;
+}
+
+async function loadTechDashboard(body){
+  body.innerHTML='<div style="padding:30px;text-align:center;color:#888">لوحة الفني - قريباً</div>';
+}
+// ── END ROLE DASHBOARDS ───────────────────────────────────────
 </script>
 </body>
 </html>
