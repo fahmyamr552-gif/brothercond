@@ -6580,28 +6580,29 @@ async function loadSalesDashboard(body){
     }
     return false;
   });
-  // DEBUG
-  console.log('DASH DEBUG: nameVariants=',nameVariants,'| total tasks=',allT.length,'| matched=',myTasks.length,'| sample salespersons=',allT.slice(0,5).map(function(t){return t.salesperson;}));
-  toast('طوباق: '+myTasks.length+' مهمة | الاسم: '+nameVariants.join(','));
+
 
   // Today's tasks (by date, or installation_date for sales)
   var todayTasks=myTasks.filter(function(t){
     if(t.type==='sales'||t.type==='بيع مباشر')return t.installation_date===todayStr;
     return t.date===todayStr;
   });
-  // Completed this month
+  // Completed this month (fallback: if none this month, show total completed)
   var completedMonth=myTasks.filter(function(t){
     return (t.status==='done'||t.status==='field_done'||t.status==='completed')&&t.date&&t.date.slice(0,7)===monthStr;
   });
+  var completedTotal=myTasks.filter(function(t){return t.status==='done'||t.status==='field_done'||t.status==='completed';});
   // Pending
   var pendingTasks=myTasks.filter(function(t){return t.status==='pending'||t.status==='progress';});
 
-  // AC units sold this month (task_products with inventory_id in my tasks this month)
+  // AC units sold this month
   var myMonthTaskIds=myTasks.filter(function(t){return t.date&&t.date.slice(0,7)===monthStr&&t.status!=='cancel';}).map(function(t){return t.id;});
   var acSold=0;
-  if(myMonthTaskIds.length){
-    var{data:tps}=await db.from('task_products').select('task_id,qty,inventory_id').in('task_id',myMonthTaskIds).limit(20000);
-    (tps||[]).forEach(function(p){if(p.inventory_id)acSold+=(p.qty||0);});
+  var allMyTaskIds=myTasks.filter(function(t){return t.status!=='cancel';}).map(function(t){return t.id;});
+  if(allMyTaskIds.length){
+    var{data:tps}=await db.from('task_products').select('task_id,qty,inventory_id').in('task_id',allMyTaskIds).limit(20000);
+    var monthSet={};myMonthTaskIds.forEach(function(id){monthSet[id]=1;});
+    (tps||[]).forEach(function(p){if(p.inventory_id&&monthSet[p.task_id])acSold+=(p.qty||0);});
   }
 
   // My deductions
@@ -6612,7 +6613,8 @@ async function loadSalesDashboard(body){
   var stLabel={pending:'معلق',progress:'جاري',field_done:'مكتمل',done:'مكتمل',completed:'مكتمل',cancel:'ملغي'};
   var stColor={pending:'#FAEEDA;color:#854F0B',progress:'#E6F1FB;color:#185FA5',field_done:'#EAF3DE;color:#0F6E56',done:'#EAF3DE;color:#0F6E56',completed:'#EAF3DE;color:#0F6E56',cancel:'#FCEBEB;color:#A32D2D'};
 
-  var todayRows=todayTasks.map(function(t){
+  var listTasks=todayTasks.length?todayTasks:myTasks.slice().sort(function(a,b){return (b.date||'').localeCompare(a.date||'');}).slice(0,10);
+  var todayRows=listTasks.map(function(t){
     return '<tr><td style="padding:9px 10px;font-weight:600">'+t.task_num+'</td><td style="padding:9px 10px">'+(t.customer_name||'-')+'</td><td style="padding:9px 10px">'+(typeLabels2[t.type]||t.type)+'</td><td style="padding:9px 10px"><span style="font-size:11px;padding:2px 8px;border-radius:5px;background:'+(stColor[t.status]||'#eee;color:#888')+';font-weight:600">'+(stLabel[t.status]||t.status)+'</span></td></tr>';
   }).join('')||'<tr><td colspan="4" style="text-align:center;padding:16px;color:#aaa">لا توجد مهام اليوم</td></tr>';
 
@@ -6627,12 +6629,12 @@ async function loadSalesDashboard(body){
     +'</div>'
     +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px">'
       +'<div class="cd" style="padding:16px;border-right:4px solid #185FA5"><div style="font-size:12px;color:#888;margin-bottom:6px">مهامي اليوم</div><div style="font-size:24px;font-weight:800">'+todayTasks.length+'</div></div>'
-      +'<div class="cd" style="padding:16px;border-right:4px solid #1D9E75"><div style="font-size:12px;color:#888;margin-bottom:6px">المكتملة (الشهر)</div><div style="font-size:24px;font-weight:800">'+completedMonth.length+'</div></div>'
+      +'<div class="cd" style="padding:16px;border-right:4px solid #1D9E75"><div style="font-size:12px;color:#888;margin-bottom:6px">المكتملة (الكلي)</div><div style="font-size:24px;font-weight:800">'+completedTotal.length+'</div></div>'
       +'<div class="cd" style="padding:16px;border-right:4px solid #EF9F27"><div style="font-size:12px;color:#888;margin-bottom:6px">قيد الانتظار</div><div style="font-size:24px;font-weight:800">'+pendingTasks.length+'</div></div>'
       +'<div class="cd" style="padding:16px;border-right:4px solid #0F6E56"><div style="font-size:12px;color:#888;margin-bottom:6px">أجهزة بعتها (الشهر)</div><div style="font-size:24px;font-weight:800">'+acSold+'</div></div>'
     +'</div>'
     +'<div class="cd" style="padding:0;overflow:hidden;margin-bottom:16px">'
-      +'<div style="padding:14px 18px;font-weight:800;font-size:15px;border-bottom:1px solid #f0efe8">📋 مهامي اليوم</div>'
+      +'<div style="padding:14px 18px;font-weight:800;font-size:15px;border-bottom:1px solid #f0efe8">📋 مهامي</div>'
       +'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:400px"><thead><tr style="background:#f7f6f1"><th style="padding:8px 10px;text-align:right;font-size:12px;color:#666">الطلب</th><th style="padding:8px 10px;text-align:right;font-size:12px;color:#666">العميل</th><th style="padding:8px 10px;text-align:right;font-size:12px;color:#666">النوع</th><th style="padding:8px 10px;text-align:right;font-size:12px;color:#666">الحالة</th></tr></thead><tbody>'+todayRows+'</tbody></table></div>'
     +'</div>'
     +'<div class="cd" style="padding:0;overflow:hidden">'
