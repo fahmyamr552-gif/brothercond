@@ -6558,13 +6558,28 @@ async function loadRoleDashboard(){
 }
 
 async function loadSalesDashboard(body){
+  try{
   var myName=CU.full_name||CU.username;
   var todayStr=new Date().toISOString().slice(0,10);
   var monthStr=todayStr.slice(0,7);
 
-  // Fetch my tasks
-  var{data:myTasks}=await db.from('tasks').select('id,task_num,type,customer_name,date,status,installation_date').eq('salesperson',myName).limit(10000);
-  myTasks=myTasks||[];
+  // Build name variations to match tasks (names are stored inconsistently)
+  var nameVariants=[];
+  if(CU.full_name)nameVariants.push(CU.full_name.toLowerCase().trim());
+  if(CU.username)nameVariants.push(CU.username.toLowerCase().trim());
+  if(CU.full_name){var firstName=CU.full_name.trim().split(' ')[0];if(firstName)nameVariants.push(firstName.toLowerCase());}
+
+  // Fetch ALL tasks then filter by name variations (handles Heba vs heba zaki)
+  var{data:allT}=await db.from('tasks').select('id,task_num,type,customer_name,date,status,installation_date,salesperson').limit(20000);
+  allT=allT||[];
+  var myTasks=allT.filter(function(t){
+    var sp=(t.salesperson||'').toLowerCase().trim();
+    if(!sp)return false;
+    for(var i=0;i<nameVariants.length;i++){
+      if(sp===nameVariants[i]||sp.indexOf(nameVariants[i])>=0||nameVariants[i].indexOf(sp)>=0)return true;
+    }
+    return false;
+  });
 
   // Today's tasks (by date, or installation_date for sales)
   var todayTasks=myTasks.filter(function(t){
@@ -6623,6 +6638,10 @@ async function loadSalesDashboard(body){
       +'<div style="padding:10px 18px;font-size:11px;color:#999">للعرض فقط</div>'
     +'</div>';
   body.innerHTML=html;
+  }catch(e){
+    body.innerHTML='<div style="padding:30px;text-align:center;color:#A32D2D">خطأ: '+(e.message||e)+'</div>';
+    console.error('Sales dashboard error:',e);
+  }
 }
 
 async function loadTechDashboard(body){
