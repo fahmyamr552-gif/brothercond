@@ -6469,6 +6469,18 @@ async function loadDeductions(){
   }
   var dr=await db.from('deductions').select('*').order('date',{ascending:false}).limit(10000);
   var deds=dr.data||[];
+  // Build filter options from all employees in deductions
+  var empSet={};deds.forEach(function(d){if(d.employee_name)empSet[d.employee_name]=1;});
+  var filterEmpOpts='<option value="">كل الموظفين</option>'+Object.keys(empSet).map(function(e){return '<option value="'+e+'"'+(window._dedFilterEmp===e?' selected':'')+'>'+e+'</option>';}).join('');
+  // Apply active filters
+  var fEmp=window._dedFilterEmp||'';
+  var fMonth=window._dedFilterMonth||'';
+  var filteredDeds=deds.filter(function(d){
+    if(fEmp&&d.employee_name!==fEmp)return false;
+    if(fMonth&&(!d.date||d.date.slice(0,7)!==fMonth))return false;
+    return true;
+  });
+  
   var html='';
   if(isOwner){
     html+='<div class="cd" style="padding:18px;margin-bottom:16px">'
@@ -6497,17 +6509,6 @@ async function loadDeductions(){
       +delBtn
     +'</tr>';
   }).join('')||'<tr><td colspan="7" style="text-align:center;padding:20px;color:#aaa">لا توجد خصومات</td></tr>';
-  // Build filter options from all employees in deductions
-  var empSet={};deds.forEach(function(d){if(d.employee_name)empSet[d.employee_name]=1;});
-  var filterEmpOpts='<option value="">كل الموظفين</option>'+Object.keys(empSet).map(function(e){return '<option value="'+e+'"'+(window._dedFilterEmp===e?' selected':'')+'>'+e+'</option>';}).join('');
-  // Apply active filters
-  var fEmp=window._dedFilterEmp||'';
-  var fMonth=window._dedFilterMonth||'';
-  var filteredDeds=deds.filter(function(d){
-    if(fEmp&&d.employee_name!==fEmp)return false;
-    if(fMonth&&(!d.date||d.date.slice(0,7)!==fMonth))return false;
-    return true;
-  });
   html+='<div class="cd" style="padding:0;overflow:hidden">'
     +'<div style="padding:14px 18px;border-bottom:1px solid #f0efe8">'
     +'<div style="font-weight:800;font-size:15px;margin-bottom:10px">📋 الخصومات ('+filteredDeds.length+')</div>'
