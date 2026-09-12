@@ -6580,6 +6580,9 @@ async function loadSalesDashboard(body){
     }
     return false;
   });
+  // DEBUG
+  console.log('DASH DEBUG: nameVariants=',nameVariants,'| total tasks=',allT.length,'| matched=',myTasks.length,'| sample salespersons=',allT.slice(0,5).map(function(t){return t.salesperson;}));
+  toast('طوباق: '+myTasks.length+' مهمة | الاسم: '+nameVariants.join(','));
 
   // Today's tasks (by date, or installation_date for sales)
   var todayTasks=myTasks.filter(function(t){
