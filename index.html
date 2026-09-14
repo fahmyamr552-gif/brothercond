@@ -213,6 +213,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     <div class="ni" id="ni-ds" onclick="openDispatchOrders()">&#9632; <span data-t="navdispatch">أوامر الصرف</span></div>
     <div class="ni" id="ni-rep" onclick="openDailyReport()">&#9632; <span data-t="navreport">التقرير اليومي</span></div>
     <div class="ni" id="ni-ded" onclick="openDeductions()">&#9632; <span data-t="navded">الخصومات</span></div>
+    <div class="ni" id="ni-pay" onclick="openPayroll()">&#9632; <span data-t="navpay">الرواتب</span></div>
     <div class="ni" id="ni-inv" onclick="go('inv',this)">&#9632; <span data-t="inventory">Inventory</span></div>
     <div class="ni" id="ni-pur" onclick="go('pur',this)">&#9632; <span data-t="purchases">Purchases</span></div>
     <div class="ni" id="ni-fin" onclick="go('fin',this)">&#9632; <span data-t="finance">Finance</span></div>
@@ -693,6 +694,10 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
   <div id="ded-body" style="max-width:100%"></div>
 </div>
 
+<div class="pg" id="pg-pay">
+  <div id="pay-body" style="max-width:100%"></div>
+</div>
+
 <!-- INVENTORY -->
 <div class="pg" id="pg-inv">
   <div style="display:flex;gap:8px;margin-bottom:16px">
@@ -1154,6 +1159,8 @@ function applyRole(){
   if(repNav)repNav.style.display=(CU&&CU.role==='owner')?'':'none';
   var dedNav=document.getElementById('ni-ded');
   if(dedNav)dedNav.style.display=(CU&&(CU.role==='owner'||CU.role==='finance'))?'':'none';
+  var payNav=document.getElementById('ni-pay');
+  if(payNav)payNav.style.display=(CU&&(CU.role==='owner'||CU.role==='admin'))?'':'none';
 }
 
 function toggleSidebar(){
@@ -1177,7 +1184,7 @@ function go(pg,el){
   const pge=document.getElementById('pg-'+pg);
   if(pge)pge.classList.add('on');
   if(el)el.classList.add('on');
-  const titlesMap={dash:'dashboard',tasks:'tasks',inv:'inventory','np':'addproduct',pur:'purchases','npo':'newpo',fin:'finance',cust:'customers','cd':'customer',sup:'suppliers','sd':'supplier',usr:'users',disp:'dispatches','nt':'newtask','td':'tasks',plan:'خطة يومية',fb:'آراء العملاء',fu:'الاستكمالات',ds:'أوامر الصرف',rep:'التقرير اليومي',ded:'الخصومات',mydash:'لوحتي'};
+  const titlesMap={dash:'dashboard',tasks:'tasks',inv:'inventory','np':'addproduct',pur:'purchases','npo':'newpo',fin:'finance',cust:'customers','cd':'customer',sup:'suppliers','sd':'supplier',usr:'users',disp:'dispatches','nt':'newtask','td':'tasks',plan:'خطة يومية',fb:'آراء العملاء',fu:'الاستكمالات',ds:'أوامر الصرف',rep:'التقرير اليومي',ded:'الخصومات',mydash:'لوحتي',pay:'الرواتب'};
   const titles={}; Object.entries(titlesMap).forEach(([k,v])=>titles[k]=t(v));
   document.getElementById('ptitle').textContent=titles[pg]||pg;
   const ta=document.getElementById('tact');ta.innerHTML='';
@@ -6654,6 +6661,116 @@ async function loadTechDashboard(body){
   body.innerHTML='<div style="padding:30px;text-align:center;color:#888">لوحة الفني - قريباً</div>';
 }
 // ── END ROLE DASHBOARDS ───────────────────────────────────────
+
+async function openPayroll(){
+  if(!CU||(CU.role!=='owner'&&CU.role!=='admin')){toast('غير مسموح',true);return;}
+  go('pay',document.getElementById('ni-pay'));
+  loadPayrollData();
+}
+async function loadPayrollData(){
+  var body=document.getElementById('pay-body');
+  if(!body)return;
+  var isOwner=CU&&CU.role==='owner';
+  body.innerHTML='<div style="text-align:center;padding:30px;color:#888">جاري التحميل...</div>';
+  var er=await db.from('employees').select('id,full_name,position').order('full_name');
+  var emps=er.data||[];
+  var empOpts=emps.map(function(e){return '<option value="'+e.id+'" data-name="'+(e.full_name||'')+'">'+(e.full_name||'')+'</option>';}).join('');
+  var thisMonth=new Date().toISOString().slice(0,7);
+  var html='<div class="cd" style="padding:20px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px">'
+      +'<div style="font-size:16px;font-weight:800">👤 بيانات راتب الموظف</div>'
+      +'<select id="pay-emp-sel" onchange="loadEmpPayroll()" style="padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;min-width:200px">'+empOpts+'</select>'
+    +'</div>'
+    +'<div id="pay-emp-detail"><div style="color:#888;padding:20px;text-align:center">اختر موظف</div></div>'
+  +'</div>';
+  body.innerHTML=html;
+  window._payMonth=thisMonth;
+  window._payIsOwner=isOwner;
+  if(emps.length)loadEmpPayroll();
+}
+async function loadEmpPayroll(){
+  var sel=document.getElementById('pay-emp-sel');
+  if(!sel)return;
+  var empId=sel.value;
+  var empName=sel.options[sel.selectedIndex].dataset.name;
+  var detail=document.getElementById('pay-emp-detail');
+  var isOwner=window._payIsOwner;
+  var month=window._payMonth;
+  detail.innerHTML='<div style="color:#888;padding:20px;text-align:center">جاري...</div>';
+  var pr=await db.from('payroll').select('*').eq('employee_id',empId).limit(1);
+  var p=(pr.data&&pr.data.length)?pr.data[0]:{base_salary:0,allowances:0,social_insurance:0,annual_leave:21};
+  var itr=await db.from('payroll_items').select('*').eq('employee_id',empId).eq('month',month).order('created_at');
+  var items=itr.data||[];
+  var advances=items.filter(function(i){return i.item_type==='advance';});
+  var bonuses=items.filter(function(i){return i.item_type==='bonus';});
+  var dailyRate=Math.round((p.base_salary||0)/30);
+  var dis=isOwner?'':' disabled';
+  var bg=isOwner?'':'background:#f5f5f0;';
+  var advRows=advances.map(function(a){
+    return '<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><span style="font-weight:700;color:#A32D2D;min-width:80px">'+a.amount+'</span><span style="flex:1;font-size:12px;color:#666">'+(a.note||'')+'</span>'+(isOwner?'<button data-id="'+a.id+'" onclick="deletePayItem(this.dataset.id)" style="background:#FCEBEB;color:#A32D2D;border:none;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer">✕</button>':'')+'</div>';
+  }).join('')||'<div style="font-size:12px;color:#aaa">لا توجد</div>';
+  var bonRows=bonuses.map(function(b){
+    return '<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><span style="font-weight:700;color:#0F6E56;min-width:80px">'+b.amount+'</span><span style="flex:1;font-size:12px;color:#666">'+(b.note||'')+'</span>'+(isOwner?'<button data-id="'+b.id+'" onclick="deletePayItem(this.dataset.id)" style="background:#FCEBEB;color:#A32D2D;border:none;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer">✕</button>':'')+'</div>';
+  }).join('')||'<div style="font-size:12px;color:#aaa">لا توجد</div>';
+  var html=''
+    +'<div style="font-weight:700;font-size:13px;margin-bottom:8px;color:#0F6E56">الثابت</div>'
+    +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px">'
+      +'<div style="flex:1;min-width:130px"><label style="font-size:12px;color:#666;display:block;margin-bottom:4px">الراتب الأساسي</label><input id="pay-base" type="number" value="'+(p.base_salary||0)+'"'+dis+' style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;'+bg+'"></div>'
+      +'<div style="flex:1;min-width:130px"><label style="font-size:12px;color:#666;display:block;margin-bottom:4px">البدلات</label><input id="pay-allow" type="number" value="'+(p.allowances||0)+'"'+dis+' style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;'+bg+'"></div>'
+      +'<div style="flex:1;min-width:130px"><label style="font-size:12px;color:#666;display:block;margin-bottom:4px">التأمينات</label><input id="pay-ins" type="number" value="'+(p.social_insurance||0)+'"'+dis+' style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;'+bg+'"></div>'
+      +'<div style="flex:1;min-width:130px"><label style="font-size:12px;color:#666;display:block;margin-bottom:4px">راتب اليوم</label><input type="number" value="'+dailyRate+'" disabled style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;background:#f5f5f0"></div>'
+    +'</div>'
+    +'<div style="font-size:11px;color:#888;margin-bottom:16px">راتب اليوم = الأساسي ÷ 30</div>';
+  if(isOwner){
+    html+='<div style="margin-bottom:16px"><button onclick="saveEmpPayroll()" style="background:#0F6E56;color:#fff;border:none;border-radius:8px;padding:9px 20px;font-size:13px;font-weight:700;cursor:pointer">حفظ الثابت</button></div>';
+  }
+  html+='<div style="border-top:1px solid #f0efe8;padding-top:16px">'
+    +'<div style="font-weight:700;font-size:13px;margin-bottom:8px;color:#854F0B">المتغير - شهر '+month+'</div>'
+    +'<div style="display:flex;gap:16px;flex-wrap:wrap">'
+      +'<div style="flex:1;min-width:250px"><div style="font-size:12px;font-weight:700;color:#0F6E56;margin-bottom:8px">🎁 المكافآت / الإضافي</div>'+bonRows
+      +(isOwner?'<div style="display:flex;gap:6px;margin-top:8px"><input id="new-bon-amt" type="number" placeholder="مبلغ" style="max-width:100px;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px"><input id="new-bon-note" type="text" placeholder="ملاحظة" style="flex:1;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px"><button onclick="addPayItem(\'bonus\')" style="background:#EAF3DE;color:#0F6E56;border:none;border-radius:6px;padding:6px 12px;font-size:11px;cursor:pointer;font-weight:700">+</button></div>':'')
+      +'</div>'
+      +'<div style="flex:1;min-width:250px"><div style="font-size:12px;font-weight:700;color:#A32D2D;margin-bottom:8px">💸 السلف</div>'+advRows
+      +(isOwner?'<div style="display:flex;gap:6px;margin-top:8px"><input id="new-adv-amt" type="number" placeholder="مبلغ" style="max-width:100px;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px"><input id="new-adv-note" type="text" placeholder="ملاحظة" style="flex:1;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px"><button onclick="addPayItem(\'advance\')" style="background:#FCEBEB;color:#A32D2D;border:none;border-radius:6px;padding:6px 12px;font-size:11px;cursor:pointer;font-weight:700">+</button></div>':'')
+      +'</div>'
+    +'</div>'
+  +'</div>';
+  detail.innerHTML=html;
+  window._payCurEmpId=empId;
+  window._payCurEmpName=empName;
+}
+async function saveEmpPayroll(){
+  if(!CU||CU.role!=='owner'){toast('فقط المالك',true);return;}
+  var empId=window._payCurEmpId;var empName=window._payCurEmpName;
+  var base=parseFloat(document.getElementById('pay-base').value)||0;
+  var allow=parseFloat(document.getElementById('pay-allow').value)||0;
+  var ins=parseFloat(document.getElementById('pay-ins').value)||0;
+  var ex=await db.from('payroll').select('id').eq('employee_id',empId).limit(1);
+  if(ex.data&&ex.data.length){
+    await db.from('payroll').update({base_salary:base,allowances:allow,social_insurance:ins,employee_name:empName,updated_at:new Date().toISOString()}).eq('employee_id',empId);
+  }else{
+    await db.from('payroll').insert({employee_id:empId,employee_name:empName,base_salary:base,allowances:allow,social_insurance:ins,annual_leave:21});
+  }
+  toast('تم الحفظ');
+  loadEmpPayroll();
+}
+async function addPayItem(type){
+  if(!CU||CU.role!=='owner'){toast('فقط المالك',true);return;}
+  var empId=window._payCurEmpId;var empName=window._payCurEmpName;var month=window._payMonth;
+  var amtEl=document.getElementById(type==='bonus'?'new-bon-amt':'new-adv-amt');
+  var noteEl=document.getElementById(type==='bonus'?'new-bon-note':'new-adv-note');
+  var amt=parseFloat(amtEl.value)||0;
+  if(amt<=0){toast('أدخل مبلغ',true);return;}
+  await db.from('payroll_items').insert({employee_id:empId,employee_name:empName,item_type:type,amount:amt,note:noteEl.value.trim()||null,month:month,created_by:CU.full_name||CU.username});
+  toast('تم الإضافة');
+  loadEmpPayroll();
+}
+async function deletePayItem(id){
+  if(!CU||CU.role!=='owner'){toast('فقط المالك',true);return;}
+  await db.from('payroll_items').delete().eq('id',id);
+  toast('تم الحذف');
+  loadEmpPayroll();
+}
 </script>
 </body>
 </html>
@@ -6670,7 +6787,7 @@ window.T={
   en:{
     
     navfeedback:'Feedback',navfollowup:'Follow-ups',navdispatch:'Dispatch Orders',navplan:'Daily Plan',
-    employees:'Employees',dispatches:'Dispatches',navreport:'Daily Report',navded:'Deductions',fielddone:'Completed',donewithreport:'Completed w/ Report',
+    employees:'Employees',dispatches:'Dispatches',navreport:'Daily Report',navded:'Deductions',navpay:'Payroll',fielddone:'Completed',donewithreport:'Completed w/ Report',
     fbtitle:'Customer Feedback',fbpending:'Awaiting Rating',fbsatisfied:'Satisfied',fbunsatisfied:'Unsatisfied',
     fbratecc:'Call Center',fbratetech:'Technicians',fbratework:'Work Quality',fbnotes:'Customer Notes',
     fbsat:'Satisfied',fbunsat:'Unsatisfied',fbsave:'Save Rating',fbthanks:'Thanks + Review Link',
@@ -6766,7 +6883,7 @@ window.T={
   ar:{
     
     navfeedback:'آراء العملاء',navfollowup:'الاستكمالات',navdispatch:'أوامر الصرف',navplan:'خطة يومية',
-    employees:'الموظفون',dispatches:'أوامر الصرف للورشة',navreport:'التقرير اليومي',navded:'الخصومات',fielddone:'مكتمل',donewithreport:'مكتمل مع تقرير',
+    employees:'الموظفون',dispatches:'أوامر الصرف للورشة',navreport:'التقرير اليومي',navded:'الخصومات',navpay:'الرواتب',fielddone:'مكتمل',donewithreport:'مكتمل مع تقرير',
     fbtitle:'آراء العملاء',fbpending:'بانتظار التقييم',fbsatisfied:'الراضيين',fbunsatisfied:'غير الراضيين',
     fbratecc:'خدمة العملاء',fbratetech:'الفنيين',fbratework:'جودة العمل',fbnotes:'ملاحظات العميل',
     fbsat:'راضي',fbunsat:'غير راضي',fbsave:'حفظ التقييم',fbthanks:'شكر + رابط التقييم',
