@@ -6851,7 +6851,7 @@ async function loadSalaryCalc(){
     },0);
     // NOTE: absDeduction already created as a deduction via احتساب button, so to avoid double count,
     // we show absence separately and manual deductions EXCLUDING the auto absence ones
-    var manualExclAuto=myDeds.filter(function(d){return (d.reason||'').indexOf('تجاوز رصيد')<0;}).reduce(function(a,d){if(d.ded_type==='مبلغ')return a+(parseFloat(d.ded_value)||0);return a;},0);
+    var manualExclAuto=myDeds.filter(function(d){return (d.reason||'').indexOf('تجاوز رصيد')<0;}).reduce(function(a,d){var v=parseFloat(d.ded_value)||0;if(d.ded_type==='مبلغ')return a+v;if(d.ded_type==='أيام')return a+Math.round(v*daily);return a;},0);
 
     var net=Math.round(base+allow+bonus-ins-advance-absDeduction-halfDeduction-manualExclAuto);
     grandTotal+=net;
