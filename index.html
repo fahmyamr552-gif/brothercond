@@ -6672,10 +6672,24 @@ async function loadTechDashboard(body){
 async function openPayroll(){
   if(!CU||(CU.role!=='owner'&&CU.role!=='admin')){toast('غير مسموح',true);return;}
   go('pay',document.getElementById('ni-pay'));
-  loadPayrollData();
+  window._payTab='data';
+  renderPayShell();
 }
-async function loadPayrollData(){
+function renderPayShell(){
   var body=document.getElementById('pay-body');
+  if(!body)return;
+  var tab=window._payTab||'data';
+  var html='<div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:2px solid #e0ddd8">'
+    +'<div onclick="switchPayTab(\'data\')" style="padding:10px 20px;cursor:pointer;font-size:14px;font-weight:600;'+(tab==='data'?'color:#0F6E56;border-bottom:2px solid #0F6E56':'color:#888;border-bottom:2px solid transparent')+';margin-bottom:-2px">EMPICO بيانات الموظف</div>'
+    +'<div onclick="switchPayTab(\'calc\')" style="padding:10px 20px;cursor:pointer;font-size:14px;font-weight:600;'+(tab==='calc'?'color:#0F6E56;border-bottom:2px solid #0F6E56':'color:#888;border-bottom:2px solid transparent')+';margin-bottom:-2px">MONEYICO حساب الرواتب</div>'
+    +'</div><div id="pay-tab-content"></div>';
+  body.innerHTML=html;
+  if(tab==='data')loadPayrollData();
+  else loadSalaryCalc();
+}
+function switchPayTab(t){window._payTab=t;renderPayShell();}
+async function loadPayrollData(){
+  var body=document.getElementById('pay-tab-content');
   if(!body)return;
   var isOwner=CU&&CU.role==='owner';
   body.innerHTML='<div style="text-align:center;padding:30px;color:#888">جاري التحميل...</div>';
@@ -6777,6 +6791,122 @@ async function deletePayItem(id){
   await db.from('payroll_items').delete().eq('id',id);
   toast('تم الحذف');
   loadEmpPayroll();
+}
+
+
+async function loadSalaryCalc(){
+  var c=document.getElementById('pay-tab-content');
+  if(!c)return;
+  c.innerHTML='<div style="text-align:center;padding:30px;color:#888">جاري الحساب...</div>';
+  var month=window._salMonth||new Date().toISOString().slice(0,7);
+  window._salMonth=month;
+  var year=parseInt(month.slice(0,4));
+
+  // Employees
+  var er=await db.from('employees').select('id,full_name').order('full_name');
+  var emps=er.data||[];
+  // Payroll fixed
+  var pr=await db.from('payroll').select('*').limit(5000);
+  var payMap={};(pr.data||[]).forEach(function(p){payMap[p.employee_id]=p;});
+  // Monthly items (advances + bonuses)
+  var itr=await db.from('payroll_items').select('*').eq('month',month).limit(10000);
+  var items=itr.data||[];
+  // Attendance this month
+  var ar=await db.from('attendance').select('*').gte('date',month+'-01').lte('date',month+'-31').limit(20000);
+  var att=ar.data||[];
+  // Leave usage this month (days covered from balance - no salary impact)
+  var lr=await db.from('leave_usage').select('*').eq('month',month);
+  var leaveUsed={};(lr.data||[]).forEach(function(l){leaveUsed[l.employee_id]=(leaveUsed[l.employee_id]||0)+(l.days_deducted||0);});
+  // Manual deductions this month (by employee_name)
+  var dr=await db.from('deductions').select('*').limit(10000);
+  var allDeds=dr.data||[];
+
+  var rows='';var grandTotal=0;var details={};
+  emps.forEach(function(e){
+    var p=payMap[e.id]||{base_salary:0,allowances:0,social_insurance:0};
+    var base=p.base_salary||0;
+    var allow=p.allowances||0;
+    var ins=p.social_insurance||0;
+    var daily=base/30;
+    // bonuses + advances
+    var myItems=items.filter(function(i){return i.employee_id===e.id;});
+    var bonus=myItems.filter(function(i){return i.item_type==='bonus';}).reduce(function(a,i){return a+(i.amount||0);},0);
+    var advance=myItems.filter(function(i){return i.item_type==='advance';}).reduce(function(a,i){return a+(i.amount||0);},0);
+    // attendance
+    var myAtt=att.filter(function(a){return a.employee_id===e.id;});
+    var absentDays=myAtt.filter(function(a){return a.status==='غائب'||a.status==='إجازة';}).length;
+    var halfDays=myAtt.filter(function(a){return a.status==='نصف يوم';}).length;
+    // leave covered (no salary impact)
+    var covered=leaveUsed[e.id]||0;
+    // absence salary deduction = (absent - covered) * daily, min 0
+    var absSalaryDays=Math.max(0,absentDays-covered);
+    var absDeduction=Math.round(absSalaryDays*daily);
+    var halfDeduction=Math.round(halfDays*0.5*daily);
+    // manual deductions (by name) - only amount type, this month
+    var myDeds=allDeds.filter(function(d){return d.employee_name===e.full_name&&d.date&&d.date.slice(0,7)===month;});
+    var manualDed=myDeds.reduce(function(a,d){
+      if(d.ded_type==='مبلغ')return a+(parseFloat(d.ded_value)||0);
+      return a; // day-type manual deductions handled separately if needed
+    },0);
+    // NOTE: absDeduction already created as a deduction via احتساب button, so to avoid double count,
+    // we show absence separately and manual deductions EXCLUDING the auto absence ones
+    var manualExclAuto=myDeds.filter(function(d){return (d.reason||'').indexOf('تجاوز رصيد')<0;}).reduce(function(a,d){if(d.ded_type==='مبلغ')return a+(parseFloat(d.ded_value)||0);return a;},0);
+
+    var net=Math.round(base+allow+bonus-ins-advance-absDeduction-halfDeduction-manualExclAuto);
+    grandTotal+=net;
+    details[e.id]={name:e.full_name,base:base,allow:allow,bonus:bonus,ins:ins,advance:advance,absDays:absSalaryDays,absDed:absDeduction,halfDays:halfDays,halfDed:halfDeduction,manual:manualExclAuto,net:net};
+
+    rows+='<tr>'
+      +'<td style="padding:8px 10px;font-weight:600">'+(e.full_name||'-')+'</td>'
+      +'<td style="padding:8px 10px;text-align:center;color:#0F6E56">'+base+'</td>'
+      +'<td style="padding:8px 10px;text-align:center;color:#0F6E56">'+allow+'</td>'
+      +'<td style="padding:8px 10px;text-align:center;color:#0F6E56">'+bonus+'</td>'
+      +'<td style="padding:8px 10px;text-align:center;color:#A32D2D">'+ins+'</td>'
+      +'<td style="padding:8px 10px;text-align:center;color:#A32D2D">'+advance+'</td>'
+      +'<td style="padding:8px 10px;text-align:center;color:#A32D2D">'+absDeduction+'</td>'
+      +'<td style="padding:8px 10px;text-align:center;color:#A32D2D">'+halfDeduction+'</td>'
+      +'<td style="padding:8px 10px;text-align:center;color:#A32D2D">'+manualExclAuto+'</td>'
+      +'<td style="padding:8px 10px;text-align:center;font-weight:800;color:#0F6E56;font-size:14px">'+net+'</td>'
+    +'</tr>';
+  });
+  window._salDetails=details;
+
+  var html='<div class="cd" style="padding:20px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px">'
+      +'<div style="font-size:16px;font-weight:800">💵 حساب الرواتب الشهري</div>'
+      +'<div style="display:flex;gap:8px"><input type="month" value="'+month+'" onchange="window._salMonth=this.value;loadSalaryCalc()" style="padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px"><button onclick="printSalaryCalc()" style="background:#185FA5;color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer">🖨 طباعة</button></div>'
+    +'</div>'
+    +'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:800px"><thead><tr style="background:#f7f6f1">'
+      +'<th style="padding:8px;text-align:right;color:#666">الموظف</th><th style="padding:8px;color:#666">أساسي</th><th style="padding:8px;color:#666">بدلات</th><th style="padding:8px;color:#666">مكافآت</th><th style="padding:8px;color:#666">تأمينات</th><th style="padding:8px;color:#666">سلف</th><th style="padding:8px;color:#666">خصم غياب</th><th style="padding:8px;color:#666">نصف يوم</th><th style="padding:8px;color:#666">خصومات</th><th style="padding:8px;color:#666">الصافي</th>'
+      +'</tr></thead><tbody>'+rows+'</tbody></table></div>'
+    +'<div style="margin-top:14px;text-align:left"><span style="font-size:13px;color:#666">إجمالي الرواتب: </span><span style="font-size:18px;font-weight:800;color:#0F6E56">'+grandTotal.toLocaleString()+' ج.م</span></div>'
+    +'<div style="font-size:11px;color:#888;margin-top:10px">الصافي = (أساسي + بدلات + مكافآت) − (تأمينات + سلف + خصم غياب + نصف يوم + خصومات)</div>'
+  +'</div>';
+  c.innerHTML=html;
+}
+
+function printSalaryCalc(){
+  var month=window._salMonth;
+  var details=window._salDetails||{};
+  var body='';var grand=0;
+  Object.keys(details).forEach(function(k){
+    var d=details[k];grand+=d.net;
+    body+='<tr><td>'+d.name+'</td><td>'+d.base+'</td><td>'+d.allow+'</td><td>'+d.bonus+'</td><td>'+d.ins+'</td><td>'+d.advance+'</td><td>'+d.absDed+'</td><td>'+d.halfDed+'</td><td>'+d.manual+'</td><td style="font-weight:800">'+d.net+'</td></tr>';
+  });
+  var overlay=document.createElement('div');
+  overlay.id='sal-print-overlay';
+  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:#fff;z-index:999999;overflow:auto;direction:rtl';
+  overlay.innerHTML='<div style="max-width:900px;margin:0 auto;padding:30px;font-family:Segoe UI,Tahoma,sans-serif">'
+    +'<div style="border-bottom:3px solid #0F6E56;padding-bottom:14px;margin-bottom:20px"><div style="font-size:22px;font-weight:800;color:#0F6E56">برازر كوند للتكييف</div><div style="font-size:15px;color:#555;margin-top:4px">كشف الرواتب - '+month+'</div></div>'
+    +'<table style="width:100%;border-collapse:collapse;font-size:11px"><thead style="background:#0F6E56;color:#fff"><tr><th style="padding:6px">الموظف</th><th style="padding:6px">أساسي</th><th style="padding:6px">بدلات</th><th style="padding:6px">مكافآت</th><th style="padding:6px">تأمينات</th><th style="padding:6px">سلف</th><th style="padding:6px">خصم غياب</th><th style="padding:6px">نصف يوم</th><th style="padding:6px">خصومات</th><th style="padding:6px">الصافي</th></tr></thead><tbody>'+body+'</tbody></table>'
+    +'<div style="margin-top:16px;text-align:left;font-size:16px;font-weight:800;color:#0F6E56">الإجمالي: '+grand.toLocaleString()+' ج.م</div>'
+    +'<div style="margin-top:30px;font-size:11px;color:#888;text-align:center">تم الطباعة: '+new Date().toLocaleDateString()+'</div>'
+    +'<div style="text-align:center;margin-top:20px" class="no-print"><button onclick="window.print()" style="background:#185FA5;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer;margin-left:8px">طباعة</button><button onclick="document.getElementById(\'sal-print-overlay\').remove()" style="background:#888;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;cursor:pointer">إغلاق</button></div>'
+    +'</div>';
+  var st=document.createElement('style');st.id='sal-print-style';
+  st.textContent='@media print{body>*:not(#sal-print-overlay){display:none!important}#sal-print-overlay{position:static!important}.no-print{display:none!important}table th{-webkit-print-color-adjust:exact;print-color-adjust:exact}@page{size:A4 landscape;margin:10mm}}';
+  document.head.appendChild(st);
+  document.body.appendChild(overlay);
 }
 
 async function openAttendance(){
