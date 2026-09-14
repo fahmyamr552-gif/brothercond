@@ -214,6 +214,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     <div class="ni" id="ni-rep" onclick="openDailyReport()">&#9632; <span data-t="navreport">التقرير اليومي</span></div>
     <div class="ni" id="ni-ded" onclick="openDeductions()">&#9632; <span data-t="navded">الخصومات</span></div>
     <div class="ni" id="ni-pay" onclick="openPayroll()">&#9632; <span data-t="navpay">الرواتب</span></div>
+    <div class="ni" id="ni-att" onclick="openAttendance()">&#9632; <span data-t="navatt">الحضور</span></div>
     <div class="ni" id="ni-inv" onclick="go('inv',this)">&#9632; <span data-t="inventory">Inventory</span></div>
     <div class="ni" id="ni-pur" onclick="go('pur',this)">&#9632; <span data-t="purchases">Purchases</span></div>
     <div class="ni" id="ni-fin" onclick="go('fin',this)">&#9632; <span data-t="finance">Finance</span></div>
@@ -698,6 +699,10 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
   <div id="pay-body" style="max-width:100%"></div>
 </div>
 
+<div class="pg" id="pg-att">
+  <div id="att-body" style="max-width:100%"></div>
+</div>
+
 <!-- INVENTORY -->
 <div class="pg" id="pg-inv">
   <div style="display:flex;gap:8px;margin-bottom:16px">
@@ -1161,6 +1166,8 @@ function applyRole(){
   if(dedNav)dedNav.style.display=(CU&&(CU.role==='owner'||CU.role==='finance'))?'':'none';
   var payNav=document.getElementById('ni-pay');
   if(payNav)payNav.style.display=(CU&&(CU.role==='owner'||CU.role==='admin'))?'':'none';
+  var attNav=document.getElementById('ni-att');
+  if(attNav)attNav.style.display=(CU&&(CU.role==='owner'||CU.role==='admin'||CU.role==='finance'))?'':'none';
 }
 
 function toggleSidebar(){
@@ -1184,7 +1191,7 @@ function go(pg,el){
   const pge=document.getElementById('pg-'+pg);
   if(pge)pge.classList.add('on');
   if(el)el.classList.add('on');
-  const titlesMap={dash:'dashboard',tasks:'tasks',inv:'inventory','np':'addproduct',pur:'purchases','npo':'newpo',fin:'finance',cust:'customers','cd':'customer',sup:'suppliers','sd':'supplier',usr:'users',disp:'dispatches','nt':'newtask','td':'tasks',plan:'خطة يومية',fb:'آراء العملاء',fu:'الاستكمالات',ds:'أوامر الصرف',rep:'التقرير اليومي',ded:'الخصومات',mydash:'لوحتي',pay:'الرواتب'};
+  const titlesMap={dash:'dashboard',tasks:'tasks',inv:'inventory','np':'addproduct',pur:'purchases','npo':'newpo',fin:'finance',cust:'customers','cd':'customer',sup:'suppliers','sd':'supplier',usr:'users',disp:'dispatches','nt':'newtask','td':'tasks',plan:'خطة يومية',fb:'آراء العملاء',fu:'الاستكمالات',ds:'أوامر الصرف',rep:'التقرير اليومي',ded:'الخصومات',mydash:'لوحتي',pay:'الرواتب',att:'الحضور'};
   const titles={}; Object.entries(titlesMap).forEach(([k,v])=>titles[k]=t(v));
   document.getElementById('ptitle').textContent=titles[pg]||pg;
   const ta=document.getElementById('tact');ta.innerHTML='';
@@ -6470,7 +6477,7 @@ async function loadDeductions(){
   body.innerHTML='<div style="text-align:center;padding:30px;color:#888">جاري التحميل...</div>';
   var empOptions='';
   if(isOwner){
-    var er=await db.from('users').select('full_name').order('full_name');
+    var er=await db.from('employees').select('full_name').order('full_name');
     var emps=er.data||[];
     empOptions=emps.map(function(e){return '<option value="'+(e.full_name||'')+'">'+(e.full_name||'')+'</option>';}).join('');
   }
@@ -6771,6 +6778,188 @@ async function deletePayItem(id){
   toast('تم الحذف');
   loadEmpPayroll();
 }
+
+async function openAttendance(){
+  if(!CU||(CU.role!=='owner'&&CU.role!=='admin'&&CU.role!=='finance')){toast('غير مسموح',true);return;}
+  go('att',document.getElementById('ni-att'));
+  window._attTab='sheet';
+  renderAttShell();
+}
+function renderAttShell(){
+  var body=document.getElementById('att-body');
+  if(!body)return;
+  var canEdit=CU&&(CU.role==='owner'||CU.role==='admin');
+  var tab=window._attTab||'sheet';
+  var html='<div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:2px solid #e0ddd8">'
+    +(canEdit?'<div onclick="switchAttTab(\'sheet\')" style="padding:10px 20px;cursor:pointer;font-size:14px;font-weight:600;'+(tab==='sheet'?'color:#0F6E56;border-bottom:2px solid #0F6E56':'color:#888;border-bottom:2px solid transparent')+';margin-bottom:-2px">📅 كشف اليوم</div>':'')
+    +'<div onclick="switchAttTab(\'report\')" style="padding:10px 20px;cursor:pointer;font-size:14px;font-weight:600;'+(tab==='report'?'color:#0F6E56;border-bottom:2px solid #0F6E56':'color:#888;border-bottom:2px solid transparent')+';margin-bottom:-2px">📊 التقرير الشهري</div>'
+    +'</div><div id="att-content"></div>';
+  body.innerHTML=html;
+  if(tab==='sheet'&&canEdit)loadAttSheet();
+  else loadAttReport();
+}
+function switchAttTab(t){window._attTab=t;renderAttShell();}
+
+async function loadAttSheet(){
+  var c=document.getElementById('att-content');
+  if(!c)return;
+  c.innerHTML='<div style="text-align:center;padding:30px;color:#888">جاري...</div>';
+  var today=window._attDate||new Date().toISOString().slice(0,10);
+  window._attDate=today;
+  var er=await db.from('employees').select('id,full_name,position').order('full_name');
+  var emps=er.data||[];
+  // existing attendance for that day
+  var ar=await db.from('attendance').select('*').eq('date',today);
+  var existing={};(ar.data||[]).forEach(function(a){existing[a.employee_id]=a;});
+  var statuses=['حاضر','غائب','إجازة','متأخر','نصف يوم'];
+  var statusClass={'حاضر':'background:#EAF3DE;color:#0F6E56','غائب':'background:#FCEBEB;color:#A32D2D','إجازة':'background:#E6F1FB;color:#185FA5','متأخر':'background:#FAEEDA;color:#854F0B','نصف يوم':'background:#EEEDFE;color:#3C3489'};
+  var rows=emps.map(function(e){
+    var ex=existing[e.id]||{};
+    var curStatus=ex.status||'حاضر';
+    var opts=statuses.map(function(s){return '<option value="'+s+'"'+(s===curStatus?' selected':'')+'>'+s+'</option>';}).join('');
+    return '<tr data-eid="'+e.id+'" data-ename="'+(e.full_name||'')+'">'
+      +'<td style="padding:8px 10px;font-weight:600">'+(e.full_name||'-')+'</td>'
+      +'<td style="padding:8px 10px;color:#888;font-size:12px">'+(e.position||'-')+'</td>'
+      +'<td style="padding:8px 10px"><select class="att-status" style="padding:6px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-weight:600;'+(statusClass[curStatus]||'')+'" onchange="this.style.cssText=\'padding:6px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-weight:600;\'+({\'حاضر\':\'background:#EAF3DE;color:#0F6E56\',\'غائب\':\'background:#FCEBEB;color:#A32D2D\',\'إجازة\':\'background:#E6F1FB;color:#185FA5\',\'متأخر\':\'background:#FAEEDA;color:#854F0B\',\'نصف يوم\':\'background:#EEEDFE;color:#3C3489\'}[this.value]||\'\')">'+opts+'</select></td>'
+      +'<td style="padding:8px 10px"><input type="time" class="att-in" value="'+(ex.check_in||'')+'" style="padding:5px 8px;border:1px solid #eee;border-radius:6px;font-size:12px;width:90px"></td>'
+      +'<td style="padding:8px 10px"><input type="time" class="att-out" value="'+(ex.check_out||'')+'" style="padding:5px 8px;border:1px solid #eee;border-radius:6px;font-size:12px;width:90px"></td>'
+      +'<td style="padding:8px 10px"><input type="text" class="att-note" value="'+(ex.notes||'')+'" placeholder="..." style="padding:5px 8px;border:1px solid #eee;border-radius:6px;font-size:12px;width:100%"></td>'
+    +'</tr>';
+  }).join('');
+  var html='<div class="cd" style="padding:20px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px">'
+      +'<div style="font-size:16px;font-weight:800">📅 كشف الحضور اليومي</div>'
+      +'<div><label style="font-size:13px;color:#666">التاريخ: </label><input type="date" value="'+today+'" onchange="window._attDate=this.value;loadAttSheet()" style="padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px"></div>'
+    +'</div>'
+    +'<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap"><span style="font-size:12px;color:#888;align-self:center">سريع:</span><button onclick="setAllAtt(\'حاضر\')" style="padding:6px 12px;border:1px solid #ddd;background:#fff;border-radius:7px;font-size:11px;cursor:pointer">الكل حاضر</button><button onclick="setAllAtt(\'غائب\')" style="padding:6px 12px;border:1px solid #ddd;background:#fff;border-radius:7px;font-size:11px;cursor:pointer">الكل غائب</button></div>'
+    +'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:600px"><thead><tr style="background:#f7f6f1"><th style="padding:9px 10px;text-align:right;font-size:12px;color:#666">الموظف</th><th style="padding:9px 10px;text-align:right;font-size:12px;color:#666">الوظيفة</th><th style="padding:9px 10px;text-align:right;font-size:12px;color:#666">الحالة</th><th style="padding:9px 10px;text-align:right;font-size:12px;color:#666">حضور</th><th style="padding:9px 10px;text-align:right;font-size:12px;color:#666">انصراف</th><th style="padding:9px 10px;text-align:right;font-size:12px;color:#666">ملاحظات</th></tr></thead><tbody id="att-sheet-body">'+rows+'</tbody></table></div>'
+    +'<div style="margin-top:16px"><button onclick="saveAttSheet()" style="background:#0F6E56;color:#fff;border:none;border-radius:8px;padding:11px 28px;font-size:14px;font-weight:700;cursor:pointer">💾 حفظ كشف اليوم</button></div>'
+  +'</div>';
+  c.innerHTML=html;
+}
+
+function setAllAtt(status){
+  document.querySelectorAll('#att-sheet-body .att-status').forEach(function(sel){
+    sel.value=status;
+    sel.dispatchEvent(new Event('change'));
+  });
+}
+
+async function saveAttSheet(){
+  if(!CU||(CU.role!=='owner'&&CU.role!=='admin')){toast('غير مسموح',true);return;}
+  var date=window._attDate;
+  var rows=document.querySelectorAll('#att-sheet-body tr');
+  toast('جاري الحفظ...');
+  // Delete existing for that day, then re-insert
+  await db.from('attendance').delete().eq('date',date);
+  var toInsert=[];
+  rows.forEach(function(tr){
+    var eid=tr.dataset.eid;var ename=tr.dataset.ename;
+    var status=tr.querySelector('.att-status').value;
+    var ci=tr.querySelector('.att-in').value;
+    var co=tr.querySelector('.att-out').value;
+    var note=tr.querySelector('.att-note').value.trim();
+    toInsert.push({employee_id:eid,employee_name:ename,date:date,status:status,check_in:ci||null,check_out:co||null,notes:note||null,created_by:CU.full_name||CU.username});
+  });
+  if(toInsert.length){
+    var{error}=await db.from('attendance').insert(toInsert);
+    if(error){toast('خطأ: '+error.message,true);return;}
+  }
+  toast('تم حفظ كشف '+date);
+}
+
+async function loadAttReport(){
+  var c=document.getElementById('att-content');
+  if(!c)return;
+  c.innerHTML='<div style="text-align:center;padding:30px;color:#888">جاري...</div>';
+  var month=window._attMonth||new Date().toISOString().slice(0,7);
+  window._attMonth=month;
+  var isOwner=CU&&CU.role==='owner';
+  // Fetch all attendance for month
+  var ar=await db.from('attendance').select('*').gte('date',month+'-01').lte('date',month+'-31').limit(20000);
+  var att=ar.data||[];
+  // Fetch employees
+  var er=await db.from('employees').select('id,full_name').order('full_name');
+  var emps=er.data||[];
+  // Fetch payroll for annual leave + daily rate
+  var pr=await db.from('payroll').select('*').limit(5000);
+  var payMap={};(pr.data||[]).forEach(function(p){payMap[p.employee_id]=p;});
+  // Fetch leave usage this month
+  var lr=await db.from('leave_usage').select('*').eq('month',month);
+  var leaveThisMonth={};(lr.data||[]).forEach(function(l){leaveThisMonth[l.employee_id]=(leaveThisMonth[l.employee_id]||0)+(l.days_deducted||0);});
+  // Fetch total leave used this year (for annual balance)
+  var year=month.slice(0,4);
+  var lyr=await db.from('leave_usage').select('*').eq('year',parseInt(year));
+  var leaveThisYear={};(lyr.data||[]).forEach(function(l){leaveThisYear[l.employee_id]=(leaveThisYear[l.employee_id]||0)+(l.days_deducted||0);});
+
+  var rows=emps.map(function(e){
+    var myAtt=att.filter(function(a){return a.employee_id===e.id;});
+    var present=myAtt.filter(function(a){return a.status==='حاضر';}).length;
+    var absent=myAtt.filter(function(a){return a.status==='غائب';}).length;
+    var leave=myAtt.filter(function(a){return a.status==='إجازة';}).length;
+    var late=myAtt.filter(function(a){return a.status==='متأخر';}).length;
+    var half=myAtt.filter(function(a){return a.status==='نصف يوم';}).length;
+    var p=payMap[e.id]||{annual_leave:21,base_salary:0};
+    var annualTotal=p.annual_leave||21;
+    var usedYear=leaveThisYear[e.id]||0;
+    var remaining=annualTotal-usedYear;
+    var usedMonth=leaveThisMonth[e.id]||0;
+    var balColor=remaining>5?'#0F6E56':(remaining>0?'#854F0B':'#A32D2D');
+    var monthLeft=Math.max(0,2-usedMonth); // 2/month cap
+    var canDeduct=isOwner&&monthLeft>0&&remaining>0&&(absent+leave)>0;
+    var btnCell=isOwner?('<td style="padding:8px 10px">'+(monthLeft>0&&remaining>0?'<button data-eid="'+e.id+'" data-ename="'+(e.full_name||'')+'" data-abs="'+(absent+leave)+'" data-maxm="'+monthLeft+'" data-rem="'+remaining+'" data-daily="'+Math.round((p.base_salary||0)/30)+'" onclick="openLeaveDeduct(this)" style="background:#EF9F27;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;cursor:pointer;font-weight:700">احتساب</button>':'<span style="font-size:11px;color:#aaa">'+(remaining<=0?'انتهى الرصيد':'تم هذا الشهر')+'</span>')+'</td>'):'';
+    return '<tr>'
+      +'<td style="padding:8px 10px;font-weight:600">'+(e.full_name||'-')+'</td>'
+      +'<td style="padding:8px 10px;text-align:center;color:#0F6E56">'+present+'</td>'
+      +'<td style="padding:8px 10px;text-align:center;color:#A32D2D">'+absent+'</td>'
+      +'<td style="padding:8px 10px;text-align:center;color:#185FA5">'+leave+'</td>'
+      +'<td style="padding:8px 10px;text-align:center;color:#854F0B">'+late+'</td>'
+      +'<td style="padding:8px 10px;text-align:center;color:#3C3489">'+half+'</td>'
+      +'<td style="padding:8px 10px;text-align:center;font-weight:700;color:'+balColor+'">'+remaining+' / '+annualTotal+'</td>'
+      +btnCell
+    +'</tr>';
+  }).join('');
+  var html='<div class="cd" style="padding:20px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px">'
+      +'<div style="font-size:16px;font-weight:800">📊 التقرير الشهري</div>'
+      +'<input type="month" value="'+month+'" onchange="window._attMonth=this.value;loadAttReport()" style="padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px">'
+    +'</div>'
+    +'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:600px"><thead><tr style="background:#f7f6f1"><th style="padding:9px 10px;text-align:right;font-size:12px;color:#666">الموظف</th><th style="padding:9px 10px;font-size:12px;color:#666">حاضر</th><th style="padding:9px 10px;font-size:12px;color:#666">غائب</th><th style="padding:9px 10px;font-size:12px;color:#666">إجازة</th><th style="padding:9px 10px;font-size:12px;color:#666">متأخر</th><th style="padding:9px 10px;font-size:12px;color:#666">نصف يوم</th><th style="padding:9px 10px;font-size:12px;color:#666">رصيد الإجازات</th>'+(isOwner?'<th style="padding:9px 10px;font-size:12px;color:#666">احتساب</th>':'')+'</tr></thead><tbody>'+rows+'</tbody></table></div>'
+    +'<div style="font-size:11px;color:#888;margin-top:12px">زر الاحتساب: يخصم من رصيد الإجازة (حد أقصى 2 يوم/شهر)، والزائد يتحول لخصم من الراتب</div>'
+  +'</div>';
+  c.innerHTML=html;
+}
+
+function openLeaveDeduct(btn){
+  var eid=btn.dataset.eid;var ename=btn.dataset.ename;
+  var absTotal=parseInt(btn.dataset.abs)||0;
+  var maxMonth=parseInt(btn.dataset.maxm)||0;
+  var remaining=parseInt(btn.dataset.rem)||0;
+  var daily=parseInt(btn.dataset.daily)||0;
+  var maxAllowed=Math.min(maxMonth,remaining,absTotal);
+  var days=prompt('احتساب إجازة لـ '+ename+'\nأيام الغياب/الإجازة هذا الشهر: '+absTotal+'\nالحد الأقصى للخصم من الرصيد: '+maxAllowed+' يوم\n\nكم يوم تخصم من رصيد الإجازة؟',Math.min(maxAllowed,absTotal));
+  if(days===null)return;
+  days=parseInt(days)||0;
+  if(days<0)days=0;
+  if(days>maxAllowed){alert('الحد الأقصى '+maxAllowed+' يوم');return;}
+  doLeaveDeduct(eid,ename,days,absTotal,daily);
+}
+
+async function doLeaveDeduct(eid,ename,daysFromLeave,absTotal,daily){
+  var month=window._attMonth;var year=parseInt(month.slice(0,4));
+  // Record leave usage
+  if(daysFromLeave>0){
+    await db.from('leave_usage').insert({employee_id:eid,employee_name:ename,month:month,days_deducted:daysFromLeave,year:year,created_by:CU.full_name||CU.username});
+  }
+  // Remaining days become salary deduction
+  var salaryDays=absTotal-daysFromLeave;
+  if(salaryDays>0){
+    var amount=salaryDays*daily;
+    await db.from('deductions').insert({employee_name:ename,ded_type:'مبلغ',ded_value:String(amount),reason:'غياب تجاوز رصيد الإجازة - '+month+' ('+salaryDays+' يوم)',date:month+'-28',created_by:CU.full_name||CU.username});
+  }
+  toast('تم الاحتساب: '+daysFromLeave+' من الرصيد'+(salaryDays>0?(' + '+salaryDays+' خصم راتب'):''));
+  loadAttReport();
+}
 </script>
 </body>
 </html>
@@ -6787,7 +6976,7 @@ window.T={
   en:{
     
     navfeedback:'Feedback',navfollowup:'Follow-ups',navdispatch:'Dispatch Orders',navplan:'Daily Plan',
-    employees:'Employees',dispatches:'Dispatches',navreport:'Daily Report',navded:'Deductions',navpay:'Payroll',fielddone:'Completed',donewithreport:'Completed w/ Report',
+    employees:'Employees',dispatches:'Dispatches',navreport:'Daily Report',navded:'Deductions',navpay:'Payroll',navatt:'Attendance',fielddone:'Completed',donewithreport:'Completed w/ Report',
     fbtitle:'Customer Feedback',fbpending:'Awaiting Rating',fbsatisfied:'Satisfied',fbunsatisfied:'Unsatisfied',
     fbratecc:'Call Center',fbratetech:'Technicians',fbratework:'Work Quality',fbnotes:'Customer Notes',
     fbsat:'Satisfied',fbunsat:'Unsatisfied',fbsave:'Save Rating',fbthanks:'Thanks + Review Link',
@@ -6883,7 +7072,7 @@ window.T={
   ar:{
     
     navfeedback:'آراء العملاء',navfollowup:'الاستكمالات',navdispatch:'أوامر الصرف',navplan:'خطة يومية',
-    employees:'الموظفون',dispatches:'أوامر الصرف للورشة',navreport:'التقرير اليومي',navded:'الخصومات',navpay:'الرواتب',fielddone:'مكتمل',donewithreport:'مكتمل مع تقرير',
+    employees:'الموظفون',dispatches:'أوامر الصرف للورشة',navreport:'التقرير اليومي',navded:'الخصومات',navpay:'الرواتب',navatt:'الحضور',fielddone:'مكتمل',donewithreport:'مكتمل مع تقرير',
     fbtitle:'آراء العملاء',fbpending:'بانتظار التقييم',fbsatisfied:'الراضيين',fbunsatisfied:'غير الراضيين',
     fbratecc:'خدمة العملاء',fbratetech:'الفنيين',fbratework:'جودة العمل',fbnotes:'ملاحظات العميل',
     fbsat:'راضي',fbunsat:'غير راضي',fbsave:'حفظ التقييم',fbthanks:'شكر + رابط التقييم',
