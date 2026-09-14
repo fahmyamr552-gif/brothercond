@@ -6812,7 +6812,8 @@ async function loadSalaryCalc(){
   var itr=await db.from('payroll_items').select('*').eq('month',month).limit(10000);
   var items=itr.data||[];
   // Attendance this month
-  var ar=await db.from('attendance').select('*').like('date',month+'%').limit(20000);
+  var _mp=month.split('-');var _y=parseInt(_mp[0]);var _m=parseInt(_mp[1]);var _ny=_m===12?_y+1:_y;var _nm=_m===12?1:_m+1;var nextMonth=_ny+'-'+String(_nm).padStart(2,'0')+'-01';
+  var ar=await db.from('attendance').select('*').gte('date',month+'-01').lt('date',nextMonth).limit(20000);
   var att=ar.data||[];
   // Leave usage this month (days covered from balance - no salary impact)
   var lr=await db.from('leave_usage').select('*').eq('month',month);
@@ -7069,7 +7070,8 @@ async function loadAttReport(){
   window._attMonth=month;
   var isOwner=CU&&CU.role==='owner';
   // Fetch all attendance for month
-  var ar=await db.from('attendance').select('*').like('date',month+'%').limit(20000);
+  var _mp=month.split('-');var _y=parseInt(_mp[0]);var _m=parseInt(_mp[1]);var _ny=_m===12?_y+1:_y;var _nm=_m===12?1:_m+1;var nextMonth=_ny+'-'+String(_nm).padStart(2,'0')+'-01';
+  var ar=await db.from('attendance').select('*').gte('date',month+'-01').lt('date',nextMonth).limit(20000);
   var att=ar.data||[];
   // Fetch employees
   var er=await db.from('employees').select('id,full_name').order('full_name');
