@@ -6811,6 +6811,8 @@ async function loadAttSheet(){
   // existing attendance for that day
   var ar=await db.from('attendance').select('*').eq('date',today);
   var existing={};(ar.data||[]).forEach(function(a){existing[a.employee_id]=a;});
+  var dayLocked=(ar.data||[]).some(function(a){return a.locked;});
+  window._attDayLocked=dayLocked;
   var statuses=['حاضر','غائب','إجازة','متأخر','نصف يوم'];
   var statusClass={'حاضر':'background:#EAF3DE;color:#0F6E56','غائب':'background:#FCEBEB;color:#A32D2D','إجازة':'background:#E6F1FB;color:#185FA5','متأخر':'background:#FAEEDA;color:#854F0B','نصف يوم':'background:#EEEDFE;color:#3C3489'};
   var rows=emps.map(function(e){
@@ -6820,10 +6822,10 @@ async function loadAttSheet(){
     return '<tr data-eid="'+e.id+'" data-ename="'+(e.full_name||'')+'">'
       +'<td style="padding:8px 10px;font-weight:600">'+(e.full_name||'-')+'</td>'
       +'<td style="padding:8px 10px;color:#888;font-size:12px">'+(e.position||'-')+'</td>'
-      +'<td style="padding:8px 10px"><select class="att-status" style="padding:6px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-weight:600;'+(statusClass[curStatus]||'')+'" onchange="this.style.cssText=\'padding:6px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-weight:600;\'+({\'حاضر\':\'background:#EAF3DE;color:#0F6E56\',\'غائب\':\'background:#FCEBEB;color:#A32D2D\',\'إجازة\':\'background:#E6F1FB;color:#185FA5\',\'متأخر\':\'background:#FAEEDA;color:#854F0B\',\'نصف يوم\':\'background:#EEEDFE;color:#3C3489\'}[this.value]||\'\')">'+opts+'</select></td>'
-      +'<td style="padding:8px 10px"><input type="time" class="att-in" value="'+(ex.check_in||'')+'" style="padding:5px 8px;border:1px solid #eee;border-radius:6px;font-size:12px;width:90px"></td>'
-      +'<td style="padding:8px 10px"><input type="time" class="att-out" value="'+(ex.check_out||'')+'" style="padding:5px 8px;border:1px solid #eee;border-radius:6px;font-size:12px;width:90px"></td>'
-      +'<td style="padding:8px 10px"><input type="text" class="att-note" value="'+(ex.notes||'')+'" placeholder="..." style="padding:5px 8px;border:1px solid #eee;border-radius:6px;font-size:12px;width:100%"></td>'
+      +'<td style="padding:8px 10px"><select class="att-status" '+(dayLocked?'disabled':'')+' style="padding:6px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-weight:600;'+(statusClass[curStatus]||'')+'" onchange="this.style.cssText=\'padding:6px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-weight:600;\'+({\'حاضر\':\'background:#EAF3DE;color:#0F6E56\',\'غائب\':\'background:#FCEBEB;color:#A32D2D\',\'إجازة\':\'background:#E6F1FB;color:#185FA5\',\'متأخر\':\'background:#FAEEDA;color:#854F0B\',\'نصف يوم\':\'background:#EEEDFE;color:#3C3489\'}[this.value]||\'\')">'+opts+'</select></td>'
+      +'<td style="padding:8px 10px"><input type="time" class="att-in" '+(dayLocked?'disabled':'')+' value="'+(ex.check_in||'')+'" style="padding:5px 8px;border:1px solid #eee;border-radius:6px;font-size:12px;width:90px"></td>'
+      +'<td style="padding:8px 10px"><input type="time" class="att-out" '+(dayLocked?'disabled':'')+' value="'+(ex.check_out||'')+'" style="padding:5px 8px;border:1px solid #eee;border-radius:6px;font-size:12px;width:90px"></td>'
+      +'<td style="padding:8px 10px"><input type="text" class="att-note" '+(dayLocked?'disabled':'')+' value="'+(ex.notes||'')+'" placeholder="..." style="padding:5px 8px;border:1px solid #eee;border-radius:6px;font-size:12px;width:100%"></td>'
     +'</tr>';
   }).join('');
   var html='<div class="cd" style="padding:20px">'
@@ -6833,7 +6835,7 @@ async function loadAttSheet(){
     +'</div>'
     +'<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap"><span style="font-size:12px;color:#888;align-self:center">سريع:</span><button onclick="setAllAtt(\'حاضر\')" style="padding:6px 12px;border:1px solid #ddd;background:#fff;border-radius:7px;font-size:11px;cursor:pointer">الكل حاضر</button><button onclick="setAllAtt(\'غائب\')" style="padding:6px 12px;border:1px solid #ddd;background:#fff;border-radius:7px;font-size:11px;cursor:pointer">الكل غائب</button></div>'
     +'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:600px"><thead><tr style="background:#f7f6f1"><th style="padding:9px 10px;text-align:right;font-size:12px;color:#666">الموظف</th><th style="padding:9px 10px;text-align:right;font-size:12px;color:#666">الوظيفة</th><th style="padding:9px 10px;text-align:right;font-size:12px;color:#666">الحالة</th><th style="padding:9px 10px;text-align:right;font-size:12px;color:#666">حضور</th><th style="padding:9px 10px;text-align:right;font-size:12px;color:#666">انصراف</th><th style="padding:9px 10px;text-align:right;font-size:12px;color:#666">ملاحظات</th></tr></thead><tbody id="att-sheet-body">'+rows+'</tbody></table></div>'
-    +'<div style="margin-top:16px"><button onclick="saveAttSheet()" style="background:#0F6E56;color:#fff;border:none;border-radius:8px;padding:11px 28px;font-size:14px;font-weight:700;cursor:pointer">💾 حفظ كشف اليوم</button></div>'
+    +'<div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">'+(dayLocked?'<div style="background:#FCEBEB;color:#A32D2D;border-radius:8px;padding:11px 20px;font-size:13px;font-weight:700">🔒 مقفول</div><button onclick="unlockAttSheet()" style="background:#EF9F27;color:#fff;border:none;border-radius:8px;padding:11px 20px;font-size:13px;font-weight:700;cursor:pointer">🔓 فتح للتعديل</button>':'<button onclick="saveAttSheet()" style="background:#0F6E56;color:#fff;border:none;border-radius:8px;padding:11px 28px;font-size:14px;font-weight:700;cursor:pointer">💾 حفظ وقفل اليوم</button>')+'<button onclick="printAttDaily()" style="background:#185FA5;color:#fff;border:none;border-radius:8px;padding:11px 24px;font-size:13px;font-weight:700;cursor:pointer">🖨 طباعة</button></div>'
   +'</div>';
   c.innerHTML=html;
 }
@@ -6859,13 +6861,74 @@ async function saveAttSheet(){
     var ci=tr.querySelector('.att-in').value;
     var co=tr.querySelector('.att-out').value;
     var note=tr.querySelector('.att-note').value.trim();
-    toInsert.push({employee_id:eid,employee_name:ename,date:date,status:status,check_in:ci||null,check_out:co||null,notes:note||null,created_by:CU.full_name||CU.username});
+    toInsert.push({employee_id:eid,employee_name:ename,date:date,status:status,check_in:ci||null,check_out:co||null,notes:note||null,locked:true,created_by:CU.full_name||CU.username});
   });
   if(toInsert.length){
     var{error}=await db.from('attendance').insert(toInsert);
     if(error){toast('خطأ: '+error.message,true);return;}
   }
   toast('تم حفظ كشف '+date);
+}
+
+async function unlockAttSheet(){
+  var pw=prompt('أدخل كلمة السر للتعديل:');
+  if(pw===null)return;
+  if(pw!=='2404'){alert('كلمة السر خاطئة');return;}
+  var date=window._attDate;
+  await db.from('attendance').update({locked:false}).eq('date',date);
+  toast('تم الفتح للتعديل');
+  loadAttSheet();
+}
+
+function printAttDaily(){
+  var date=window._attDate;
+  var rows=document.querySelectorAll('#att-sheet-body tr');
+  var body='';
+  rows.forEach(function(tr){
+    var name=tr.cells[0].textContent;
+    var pos=tr.cells[1].textContent;
+    var status=tr.querySelector('.att-status').value;
+    var ci=tr.querySelector('.att-in').value||'-';
+    var co=tr.querySelector('.att-out').value||'-';
+    var note=tr.querySelector('.att-note').value||'-';
+    body+='<tr><td>'+name+'</td><td>'+pos+'</td><td>'+status+'</td><td>'+ci+'</td><td>'+co+'</td><td>'+note+'</td></tr>';
+  });
+  printAttDoc('كشف الحضور اليومي - '+date,'<tr><th>الموظف</th><th>الوظيفة</th><th>الحالة</th><th>حضور</th><th>انصراف</th><th>ملاحظات</th></tr>',body);
+}
+
+function printAttMonthly(){
+  var month=window._attMonth;
+  var table=document.querySelector('#att-content table');
+  if(!table){toast('افتح التقرير أولاً',true);return;}
+  var thead=table.querySelector('thead').innerHTML;
+  // Remove the احتساب column from print
+  var rows=table.querySelectorAll('tbody tr');
+  var body='';
+  rows.forEach(function(tr){
+    var cells=Array.from(tr.cells);
+    var keep=cells.filter(function(c){return !c.querySelector('button');});
+    body+='<tr>'+keep.map(function(c){return '<td>'+c.textContent+'</td>';}).join('')+'</tr>';
+  });
+  // Clean header (remove احتساب)
+  var headClean=thead.replace(/<th[^>]*>\s*احتساب\s*<\/th>/,'');
+  printAttDoc('التقرير الشهري للحضور - '+month,headClean,body);
+}
+
+function printAttDoc(title,headHtml,bodyHtml){
+  var overlay=document.createElement('div');
+  overlay.id='att-print-overlay';
+  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:#fff;z-index:999999;overflow:auto;direction:rtl';
+  overlay.innerHTML='<div style="max-width:800px;margin:0 auto;padding:30px;font-family:Segoe UI,Tahoma,sans-serif">'
+    +'<div style="border-bottom:3px solid #0F6E56;padding-bottom:14px;margin-bottom:20px"><div style="font-size:22px;font-weight:800;color:#0F6E56">برازر كوند للتكييف</div><div style="font-size:15px;color:#555;margin-top:4px">'+title+'</div></div>'
+    +'<table style="width:100%;border-collapse:collapse;font-size:12px"><thead style="background:#0F6E56;color:#fff">'+headHtml+'</thead><tbody>'+bodyHtml+'</tbody></table>'
+    +'<div style="margin-top:30px;font-size:11px;color:#888;text-align:center">تم الطباعة: '+new Date().toLocaleDateString()+'</div>'
+    +'<div style="text-align:center;margin-top:20px" class="no-print"><button onclick="window.print()" style="background:#185FA5;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer;margin-left:8px">طباعة</button><button onclick="document.getElementById(\'att-print-overlay\').remove()" style="background:#888;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;cursor:pointer">إغلاق</button></div>'
+    +'</div>';
+  var st=document.createElement('style');
+  st.id='att-print-style';
+  st.textContent='@media print{body>*:not(#att-print-overlay){display:none!important}#att-print-overlay{position:static!important}.no-print{display:none!important}table th{-webkit-print-color-adjust:exact;print-color-adjust:exact}@page{size:A4;margin:12mm}}';
+  document.head.appendChild(st);
+  document.body.appendChild(overlay);
 }
 
 async function loadAttReport(){
@@ -6922,7 +6985,7 @@ async function loadAttReport(){
   var html='<div class="cd" style="padding:20px">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px">'
       +'<div style="font-size:16px;font-weight:800">📊 التقرير الشهري</div>'
-      +'<input type="month" value="'+month+'" onchange="window._attMonth=this.value;loadAttReport()" style="padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px">'
+      +'<input type="month" value="'+month+'" onchange="window._attMonth=this.value;loadAttReport()" style="padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px">'+'<button onclick="printAttMonthly()" style="background:#185FA5;color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;margin-right:8px">🖨 طباعة</button>'
     +'</div>'
     +'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:600px"><thead><tr style="background:#f7f6f1"><th style="padding:9px 10px;text-align:right;font-size:12px;color:#666">الموظف</th><th style="padding:9px 10px;font-size:12px;color:#666">حاضر</th><th style="padding:9px 10px;font-size:12px;color:#666">غائب</th><th style="padding:9px 10px;font-size:12px;color:#666">إجازة</th><th style="padding:9px 10px;font-size:12px;color:#666">متأخر</th><th style="padding:9px 10px;font-size:12px;color:#666">نصف يوم</th><th style="padding:9px 10px;font-size:12px;color:#666">رصيد الإجازات</th>'+(isOwner?'<th style="padding:9px 10px;font-size:12px;color:#666">احتساب</th>':'')+'</tr></thead><tbody>'+rows+'</tbody></table></div>'
     +'<div style="font-size:11px;color:#888;margin-top:12px">زر الاحتساب: يخصم من رصيد الإجازة (حد أقصى 2 يوم/شهر)، والزائد يتحول لخصم من الراتب</div>'
