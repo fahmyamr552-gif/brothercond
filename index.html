@@ -661,6 +661,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     <button class="btn bs" id="fb-tab-pending" onclick="switchFbTab('pending')" style="background:#185FA5;color:#fff">بانتظار التقييم</button>
     <button class="btn bs" id="fb-tab-satisfied" onclick="switchFbTab('satisfied')">الراضيين &#9989;</button>
     <button class="btn bs" id="fb-tab-unsatisfied" onclick="switchFbTab('unsatisfied')">غير الراضيين &#10060;</button>
+    <button class="btn bs" id="fb-tab-unreachable" onclick="switchFbTab('unreachable')">تعذر الوصول &#128222;</button>
   </div>
   <div id="fb-body"></div>
 </div>
@@ -2056,6 +2057,7 @@ async function confirmPay(id){
 }
 
 async function deletePay(id){
+  if(!CU||CU.role!=='owner'){toast('فقط المالك يمكنه الحذف',true);return;}
   if(!can('delete')&&!can('delete_payment')){toast('No permission to delete',true);return;}
   if(!confirm('Delete this payment record?'))return;
   const{error}=await db.from('payments').delete().eq('id',id);
@@ -2594,13 +2596,13 @@ function renderKitsManager(){
       return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f0f0e8;font-size:12px">'
         +'<span style="flex:1;font-weight:600">'+p.name+'</span>'
         +'<span style="color:#888;min-width:50px">x'+p.qty+'</span>'
-        +'<button onclick="removeKitPart('+ki+','+pi+')" style="border:none;background:none;color:#ccc;cursor:pointer;font-size:16px;padding:0;line-height:1">&#10005;</button>'
+        +((CU&&CU.role==='owner')?'<button onclick="removeKitPart('+ki+','+pi+')" style="border:none;background:none;color:#ccc;cursor:pointer;font-size:16px;padding:0;line-height:1">&#10005;</button>':'')
         +'</div>';
     }).join('');
     return '<div style="background:#f9f9f6;border:1px solid #eee;border-radius:10px;padding:14px;margin-bottom:10px">'
       +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
         +'<div style="font-size:14px;font-weight:700">'+kit.name+'</div>'
-        +'<button onclick="deleteKit('+ki+')" style="font-size:11px;padding:3px 10px;border:1px solid #A32D2D;border-radius:6px;background:#fff;color:#A32D2D;cursor:pointer">Delete kit</button>'
+        +((CU&&CU.role==='owner')?'<button onclick="deleteKit('+ki+')" style="font-size:11px;padding:3px 10px;border:1px solid #A32D2D;border-radius:6px;background:#fff;color:#A32D2D;cursor:pointer">Delete kit</button>':'')
       +'</div>'
       +partsHtml
       +'<div style="margin-top:10px;display:flex;gap:6px">'
@@ -2626,6 +2628,7 @@ function addKit(){
 }
 
 function deleteKit(ki){
+  if(!CU||CU.role!=='owner'){toast('فقط المالك يمكنه الحذف',true);return;}
   if(!confirm('Delete this kit?'))return;
   loadKits();
   INSTALL_KITS.splice(ki,1);
@@ -2651,6 +2654,7 @@ function addKitPart(ki){
 }
 
 function removeKitPart(ki,pi){
+  if(!CU||CU.role!=='owner'){toast('فقط المالك يمكنه الحذف',true);return;}
   loadKits();
   if(!INSTALL_KITS[ki])return;
   INSTALL_KITS[ki].parts.splice(pi,1);
@@ -2703,7 +2707,7 @@ if(!parts.length){body.innerHTML='<div style="padding:20px;text-align:center;col
     var stockColor=p.qty<=0?'#A32D2D':p.qty<=p.low_alert?'#854F0B':'#3B6D11';
     var used=usedMap[p.id]||0;
     var editBtn='<button onclick="editSP(\''+p.id+'\')" class="ib" style="font-size:11px;padding:2px 8px">Edit</button>';
-    var delBtn=can('delete')||CU.role==='inventory_manager'?'<button onclick="deleteSP(\''+p.id+'\')" class="ib r" style="font-size:11px;padding:2px 8px">Del</button>':'';
+    var delBtn=(CU&&CU.role==='owner')?'<button onclick="deleteSP(\''+p.id+'\')" class="ib r" style="font-size:11px;padding:2px 8px">Del</button>':'';
     return '<tr style="border-bottom:1px solid #f0f0e8">'
       +'<td style="padding:10px 12px;font-weight:600">'+p.name+'</td>'
       +'<td style="padding:8px 12px;text-align:center"><span style="font-size:11px;padding:2px 8px;border-radius:10px;background:'+(p.warehouse==='مخزن تجمع'?'#E8F4FD':'#EAF3DE')+';color:'+(p.warehouse==='مخزن تجمع'?'#185FA5':'#1D9E75')+';font-weight:600">'+(p.warehouse||'مخزن رئيسي')+'</span></td>'
@@ -2747,6 +2751,7 @@ async function saveSP(){
 }
 
 async function deleteSP(id){
+  if(!CU||CU.role!=='owner'){toast('فقط المالك يمكنه الحذف',true);return;}
   if(!confirm('Delete this spare part?'))return;
   await db.from('spare_parts').delete().eq('id',id);
   toast('Deleted');loadSpareParts();
@@ -2918,6 +2923,7 @@ async function saveReturns(dispId){
 }
 
 async function removeAssignment(assignId, dispId){
+  if(!CU||CU.role!=='owner'){toast('فقط المالك يمكنه الحذف',true);return;}
   if(!confirm('Remove this assignment?'))return;
   var{error}=await db.from('dispatch_assignments').delete().eq('id',assignId);
   if(error){toast('Error: '+error.message,true);return;}
@@ -2951,6 +2957,7 @@ async function submitForApproval(dispId){
 
 async function cancelDispatch(dispId){
   try{
+    if(!CU||CU.role!=='owner'){toast('فقط المالك يمكنه الحذف',true);return;}
     if(!confirm(LANG==='ar'?'حذف أمر الصرف؟ سيتم استرداد المخزون.':'Cancel this dispatch? Inventory will be restored.'))return;
     toast(LANG==='ar'?'جاري الحذف...':'Deleting...');
     var{data:disp,error:dErr}=await db.from('dispatches').select('status,dispatch_type,date,created_by').eq('id',dispId).single();
@@ -3909,7 +3916,7 @@ async function openDispatch(id){
       var row=document.createElement('div');
       row.style.cssText='display:flex;align-items:center;gap:10px;padding:8px 12px;background:#fff;border:1px solid #eee;border-radius:8px;margin-bottom:6px;font-size:13px';
       var delBtn='';
-      if(isManager&&disp.status==='open'){
+      if(CU&&CU.role==='owner'&&disp.status==='open'){
         delBtn='<button data-aid="'+a.id+'" onclick="removeAssignment(this.dataset.aid,\''+id+'\')" style="border:none;background:none;color:#ccc;cursor:pointer;font-size:18px;padding:0;margin-left:8px">&#10005;</button>';
       }
       row.innerHTML='<span style="font-weight:700;color:#1D9E75;min-width:65px">'+a.task_num+'</span><span style="flex:1;color:#555">'+a.customer_name+'</span><span style="color:#888">'+a.part_name+'</span><span style="font-weight:600;min-width:60px;text-align:right">'+a.qty+' '+a.unit+'</span>'+delBtn;
@@ -3929,7 +3936,7 @@ async function openDispatch(id){
   printDispBtn.style.cssText='background:#185FA5;color:#fff';
   printDispBtn.onclick=function(){printSparePartsDispatch(id);};
   ftr.appendChild(printDispBtn);
-  if(isApprover){
+  if(CU&&CU.role==='owner'){
     var cancelDispBtn=document.createElement('button');
     cancelDispBtn.innerHTML='&#10005; '+td('Cancel & Delete');cancelDispBtn.className='btn bs';
     cancelDispBtn.style.cssText='border-color:#A32D2D;color:#A32D2D;margin-right:auto';
@@ -4245,7 +4252,7 @@ async function loadPur(){
     var canConfirm=po.status==='draft'&&(CU&&(CU.role==='finance'||CU.role==='owner'));
     var canReturn=po.status==='received'||po.status==='partial'||po.status==='partial_return';
     var retBtn=canReturn?('<button onclick="returnProducts(\''+po.id+'\')" style="font-size:10px;padding:2px 7px;border:1px solid #E24B4A;border-radius:4px;background:#FCEBEB;color:#A32D2D;cursor:pointer;margin-right:3px">Return</button>'):'';
-    var delBtn=can('delete')?('<button onclick="deletePO(\''+po.id+'\')" style="font-size:10px;padding:2px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;margin-right:3px">Del</button>'):'';
+    var delBtn=(CU&&CU.role==='owner')?('<button onclick="deletePO(\''+po.id+'\')" style="font-size:10px;padding:2px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;margin-right:3px">Del</button>'):'';
     var confirmBtn='';
     var rcvBtn=canReceive?('<button onclick="openPODetail(\''+po.id+'\')" style="font-size:10px;padding:2px 7px;border:1px solid #1D9E75;border-radius:4px;background:#EAF3DE;color:#1D9E75;cursor:pointer">'+t('receivemore')+'</button>'):'';
     var tr=document.createElement('tr');tr.style.cssText='border-bottom:1px solid #f0f0e8;cursor:pointer';
@@ -4479,6 +4486,7 @@ async function savePO(){
 
 
 async function deletePOPayment(payId,poId){
+  if(!CU||CU.role!=='owner'){toast('فقط المالك يمكنه الحذف',true);return;}
   if(!window.confirm('حذف هذه الدفعة؟'))return;
   var{error}=await db.from('po_payments').delete().eq('id',payId);
   if(error){toast('Error: '+error.message,true);return;}
@@ -4519,7 +4527,7 @@ async function openPODetail(poId){
     }).join('');
   var payRows=pays.map(function(p){
     var delBtn='';
-    if(can('delete')||can('delete_payment')){delBtn='<td><button data-pid="'+p.id+'" data-poid="'+poId+'" onclick="deletePOPayment(this.dataset.pid,this.dataset.poid)" style="font-size:10px;padding:1px 6px;border:1px solid #A32D2D;border-radius:4px;background:#fff0f0;color:#A32D2D;cursor:pointer">X</button></td>';}
+    if(CU&&CU.role==='owner'){delBtn='<td><button data-pid="'+p.id+'" data-poid="'+poId+'" onclick="deletePOPayment(this.dataset.pid,this.dataset.poid)" style="font-size:10px;padding:1px 6px;border:1px solid #A32D2D;border-radius:4px;background:#fff0f0;color:#A32D2D;cursor:pointer">X</button></td>';}
     return '<tr style="border-bottom:1px solid #f0f0e8"><td style="padding:5px 8px">EGP '+(p.amount||0).toLocaleString()+'</td><td style="padding:5px 8px">'+(p.method||'-')+'</td><td style="padding:5px 8px">'+(p.note||'-')+'</td><td style="padding:5px 8px">'+(p.created_at?p.created_at.slice(0,10):'-')+'</td>'+delBtn+'</tr>';
   }).join('');
   var html='<div style="background:#fff;border-radius:14px;padding:24px;width:560px;max-width:95vw;max-height:85vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.25)">'
@@ -4584,6 +4592,7 @@ async function markDelivered(poId){
 }
 
 async function deletePO(poId){
+  if(!CU||CU.role!=='owner'){toast('فقط المالك يمكنه الحذف',true);return;}
   if(!can('delete')){toast('No permission to delete',true);return;}
   if(!confirm('Delete this purchase order?'))return;
   // Restore inventory if PO was received
@@ -5838,7 +5847,7 @@ function openFeedback(){
 
 function switchFbTab(tab){
   _fbTab=tab;
-  ['pending','satisfied','unsatisfied'].forEach(function(t){
+  ['pending','satisfied','unsatisfied','unreachable'].forEach(function(t){
     var btn=document.getElementById('fb-tab-'+t);
     if(btn){
       if(t===tab){btn.style.background='#185FA5';btn.style.color='#fff';}
@@ -5853,25 +5862,61 @@ async function loadFeedback(){
   if(!body)return;
   body.innerHTML='<div style="text-align:center;padding:30px;color:#888">جاري التحميل...</div>';
 
-  if(_fbTab==='pending'){
-    // Completed tasks without feedback
-    var{data:doneTasks}=await db.from('tasks').select('id,task_num,type,customer_name,customer_id,date,branch,customers(phone,address)').eq('status','done').order('date',{ascending:false});
+  if(_fbTab==='pending'||_fbTab==='unreachable'){
+    var{data:doneTasks}=await db.from('tasks').select('id,task_num,type,customer_name,customer_id,date,branch,fb_unreachable,customers(phone,address)').eq('status','done').order('date',{ascending:false}).limit(10000);
     doneTasks=doneTasks||[];
     var{data:existingFb}=await db.from('feedback').select('task_id');
     var fbTaskIds=(existingFb||[]).map(function(f){return f.task_id;});
-    var pending=doneTasks.filter(function(t){return fbTaskIds.indexOf(t.id)<0;});
-    if(!pending.length){body.innerHTML='<div style="text-align:center;padding:30px;color:#888">لا توجد طلبات بانتظار التقييم &#127881;</div>';return;}
-    var html='<div style="display:flex;flex-direction:column;gap:8px">';
+    var{data:allAttempts}=await db.from('feedback_attempts').select('*').limit(20000);
+    allAttempts=allAttempts||[];
+    var attemptsByTask={};
+    allAttempts.forEach(function(a){if(a.task_id){if(!attemptsByTask[a.task_id])attemptsByTask[a.task_id]=[];attemptsByTask[a.task_id].push(a);}});
+    var noFb=doneTasks.filter(function(t){return fbTaskIds.indexOf(t.id)<0;});
+    var pending;
+    if(_fbTab==='unreachable'){pending=noFb.filter(function(t){return t.fb_unreachable;});}
+    else{pending=noFb.filter(function(t){return !t.fb_unreachable;});}
+    var todayStr=new Date().toISOString().slice(0,10);
+    var todayAtt=allAttempts.filter(function(a){return a.created_at&&a.created_at.slice(0,10)===todayStr;});
+    var sumCall=todayAtt.filter(function(a){return a.attempt_type==='call';}).length;
+    var sumWa=todayAtt.filter(function(a){return a.attempt_type==='whatsapp';}).length;
+    var sumNoAns=todayAtt.filter(function(a){return a.outcome==='لم يرد';}).length;
+    var{data:allFbRows}=await db.from('feedback').select('created_at').limit(20000);
+    var todayFbCount=(allFbRows||[]).filter(function(f){return f.created_at&&f.created_at.slice(0,10)===todayStr;}).length;
+    var summaryHtml='<div style="background:#f7f6f1;border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:13px"><b>📊 ملخص اليوم:</b> '
+      +'<span style="color:#0F6E56;font-weight:700">'+todayFbCount+' تقييم</span> · '
+      +'<span style="color:#185FA5">'+sumCall+' مكالمة</span> · '
+      +'<span style="color:#128C7E">'+sumWa+' واتساب</span> · '
+      +'<span style="color:#A32D2D">'+sumNoAns+' لم يرد</span></div>';
+    if(!pending.length){body.innerHTML=summaryHtml+'<div style="text-align:center;padding:30px;color:#888">'+(_fbTab==='unreachable'?'لا توجد طلبات متعذر الوصول':'لا توجد طلبات بانتظار التقييم')+'</div>';return;}
+    var html=summaryHtml+'<div style="display:flex;flex-direction:column;gap:8px">';
     pending.forEach(function(t){
       var cu=t.customers||{};
-      html+='<div onclick="openFbForm(\''+t.id+'\')" style="background:#fff;border:1px solid #e0ddd8;border-radius:10px;padding:12px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'
-        +'<div>'
+      var atts=attemptsByTask[t.id]||[];
+      var attHtml='';
+      if(atts.length){
+        attHtml='<div style="margin-top:8px;padding-top:8px;border-top:1px dashed #e0ddd8">';
+        atts.forEach(function(a,i){
+          var icon=a.attempt_type==='whatsapp'?'💬':'📞';
+          attHtml+='<div style="font-size:11px;color:#666;margin-bottom:2px">'+icon+' محاولة '+(i+1)+': '+(a.outcome||'-')+' · '+(a.attempted_by||'-')+' · '+(a.created_at?a.created_at.slice(0,16).replace('T',' '):'')+'</div>';
+        });
+        attHtml+='</div>';
+      }
+      var callCount=atts.filter(function(a){return a.attempt_type==='call';}).length;
+      var cn=(t.customer_name||'').replace(/'/g,'');
+      html+='<div style="background:#fff;border:1px solid #e0ddd8;border-radius:10px;padding:12px 14px">'
+        +'<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">'
+        +'<div style="flex:1;cursor:pointer" onclick="openFbForm(\''+t.id+'\')">'
           +'<div style="font-size:11px;font-weight:700;color:#1D9E75">'+t.task_num+' <span style="font-size:10px;color:#888;font-weight:500">'+(typeLabels[t.type]||t.type)+'</span></div>'
           +'<div style="font-weight:600">'+t.customer_name+'</div>'
           +'<div style="font-size:11px;color:#888">'+(cu.phone||'-')+' &middot; '+(cu.address||'-')+'</div>'
         +'</div>'
-        +'<div style="font-size:11px;color:#888">'+t.date+'</div>'
-        +'</div>';
+        +'<div style="font-size:11px;color:#888">'+t.date+(callCount>0?' · <span style="color:#A32D2D;font-weight:700">'+callCount+' محاولة</span>':'')+'</div>'
+        +'</div>'
+        +'<div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">'
+          +'<button data-tid="'+t.id+'" data-tnum="'+t.task_num+'" data-cn="'+cn+'" onclick="logFbAttempt(this.dataset.tid,this.dataset.tnum,this.dataset.cn)" style="background:#185FA5;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer">📞 تسجيل محاولة</button>'
+          +'<button onclick="openFbForm(\''+t.id+'\')" style="background:#EAF3DE;color:#0F6E56;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer">✓ تسجيل تقييم</button>'
+        +'</div>'+attHtml
+      +'</div>';
     });
     html+='</div>';
     body.innerHTML=html;
@@ -6003,9 +6048,10 @@ async function markFollowedUp(fbId){
   loadFeedback();
 }
 
-function sendFbThanks(phone,name){
+async function sendFbThanks(phone,name){
   phone=(phone||'').replace(/[^0-9]/g,'');
   if(!phone){toast('لا يوجد رقم هاتف',true);return;}
+  try{await db.from('feedback_attempts').insert({customer_name:name,attempt_type:'whatsapp',outcome:'تم الإرسال',attempted_by:CU.full_name||CU.username});}catch(e){}
   if(phone.startsWith('0'))phone='2'+phone;
   else if(!phone.startsWith('20'))phone='20'+phone;
   var msg='عزيزنا العميل '+name+'\n\n'
@@ -6740,6 +6786,7 @@ async function loadEmpPayroll(){
       +'<div style="flex:1;min-width:130px"><label style="font-size:12px;color:#666;display:block;margin-bottom:4px">البدلات</label><input id="pay-allow" type="number" value="'+(p.allowances||0)+'"'+dis+' style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;'+bg+'"></div>'
       +'<div style="flex:1;min-width:130px"><label style="font-size:12px;color:#666;display:block;margin-bottom:4px">التأمينات</label><input id="pay-ins" type="number" value="'+(p.social_insurance||0)+'"'+dis+' style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;'+bg+'"></div>'
       +'<div style="flex:1;min-width:130px"><label style="font-size:12px;color:#666;display:block;margin-bottom:4px">راتب اليوم</label><input type="number" value="'+dailyRate+'" disabled style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;background:#f5f5f0"></div>'
+    +'<div style="flex:1;min-width:130px"><label style="font-size:12px;color:#666;display:block;margin-bottom:4px">الرصيد السنوي للإجازات</label><input id="pay-annual" type="number" value="'+(p.annual_leave!=null?p.annual_leave:21)+'"'+dis+' style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;'+bg+'"></div>'
     +'</div>'
     +'<div style="font-size:11px;color:#888;margin-bottom:16px">راتب اليوم = الأساسي ÷ 30</div>';
   if(isOwner){
@@ -6766,11 +6813,12 @@ async function saveEmpPayroll(){
   var base=parseFloat(document.getElementById('pay-base').value)||0;
   var allow=parseFloat(document.getElementById('pay-allow').value)||0;
   var ins=parseFloat(document.getElementById('pay-ins').value)||0;
+  var annual=parseInt(document.getElementById('pay-annual').value);if(isNaN(annual))annual=21;
   var ex=await db.from('payroll').select('id').eq('employee_id',empId).limit(1);
   if(ex.data&&ex.data.length){
-    await db.from('payroll').update({base_salary:base,allowances:allow,social_insurance:ins,employee_name:empName,updated_at:new Date().toISOString()}).eq('employee_id',empId);
+    await db.from('payroll').update({base_salary:base,allowances:allow,social_insurance:ins,annual_leave:annual,employee_name:empName,updated_at:new Date().toISOString()}).eq('employee_id',empId);
   }else{
-    await db.from('payroll').insert({employee_id:empId,employee_name:empName,base_salary:base,allowances:allow,social_insurance:ins,annual_leave:21});
+    await db.from('payroll').insert({employee_id:empId,employee_name:empName,base_salary:base,allowances:allow,social_insurance:ins,annual_leave:annual});
   }
   toast('تم الحفظ');
   loadEmpPayroll();
@@ -7155,6 +7203,22 @@ async function doLeaveDeduct(eid,ename,daysFromLeave,absTotal,daily){
   toast('تم الاحتساب: '+daysFromLeave+' من الرصيد'+(salaryDays>0?(' + '+salaryDays+' خصم راتب'):''));
   loadAttReport();
 }
+async function logFbAttempt(taskId,taskNum,custName){
+  var outcome=prompt('نتيجة المحاولة:\n1 = لم يرد\n2 = مغلق\n3 = رفض التقييم\n4 = رقم خطأ\n\nاكتب الرقم:');
+  if(outcome===null)return;
+  var map={'1':'لم يرد','2':'مغلق','3':'رفض التقييم','4':'رقم خطأ'};
+  var oc=map[(outcome||'').trim()];
+  if(!oc){alert('اختيار غير صحيح');return;}
+  await db.from('feedback_attempts').insert({task_id:taskId,task_num:taskNum,customer_name:custName,attempt_type:'call',outcome:oc,attempted_by:CU.full_name||CU.username});
+  var{data:atts}=await db.from('feedback_attempts').select('id').eq('task_id',taskId).eq('attempt_type','call');
+  if((atts||[]).length>=3){
+    await db.from('tasks').update({fb_unreachable:true}).eq('id',taskId);
+    toast('تم التسجيل - نقل لتعذر الوصول');
+  }else{toast('تم تسجيل المحاولة');}
+  loadFeedback();
+}
+
+
 </script>
 </body>
 </html>
