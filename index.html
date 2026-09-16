@@ -1297,6 +1297,7 @@ function openEditOrderInfo(){
   html+='<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">Type</label><select id="eoi-ty" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px">'+tyOpts+'</select></div>';
   html+='<div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">Task date</label><input type="date" id="eoi-dt" value="'+(CT.date||'')+'" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div>';
   html+='</div>';
+  html+='<div style="margin-bottom:12px;padding:12px;background:#FAEEDA;border-radius:8px"><div style="font-size:12px;font-weight:700;color:#854F0B;margin-bottom:8px">خصم (اختياري)</div><div style="display:flex;gap:8px;flex-wrap:wrap"><div style="flex:1;min-width:110px"><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">مبلغ</label><input type="number" id="eoi-disc-amt" value="'+(CT.discount_amount||0)+'" min="0" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div><div style="flex:1;min-width:110px"><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">نسبة %</label><input type="number" id="eoi-disc-pct" value="'+(CT.discount_percent||0)+'" min="0" max="100" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div></div><div style="margin-top:8px"><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">سبب الخصم</label><input type="text" id="eoi-disc-note" value="'+((CT.discount_note||'').replace(/\x22/g,"&quot;"))+'" placeholder="خصم / دفعة مقدمة من طلب ..." style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box"></div><div style="font-size:10px;color:#888;margin-top:4px">أدخل مبلغ أو نسبة (واحد فقط)</div></div>';
   html+='<div style="margin-bottom:12px"><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">Description</label><textarea id="eoi-ds" rows="3" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px;resize:vertical;box-sizing:border-box">'+(CT.description||'')+'</textarea></div>';
   if(CT.type==='sales'){html+='<div style="background:#f0f9ff;border:1px solid #b3d9f7;border-radius:8px;padding:12px;margin-top:10px"><div style="font-size:12px;font-weight:700;color:#185FA5;margin-bottom:8px">بيانات التركيب</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div><label style="font-size:11px;color:#888">تاريخ التركيب</label><input type="date" id="eoi-install-date" value="'+(CT.installation_date||'')+'"></div><div><label style="font-size:11px;color:#888">الفني</label><input id="eoi-install-tech" value="'+(CT.installation_tech||'')+'" placeholder="الفني"></div></div></div>';}
   // Build address picker from customer's saved addresses
@@ -1339,6 +1340,9 @@ function openEditOrderInfo(){
       salesperson:document.getElementById('eoi-sp').value,
       type:document.getElementById('eoi-ty').value,
       date:document.getElementById('eoi-dt').value,
+      discount_amount:parseFloat(document.getElementById('eoi-disc-amt')?.value)||0,
+      discount_percent:parseFloat(document.getElementById('eoi-disc-pct')?.value)||0,
+      discount_note:document.getElementById('eoi-disc-note')?.value||null,
       description:document.getElementById('eoi-ds').value,
       from_address:document.getElementById('eoi-addr-from')?.value||null,
       to_address:document.getElementById('eoi-addr-to')?.value||null,
@@ -1463,7 +1467,8 @@ function sendWhatsApp(){
   var typeName=typeLabels[CT.type]||CT.type;
   var prods=CT.prods||[];
   var subTotal=prods.reduce(function(s,p){return s+(p.qty*(p.price||0));},0);
-  var total=subTotal;
+  var discAmt=calcDiscount(CT,subTotal);
+  var total=subTotal-discAmt;
   var prodsLines=prods.map(function(p){
     var lt=p.qty*(p.price||0);
     return '• '+p.name+' x'+p.qty+' = '+lt.toLocaleString()+' ج.م';
@@ -1487,6 +1492,7 @@ function sendWhatsApp(){
     +sep+'\n'
     +'المنتجات:\n'+prodsLines+'\n'
     +sep+'\n'
+    +(discAmt>0?('إجمالي المنتجات: '+subTotal.toLocaleString()+' ج.م\n'+'الخصم: - '+discAmt.toLocaleString()+' ج.م'+(CT.discount_note?' ('+CT.discount_note+')':'')+'\n'):'')
     +'الإجمالي: '+total.toLocaleString()+' ج.م'+taxLine+'\n'
     +'حالة الدفع: '+payStatus+'\n'
     +sep+'\n'
@@ -1747,7 +1753,7 @@ function openEditProds(){
     var tot=Math.round(p.qty*p.price);
     var bt=useTax?Math.round(p.qty*p.price/1.14):0;
     tr.innerHTML='<td style="padding:4px"><input value="'+p.name.replace(/"/g,"'")+'" id="epn-'+i+'" style="width:100%;font-size:12px;padding:4px;border:1px solid #ccc;border-radius:4px"></td>'+
-      '<td style="padding:4px"><input type="number" value="'+p.qty+'" id="epq-'+i+'" min="1" style="width:100%;text-align:center;border:1px solid #ccc;border-radius:4px" oninput="epCalc('+i+')"></td>'+
+      '<td style="padding:4px"><input type="number" value="'+p.qty+'" id="epq-'+i+'" min="0.1" step="0.1" style="width:100%;text-align:center;border:1px solid #ccc;border-radius:4px" oninput="epCalc('+i+')"></td>'+
       '<td style="padding:4px"><input type="number" value="'+p.price+'" id="epp-'+i+'" min="0" style="width:100%;border:1px solid #ccc;border-radius:4px" oninput="epCalc('+i+')"></td>'+
       (useTax?'<td id="epbt-'+i+'" style="text-align:right;padding:4px;color:#888">'+bt+'</td>':'')+
       '<td id="ept-'+i+'" style="text-align:right;padding:4px;font-weight:700;color:#1D9E75">'+tot+'</td>'+
@@ -2517,7 +2523,7 @@ function onTC(v){
     nameInp.dataset.invId='';
     td0.appendChild(nameInp);
     var td1=document.createElement('td');
-    var qi=document.createElement('input');qi.type='number';qi.value='1';qi.min='1';qi.style.cssText='width:60px;text-align:center';qi.oninput=function(){calcR(this);};
+    var qi=document.createElement('input');qi.type='number';qi.value='1';qi.min='0.1';qi.step='0.1';qi.style.cssText='width:60px;text-align:center';qi.oninput=function(){calcR(this);};
     td1.appendChild(qi);
     var td2=document.createElement('td');
     var pi=document.createElement('input');pi.type='number';pi.min='0';pi.placeholder='0';pi.style.width='100%';pi.oninput=function(){calcR(this);};
@@ -4660,7 +4666,7 @@ async function returnProducts(poId){
 
 async function loadFinStats(){
   try{
-    var r1=await db.from('tasks').select('id,date,status').neq('status','cancel').limit(10000);
+    var r1=await db.from('tasks').select('id,date,status,discount_amount,discount_percent').neq('status','cancel').limit(10000);
     var r2=await db.from('task_products').select('task_id,qty,price').limit(20000);
     var r3=await db.from('payments').select('task_id,amount,approved').limit(20000);
     var tasks=r1.data||[];var prods=r2.data||[];var pays=r3.data||[];
@@ -4668,7 +4674,7 @@ async function loadFinStats(){
     var paidFn=function(id){return pays.filter(function(p){return p.task_id===id&&p.approved!==false;}).reduce(function(a,p){return a+p.amount;},0);};
     var todayStr=new Date().toISOString().split('T')[0];
     var rev=0,col=0,out=0;
-    tasks.forEach(function(t){var g=grand(t.id),p=paidFn(t.id);rev+=g;col+=p;if(!t.date||t.date<=todayStr){out+=Math.max(0,g-p);}});
+    tasks.forEach(function(t){var g=grand(t.id);var da=parseFloat(t.discount_amount)||0;var dp=parseFloat(t.discount_percent)||0;if(da>0)g=g-da;else if(dp>0)g=g-Math.round(g*dp/100);g=Math.max(0,g);var p=paidFn(t.id);rev+=g;col+=p;if(!t.date||t.date<=todayStr){out+=Math.max(0,g-p);}});
     var poPayR=await db.from('po_payments').select('amount');
     var exp=poPayR.error?0:(poPayR.data||[]).reduce(function(a,p){return a+(p.amount||0);},0);
     var el=document.getElementById('fstats');
@@ -4707,11 +4713,12 @@ async function finTab(type,btn){
     return;
   }
   if(type==='outstanding'){
-    var{data:tasks2}=await db.from('tasks').select('id,task_num,customer_name,date,type,branch,salesperson,pay_status,status').neq('status','cancel').limit(10000);
+    var{data:tasks2}=await db.from('tasks').select('id,task_num,customer_name,date,type,branch,salesperson,pay_status,status,discount_amount,discount_percent').neq('status','cancel').limit(10000);
     var{data:prods2}=await db.from('task_products').select('task_id,qty,price').limit(20000);
     var{data:pays2}=await db.from('payments').select('task_id,amount,approved').limit(20000);
     tasks2=tasks2||[];prods2=prods2||[];pays2=pays2||[];
-    var grand2=function(id){return(prods2||[]).filter(function(p){return p.task_id===id;}).reduce(function(a,p){return a+p.qty*p.price;},0);};
+    var taskMap2={};tasks2.forEach(function(t){taskMap2[t.id]=t;});
+    var grand2=function(id){var raw=(prods2||[]).filter(function(p){return p.task_id===id;}).reduce(function(a,p){return a+p.qty*p.price;},0);var t=taskMap2[id];if(t){var da=parseFloat(t.discount_amount)||0;var dp=parseFloat(t.discount_percent)||0;if(da>0)raw=raw-da;else if(dp>0)raw=raw-Math.round(raw*dp/100);}return Math.max(0,raw);};
     var paid2=function(id){return(pays2||[]).filter(function(p){return p.task_id===id&&p.approved!==false;}).reduce(function(a,p){return a+p.amount;},0);};
     var todayStr=new Date().toISOString().split('T')[0];
     var outstanding=tasks2.filter(function(t){var g=grand2(t.id);return g>0&&paid2(t.id)<g&&(!t.date||t.date<=todayStr);}).map(function(t){var g=grand2(t.id);var p=paid2(t.id);return{...t,grand:g,paid:p,rem:g-p};}).sort(function(a,b){return b.rem-a.rem;});
@@ -5169,7 +5176,7 @@ async function saveTask(){
   document.querySelectorAll('#ntb tr').forEach(function(tr2){
     var sel2=tr2.cells[0]?.querySelector('select');
     var inp2=tr2.cells[0]?.querySelector('input[type="text"]');
-    var q2=parseInt(tr2.querySelector('td:nth-child(2) input')?.value)||0;
+    var q2=parseFloat(tr2.querySelector('td:nth-child(2) input')?.value)||0;
     var p2=parseFloat(tr2.querySelector('td:nth-child(3) input')?.value)||0;
     if(q2>0){
       var nm2='',pid2=null;
@@ -5419,6 +5426,15 @@ async function cSearch(v){
   });
 }
 
+
+function calcDiscount(taskObj,productsTotal){
+  if(!taskObj)return 0;
+  var amt=parseFloat(taskObj.discount_amount)||0;
+  var pct=parseFloat(taskObj.discount_percent)||0;
+  if(amt>0)return amt;
+  if(pct>0)return Math.round(productsTotal*pct/100);
+  return 0;
+}
 function onPS2(sel){
   var tr=sel.closest('tr');if(!tr)return;
   var o=sel.selectedOptions[0];
@@ -5924,11 +5940,16 @@ async function loadFeedback(){
     var satisfied=_fbTab==='satisfied';
     var{data:fbs}=await db.from('feedback').select('*').eq('satisfied',satisfied).order('created_at',{ascending:false});
     fbs=fbs||[];
+    // Fetch WhatsApp sends to show per customer
+    var{data:waAtt}=await db.from('feedback_attempts').select('customer_name,created_at,attempted_by').eq('attempt_type','whatsapp').limit(20000);
+    var waByName={};(waAtt||[]).forEach(function(a){if(!waByName[a.customer_name])waByName[a.customer_name]=[];waByName[a.customer_name].push(a);});
     if(!fbs.length){body.innerHTML='<div style="text-align:center;padding:30px;color:#888">لا توجد نتائج</div>';return;}
     var html='<div style="display:flex;flex-direction:column;gap:10px">';
     fbs.forEach(function(f){
       var stars=function(n){var s='';for(var i=1;i<=5;i++){s+=i<=n?'&#9733;':'&#9734;';}return s;};
       var followBadge=f.followed_up?'<span style="background:#EAF3DE;color:#3B6D11;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700">&#10003; تمت المتابعة</span>':'';
+      var waList=waByName[f.customer_name]||[];
+      var waBadge=waList.length?'<div style="background:#128C7E22;color:#128C7E;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700;margin-top:4px">💬 تم إرسال الواتساب ('+waList.length+') · آخر: '+(waList[0].created_at?waList[0].created_at.slice(0,16).replace('T',' '):'')+'</div>':'<div style="color:#aaa;font-size:11px;margin-top:4px">لم يُرسل واتساب بعد</div>';
       html+='<div style="background:#fff;border:1px solid '+(satisfied?'#d9ead3':'#f4cccc')+';border-radius:10px;padding:14px">'
         +'<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:8px">'
           +'<div>'
@@ -5936,7 +5957,7 @@ async function loadFeedback(){
             +'<div style="font-weight:700">'+(f.customer_name||'-')+'</div>'
             +'<div style="font-size:11px;color:#888">'+(f.customer_phone||'-')+' &middot; '+(f.customer_address||'-')+'</div>'
           +'</div>'
-          +'<div style="text-align:left">'+followBadge+'</div>'
+          +'<div style="text-align:left">'+followBadge+waBadge+'</div>'
         +'</div>'
         +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:10px;font-size:12px">'
           +'<div><span style="color:#888">خدمة العملاء:</span> <span style="color:#f5a623">'+stars(f.rating_callcenter||0)+'</span></div>'
