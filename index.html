@@ -1775,6 +1775,10 @@ function openEditProds(){
     tbody.appendChild(tr);
   });
   tbl.appendChild(tbody);
+  // For sales tasks, attach inventory search to existing rows so a re-typed product must be re-selected
+  if(CT.type==='sales'||CT.type==='sale_install'){
+    CT.prods.forEach(function(p,i){ if(p.inventory_id){ attachEpInvSearch(document.getElementById('epr-'+i),i); } });
+  }
   box.appendChild(tbl);
   var addBtn=document.createElement('button');
   addBtn.textContent='+ Add row';
@@ -1812,21 +1816,57 @@ function epCalc(i){
 }
 
 let epRowCount=100;
-function addEpRow(){
+async function addEpRow(){
   var i=epRowCount++;
   var useTax=CT&&CT.use_tax!==false;
   var tbody=document.getElementById('ep-tbody');
   if(!tbody)return;
+  var isSalesTask=(CT&&(CT.type==='sales'||CT.type==='sale_install'));
   var tr=document.createElement('tr');
   tr.id='epr-'+i;
+  tr.dataset.invId='';
   tr.style.borderBottom='1px solid #f0f0e8';
-  tr.innerHTML='<td style="padding:4px"><input placeholder="Product name" id="epn-'+i+'" style="width:100%;font-size:12px;padding:4px;border:1px solid #ccc;border-radius:4px"></td>'+
-    '<td style="padding:4px"><input type="number" value="1" id="epq-'+i+'" min="1" style="width:100%;text-align:center;border:1px solid #ccc;border-radius:4px" oninput="epCalc('+i+')"></td>'+
+  tr.innerHTML='<td style="padding:4px"><input placeholder="'+(isSalesTask?'ابحث واختر الجهاز...':'Product name')+'" id="epn-'+i+'" autocomplete="off" style="width:100%;font-size:12px;padding:4px;border:1px solid #ccc;border-radius:4px"></td>'+
+    '<td style="padding:4px"><input type="number" value="1" id="epq-'+i+'" min="0.1" step="0.1" style="width:100%;text-align:center;border:1px solid #ccc;border-radius:4px" oninput="epCalc('+i+')"></td>'+
     '<td style="padding:4px"><input type="number" placeholder="0" id="epp-'+i+'" min="0" style="width:100%;border:1px solid #ccc;border-radius:4px" oninput="epCalc('+i+')"></td>'+
     (useTax?'<td id="epbt-'+i+'" style="text-align:right;padding:4px;color:#888">0</td>':'')+
     '<td id="ept-'+i+'" style="text-align:right;padding:4px;font-weight:700;color:#1D9E75">0</td>'+
     '<td style="padding:4px;text-align:center"><button onclick="document.getElementById(this.dataset.id).remove()" data-id="epr-'+i+'" style="padding:2px 8px;font-size:11px;border:1px solid #E24B4A;border-radius:5px;background:#FCEBEB;color:#A32D2D;cursor:pointer">Del</button></td>';
   tbody.appendChild(tr);
+  if(isSalesTask)await attachEpInvSearch(tr,i);
+}
+
+// Attach an inventory search dropdown to an edit-products row (sales tasks only)
+async function attachEpInvSearch(tr,i){
+  if(!INV.length){var ir=await db.from('inventory').select('*');INV=ir.data||[];}
+  var inp=document.getElementById('epn-'+i);
+  if(!inp)return;
+  var dd=document.createElement('div');
+  dd.style.cssText='display:none;position:fixed;background:#fff;border:1px solid #ccc;border-radius:6px;z-index:99999;max-height:240px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.18);min-width:300px';
+  function showItems(q){
+    var fil=INV.filter(function(p){var nm=(p.brand+' '+p.model+' '+p.hp+' '+(p.unit_type||'')+' '+(p.cooling||'')+' '+(p.ac_type||'')).toLowerCase();return !q||nm.includes(q.toLowerCase());});
+    dd.innerHTML='';
+    if(!fil.length){dd.innerHTML='<div style="padding:8px 10px;color:#888;font-size:12px">لا توجد نتائج</div>';return;}
+    fil.forEach(function(p){
+      var nm=(p.brand+' '+p.model+' '+p.hp+' '+(p.unit_type||'')+' '+(p.cooling||'')+' '+(p.ac_type||'')).trim().replace(/\s+/g,' ');
+      var item=document.createElement('div');
+      item.style.cssText='padding:8px 12px;cursor:pointer;font-size:12px;border-bottom:1px solid #f0f0e8;display:flex;justify-content:space-between;gap:8px';
+      item.innerHTML='<span style="font-weight:600">'+nm+'</span><span style="color:#888;font-size:11px;white-space:nowrap">مخزون: '+p.qty+'</span>';
+      item.onmouseenter=function(){this.style.background='#f0f9f4';};item.onmouseleave=function(){this.style.background='';};
+      item.onmousedown=function(e){
+        e.preventDefault();inp.value=nm;tr.dataset.invId=p.id;inp.style.borderColor='#1D9E75';dd.style.display='none';
+        var priceInp=document.getElementById('epp-'+i);
+        if(priceInp&&(!priceInp.value||priceInp.value==='0')){priceInp.value=Math.round(p.price||0);epCalc(i);}
+      };
+      dd.appendChild(item);
+    });
+  }
+  function posDD(){var r=inp.getBoundingClientRect();dd.style.top=(r.bottom+4)+'px';dd.style.left=r.left+'px';dd.style.width=Math.max(r.width,300)+'px';}
+  inp.addEventListener('input',function(){tr.dataset.invId='';inp.style.borderColor='#E24B4A';posDD();showItems(this.value);dd.style.display='block';});
+  inp.addEventListener('focus',function(){posDD();showItems(this.value);dd.style.display='block';});
+  inp.addEventListener('blur',function(){setTimeout(function(){dd.style.display='none';},200);});
+  window.addEventListener('scroll',function(){if(dd.style.display!=='none')posDD();},true);
+  document.body.appendChild(dd);
 }
 
 
@@ -1850,6 +1890,17 @@ async function saveEditProds(){
     if(name&&qty>0)rows.push({task_id:CT.id,name:name,qty:qty,price:price,inventory_id:invId||null});
   });
   if(!rows.length){toast('Add at least one product',true);return;}
+  // GUARD: sales-task AC products must be linked to inventory (selected, not typed) so stock deducts.
+  if(CT.type==='sales'||CT.type==='sale_install'){
+    var _unlinkedE=rows.filter(function(r){return !r.inventory_id;});
+    if(_unlinkedE.length){
+      var _namesE=_unlinkedE.map(function(r){return r.name;}).join('، ');
+      toast(LANG==='ar'
+        ?('⚠️ يجب اختيار الجهاز من قائمة المخزون (لا تكتبه يدوياً): '+_namesE+' — اختر الجهاز من القائمة المنسدلة')
+        :('⚠️ AC products must be selected from the inventory list (not typed): '+_namesE),true);
+      return;
+    }
+  }
   _savingProds=true;
   var saveB=document.getElementById('ep-save-btn');
   if(saveB){saveB.disabled=true;saveB.textContent='Saving...';}
@@ -5226,6 +5277,19 @@ async function saveTask(){
   if(!taskRows.length){toast('Add at least one product/service',true);return;}
   var hasValidRow=taskRows.some(function(r){return r.qty>0;});
   if(!hasValidRow){toast('Add at least one product/service with quantity',true);return;}
+  // GUARD: for sales tasks, every AC product row must be selected from inventory (has pid).
+  // This prevents employees from typing a product name freely (which would not deduct stock).
+  var _ntType=document.getElementById('ntt')?.value||'maintenance';
+  if(_ntType==='sales'){
+    var _unlinked=taskRows.filter(function(r){return r.qty>0&&!r.pid;});
+    if(_unlinked.length){
+      var _names=_unlinked.map(function(r){return r.name;}).join('، ');
+      toast(LANG==='ar'
+        ?('⚠️ يجب اختيار الجهاز من قائمة المخزون (لا تكتبه يدوياً): '+_names+' — امسح السطر واختر الجهاز من القائمة المنسدلة')
+        :('⚠️ AC products must be selected from the inventory list (not typed): '+_names+' — clear the row and pick the unit from the dropdown'),true);
+      return;
+    }
+  }
   var cid=scid;
   var customerName=document.getElementById('ncnm')?.textContent||'';
   if(document.getElementById('ncc').checked){
