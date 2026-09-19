@@ -1929,21 +1929,18 @@ function renderPays(){
   const pct=gr>0?Math.min(100,Math.round(pd/gr*100)):pd>0?100:0;
 
   // Always show order total (after discount)
-  document.getElementById('ptot').textContent=f(gr);
-  // Show discount line if a discount applies
-  (function(){
-    var ptotEl=document.getElementById('ptot');
-    var host=ptotEl?ptotEl.closest('.tr')||ptotEl.parentNode:null;
-    var old=document.getElementById('td-disc-line');
-    if(old)old.remove();
-    if(discAmt>0&&host&&host.parentNode){
-      var dl=document.createElement('div');
-      dl.id='td-disc-line';
-      dl.style.cssText='display:flex;justify-content:space-between;font-size:12px;color:#A32D2D;margin:2px 0';
-      dl.innerHTML='<span>الخصم'+(CT.discount_note?' ('+CT.discount_note+')':'')+'</span><span>- '+f(discAmt)+'</span>';
-      host.parentNode.insertBefore(dl,host.nextSibling);
+  var ptotEl=document.getElementById('ptot');
+  if(ptotEl){
+    if(discAmt>0){
+      // Show discounted total, with the original struck through and discount noted below (fits inside the grid cell)
+      ptotEl.innerHTML=f(gr)+'<div style="font-size:10px;font-weight:600;color:#A32D2D;margin-top:2px">'
+        +'<span style="text-decoration:line-through;color:#999">'+f(subTot)+'</span> &minus; '+f(discAmt)
+        +(CT.discount_note?'<div style="font-size:9px;color:#888;font-weight:500">'+CT.discount_note+'</div>':'')
+        +'</div>';
+    }else{
+      ptotEl.textContent=f(gr);
     }
-  })();
+  }
   // Always show paid amount - even if products total is 0
   document.getElementById('ppd').textContent=f(pd);
 
@@ -2014,7 +2011,8 @@ function renderPays(){
 
 function openPayModal(){
   if(!CT){toast('No task selected',true);return;}
-  const gr=CT.prods.reduce((a,p)=>a+p.qty*p.price,0);
+  const subTot=CT.prods.reduce((a,p)=>a+p.qty*p.price,0);
+  const gr=Math.max(0,subTot-calcDiscount(CT,subTot));
   const pd=CT.pays.reduce((a,p)=>a+p.amount,0);
   const rem=Math.max(0,gr-pd);
   // Reset form
@@ -2053,7 +2051,8 @@ function updatePayConfirm(){
   const method=document.getElementById('pmeth').value;
   const box=document.getElementById('pm-confirm-box');
   if(amt>0&&CT){
-    const gr=CT.prods.reduce((a,p)=>a+p.qty*p.price,0);
+    const subTot=CT.prods.reduce((a,p)=>a+p.qty*p.price,0);
+    const gr=Math.max(0,subTot-calcDiscount(CT,subTot));
     const pd=CT.pays.reduce((a,p)=>a+p.amount,0);
     const remBefore=gr-pd; // actual remaining (can be negative)
     const remAfter=remBefore-amt; // after this payment
