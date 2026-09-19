@@ -6097,6 +6097,7 @@ async function loadFeedback(){
         +(f.notes?'<div style="background:#f9f9f6;border-radius:8px;padding:10px;font-size:12px;margin-bottom:10px"><span style="color:#888;font-weight:700">ملاحظات:</span> '+f.notes+'</div>':'')
         +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
         +(satisfied?'<button data-phone="'+(f.customer_phone||'')+'" data-name="'+(f.customer_name||'')+'" onclick="sendFbThanks(this.dataset.phone,this.dataset.name)" style="background:#25D366;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer">&#128172; شكر + رابط التقييم</button>':'')
+        +(!satisfied?'<button data-phone="'+(f.customer_phone||'')+'" data-name="'+(f.customer_name||'')+'" onclick="sendFbApology(this.dataset.phone,this.dataset.name)" style="background:#25D366;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer">&#128172; اعتذار + كوبون 50%</button>':'')
         +(!satisfied&&!f.followed_up?'<button data-fid="'+f.id+'" onclick="markFollowedUp(this.dataset.fid)" style="background:#185FA5;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer">&#10003; تمت المتابعة</button>':'')
         +'</div>'
         +'</div>';
@@ -6212,6 +6213,33 @@ async function sendFbThanks(phone,name){
     +GOOGLE_REVIEW_LINK+'\n\n'
     +'شكراً لكم مرة أخرى، ونتطلع لخدمتكم دائماً \u{1F64F}\n\n'
     +'برازر كوند للتكييف';
+  window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(msg),'_blank');
+}
+
+// Apology message + 50% maintenance discount coupon for dissatisfied customers
+async function sendFbApology(phone,name){
+  phone=(phone||'').replace(/[^0-9]/g,'');
+  if(!phone){toast('لا يوجد رقم هاتف',true);return;}
+  try{await db.from('feedback_attempts').insert({customer_name:name,attempt_type:'whatsapp',outcome:'اعتذار + كوبون خصم 50%',attempted_by:CU.full_name||CU.username});}catch(e){}
+  if(phone.startsWith('0'))phone='2'+phone;
+  else if(!phone.startsWith('20'))phone='20'+phone;
+  var sep='━━━━━━━━━━━━━━━';
+  var msg='عزيزنا العميل '+name+'\u{1F339}\n\n'
+    +'نتواصل معكم من إدارة برازر كوند للتكييف.\n\n'
+    +'وصلتنا ملاحظاتكم عن تجربتكم الأخيرة، ونود أن نعتذر لكم بصدق عن أي إزعاج أو تقصير شعرتم به. تجربتكم لم تكن في مستوى ما نطمح لتقديمه لعملائنا، وهذا أمر نأخذه على محمل الجد.\n\n'
+    +'رأيكم وصل إلى الإدارة مباشرةً، وقد تم تسجيل ملاحظاتكم ومراجعتها لضمان عدم تكرار ما حدث. ثقتكم تعني لنا الكثير، وحرصنا على راحتكم هو أساس عملنا.\n\n'
+    +'ولأي ملاحظة أو استفسار، يسعدنا تواصلكم معنا مباشرةً على:\n'
+    +'\u{1F4DE} 01006889931\n\n'
+    +sep+'\n'
+    +'\u{1F381} وتقديراً لكم، يسعدنا أن نقدم لكم:\n'
+    +'كوبون خصم 50% على أعمال الصيانة القادمة\n'
+    +'صالح لمدة 3 شهور من تاريخه.\n'
+    +'كل ما عليكم عند الحجز هو ذكر هذه الرسالة.\n'
+    +sep+'\n\n'
+    +'نتمنى أن تمنحونا فرصة أخرى لنعوّض تجربتكم ونثبت لكم جودة خدمتنا التي نفخر بها.\n\n'
+    +'نحن دائماً في خدمتكم \u{1F64F}\n'
+    +'إدارة برازر كوند للتكييف\n'
+    +'الخط الساخن: 01222211310';
   window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(msg),'_blank');
 }
 // ── END FEEDBACK ─────────────────────────────────────────────
