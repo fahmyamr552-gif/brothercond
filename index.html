@@ -1733,8 +1733,9 @@ async function openTask(id){
 }
 
 
-function openEditProds(){
+async function openEditProds(){
   if(!CT)return;
+  if((CT.type==='sales'||CT.type==='sale_install')&&(!INV||!INV.length)){var _ir=await db.from('inventory').select('*');INV=_ir.data||[];}
   document.querySelectorAll('.ep-modal').forEach(e=>e.remove());
   var useTax=CT.use_tax===false?false:true;
   var overlay=document.createElement('div');
@@ -1853,11 +1854,13 @@ async function attachEpInvSearch(tr,i){
       item.style.cssText='padding:8px 12px;cursor:pointer;font-size:12px;border-bottom:1px solid #f0f0e8;display:flex;justify-content:space-between;gap:8px';
       item.innerHTML='<span style="font-weight:600">'+nm+'</span><span style="color:#888;font-size:11px;white-space:nowrap">مخزون: '+p.qty+'</span>';
       item.onmouseenter=function(){this.style.background='#f0f9f4';};item.onmouseleave=function(){this.style.background='';};
-      item.onmousedown=function(e){
-        e.preventDefault();inp.value=nm;tr.dataset.invId=p.id;inp.style.borderColor='#1D9E75';dd.style.display='none';
+      var pickE=function(e){
+        if(e){e.preventDefault();e.stopPropagation();}
+        inp.value=nm;tr.dataset.invId=p.id;inp.style.borderColor='#1D9E75';dd.style.display='none';
         var priceInp=document.getElementById('epp-'+i);
         if(priceInp&&(!priceInp.value||priceInp.value==='0')){priceInp.value=Math.round(p.price||0);epCalc(i);}
       };
+      item.onmousedown=pickE;item.ontouchstart=pickE;item.onclick=pickE;
       dd.appendChild(item);
     });
   }
@@ -1892,11 +1895,22 @@ async function saveEditProds(){
   if(!rows.length){toast('Add at least one product',true);return;}
   // GUARD: sales-task AC products must be linked to inventory (selected, not typed) so stock deducts.
   if(CT.type==='sales'||CT.type==='sale_install'){
+    if(INV&&INV.length){
+      rows.forEach(function(r){
+        if(r.inventory_id||!r.name)return;
+        var target=r.name.trim().replace(/\s+/g,' ').toLowerCase();
+        var m=INV.find(function(p){
+          var nm=(p.brand+' '+p.model+' '+p.hp+' '+(p.unit_type||'')+' '+(p.cooling||'')+' '+(p.ac_type||'')).trim().replace(/\s+/g,' ').toLowerCase();
+          return nm===target;
+        });
+        if(m)r.inventory_id=m.id;
+      });
+    }
     var _unlinkedE=rows.filter(function(r){return !r.inventory_id;});
     if(_unlinkedE.length){
       var _namesE=_unlinkedE.map(function(r){return r.name;}).join('، ');
       toast(LANG==='ar'
-        ?('⚠️ يجب اختيار الجهاز من قائمة المخزون (لا تكتبه يدوياً): '+_namesE+' — اختر الجهاز من القائمة المنسدلة')
+        ?('⚠️ يجب اختيار الجهاز من قائمة المخزون (لا تكتبه يدوياً): '+_namesE+' — اكتب ثم اختر الجهاز من القائمة المنسدلة')
         :('⚠️ AC products must be selected from the inventory list (not typed): '+_namesE),true);
       return;
     }
@@ -5277,15 +5291,27 @@ async function saveTask(){
   if(!taskRows.length){toast('Add at least one product/service',true);return;}
   var hasValidRow=taskRows.some(function(r){return r.qty>0;});
   if(!hasValidRow){toast('Add at least one product/service with quantity',true);return;}
-  // GUARD: for sales tasks, every AC product row must be selected from inventory (has pid).
-  // This prevents employees from typing a product name freely (which would not deduct stock).
+  // GUARD: for sales tasks, every AC product row must be linked to inventory (has pid).
+  // Prevents employees typing a product name freely (which would not deduct stock).
   var _ntType=document.getElementById('ntt')?.value||'maintenance';
   if(_ntType==='sales'){
+    // First, try to auto-link any unlinked row whose typed name exactly matches an inventory product.
+    if(INV&&INV.length){
+      taskRows.forEach(function(r){
+        if(r.pid||!r.name)return;
+        var target=r.name.trim().replace(/\s+/g,' ').toLowerCase();
+        var m=INV.find(function(p){
+          var nm=(p.brand+' '+p.model+' '+p.hp+' '+(p.unit_type||'')+' '+(p.cooling||'')+' '+(p.ac_type||'')).trim().replace(/\s+/g,' ').toLowerCase();
+          return nm===target;
+        });
+        if(m)r.pid=m.id;
+      });
+    }
     var _unlinked=taskRows.filter(function(r){return r.qty>0&&!r.pid;});
     if(_unlinked.length){
       var _names=_unlinked.map(function(r){return r.name;}).join('، ');
       toast(LANG==='ar'
-        ?('⚠️ يجب اختيار الجهاز من قائمة المخزون (لا تكتبه يدوياً): '+_names+' — امسح السطر واختر الجهاز من القائمة المنسدلة')
+        ?('⚠️ يجب اختيار الجهاز من قائمة المخزون (لا تكتبه يدوياً): '+_names+' — امسح السطر واكتب ثم اختر الجهاز من القائمة المنسدلة')
         :('⚠️ AC products must be selected from the inventory list (not typed): '+_names+' — clear the row and pick the unit from the dropdown'),true);
       return;
     }
@@ -5404,11 +5430,15 @@ async function addRow(){
         item.style.cssText='padding:8px 12px;cursor:pointer;font-size:12px;border-bottom:1px solid #f0f0e8;display:flex;justify-content:space-between;align-items:center';
         item.innerHTML='<span style="font-weight:600">'+nm+'</span><span style="color:#888;font-size:11px;margin-left:8px;white-space:nowrap">Stock: '+p.qty+' | EGP '+Math.round(p.price||0).toLocaleString()+'</span>';
         item.onmouseenter=function(){this.style.background='#f0f9f4';};item.onmouseleave=function(){this.style.background='';};
-        item.onmousedown=function(e){
-          e.preventDefault();srchInp.value=nm;srchInp.dataset.price=p.price||0;srchInp.dataset.invId=p.id;srchInp.dataset.stock=p.qty;dd.style.display='none';
+        var pickItem=function(e){
+          if(e){e.preventDefault();e.stopPropagation();}
+          srchInp.value=nm;srchInp.dataset.price=p.price||0;srchInp.dataset.invId=p.id;srchInp.dataset.stock=p.qty;srchInp.style.borderColor='#1D9E75';dd.style.display='none';
           var priceInp=tr.querySelector('td:nth-child(3) input');var qtyInp=tr.querySelector('td:nth-child(2) input');
           if(priceInp){priceInp.value=Math.round(p.price||0);calcR(priceInp);}if(qtyInp)chkStk(qtyInp);
         };
+        item.onmousedown=pickItem;
+        item.ontouchstart=pickItem;
+        item.onclick=pickItem;
         dd.appendChild(item);
       });
     }
