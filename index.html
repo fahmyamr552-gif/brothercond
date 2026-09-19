@@ -1386,7 +1386,7 @@ async function loadTasks(resetPage){
     const fs=document.getElementById('tfs')?.value||'';
     const from=TASK_PAGE*TASK_PAGE_SIZE;
     const to=from+TASK_PAGE_SIZE-1;
-    let qb=db.from('tasks').select('id,task_num,customer_name,type,branch,salesperson,status,date,pay_status,installation_date',{count:'exact'}).order('date',{ascending:false}).range(from,to+1);
+    let qb=db.from('tasks').select('id,task_num,customer_name,type,branch,salesperson,status,date,pay_status,installation_date,discount_amount,discount_percent',{count:'exact'}).order('date',{ascending:false}).range(from,to+1);
     if(tf)qb=qb.eq('type',tf);
     if(bf)qb=qb.eq('branch',bf);
     if(fs)qb=qb.eq('status',fs);
@@ -1404,7 +1404,8 @@ async function loadTasks(resetPage){
       var tp=await db.from('task_products').select('task_id,qty,price').in('task_id',taskIds);
       prods=tp.data||[];
     }
-    var grand=function(id){return prods.filter(function(p){return p.task_id===id;}).reduce(function(a,p){return a+p.qty*p.price;},0);};
+    var _tkMap={};pageData.forEach(function(t){_tkMap[t.id]=t;});
+    var grand=function(id){var raw=prods.filter(function(p){return p.task_id===id;}).reduce(function(a,p){return a+p.qty*p.price;},0);var tk=_tkMap[id];if(tk){var da=parseFloat(tk.discount_amount)||0;var dp=parseFloat(tk.discount_percent)||0;if(da>0)raw=raw-da;else if(dp>0)raw=raw-Math.round(raw*dp/100);}return Math.max(0,raw);};
     var body=document.getElementById('tlist');
     if(TASK_PAGE===0)body.innerHTML='';
     // Remove old load-more button if present
@@ -1639,15 +1640,28 @@ async function openTask(id){
         r.innerHTML='<td>'+(p.name)+'</td><td>'+p.qty+'</td><td>'+f(p.price)+'</td><td style="'+(taskUseTax?'':'display:none')+'">'+f(bt)+'</td><td style="color:#1D9E75;font-weight:700">'+f(total)+'</td>';
         tbody.appendChild(r);
       });
+      var vDisc=calcDiscount(CT,sub);
+      var vGrand=Math.max(0,sub-vDisc);
       if(taskUseTax){
-        set('vsub',f(sub/1.14));set('vtax',f(sub-sub/1.14));set('vgr',f(sub));
+        set('vsub',f(sub/1.14));set('vtax',f(sub-sub/1.14));set('vgr',f(vGrand));
         if(S('vsub')?.closest('.tr'))S('vsub').closest('.tr').style.display='';
         if(S('vtax')?.closest('.tr'))S('vtax').closest('.tr').style.display='';
       } else {
-        set('vsub','');set('vtax','');set('vgr',f(sub));
+        set('vsub','');set('vtax','');set('vgr',f(vGrand));
         if(S('vsub')?.closest('.tr'))S('vsub').closest('.tr').style.display='none';
         if(S('vtax')?.closest('.tr'))S('vtax').closest('.tr').style.display='none';
       }
+      // Insert discount line above grand total in the products totals block
+      (function(){
+        var vgrEl=S('vgr');var host=vgrEl?vgrEl.closest('.tr'):null;
+        var old=document.getElementById('vgr-disc-line');if(old)old.remove();
+        if(vDisc>0&&host&&host.parentNode){
+          var dl=document.createElement('div');dl.className='tr';dl.id='vgr-disc-line';
+          dl.style.color='#A32D2D';
+          dl.innerHTML='<span>الخصم'+(CT.discount_note?' ('+CT.discount_note+')':'')+'</span><span>- '+f(vDisc)+'</span>';
+          host.parentNode.insertBefore(dl,host);
+        }
+      })();
       // Render spare parts used
       var spBlock=document.getElementById('sp-used-block');
       if(spBlock){
@@ -1830,7 +1844,7 @@ async function saveEditProds(){
     var priceEl=document.getElementById('epp-'+i);
     if(!nameEl)return;
     var name=nameEl.value.trim();
-    var qty=parseInt(qtyEl?qtyEl.value:0)||0;
+    var qty=parseFloat(qtyEl?qtyEl.value:0)||0;
     var price=parseFloat(priceEl?priceEl.value:0)||0;
     var invId=tr.dataset.invId||null;
     if(name&&qty>0)rows.push({task_id:CT.id,name:name,qty:qty,price:price,inventory_id:invId||null});
@@ -1905,15 +1919,31 @@ function calcPR(){
 
 function renderPays(){
   if(!CT)return;
-  const gr=CT.prods.reduce((a,p)=>a+p.qty*p.price,0);
+  const subTot=CT.prods.reduce((a,p)=>a+p.qty*p.price,0);
+  const discAmt=calcDiscount(CT,subTot);
+  const gr=Math.max(0,subTot-discAmt);
   const pd=CT.pays.reduce((a,p)=>a+p.amount,0);
   const rem=gr-pd; // negative = credit
   const isOverpaid=pd>0&&rem<0;
   const isFullyPaid=gr>0&&rem<=0;
   const pct=gr>0?Math.min(100,Math.round(pd/gr*100)):pd>0?100:0;
 
-  // Always show order total
+  // Always show order total (after discount)
   document.getElementById('ptot').textContent=f(gr);
+  // Show discount line if a discount applies
+  (function(){
+    var ptotEl=document.getElementById('ptot');
+    var host=ptotEl?ptotEl.closest('.tr')||ptotEl.parentNode:null;
+    var old=document.getElementById('td-disc-line');
+    if(old)old.remove();
+    if(discAmt>0&&host&&host.parentNode){
+      var dl=document.createElement('div');
+      dl.id='td-disc-line';
+      dl.style.cssText='display:flex;justify-content:space-between;font-size:12px;color:#A32D2D;margin:2px 0';
+      dl.innerHTML='<span>الخصم'+(CT.discount_note?' ('+CT.discount_note+')':'')+'</span><span>- '+f(discAmt)+'</span>';
+      host.parentNode.insertBefore(dl,host.nextSibling);
+    }
+  })();
   // Always show paid amount - even if products total is 0
   document.getElementById('ppd').textContent=f(pd);
 
@@ -2272,7 +2302,9 @@ async function deleteTask(){
 function doPrint(){
   if(!CT)return;
   var useTax=CT.use_tax===false?false:true;
-  var gr=CT.prods.reduce(function(a,p){return a+p.qty*p.price;},0);
+  var grRaw=CT.prods.reduce(function(a,p){return a+p.qty*p.price;},0);
+  var discAmt=calcDiscount(CT,grRaw);
+  var gr=Math.max(0,grRaw-discAmt);
   var sub=useTax?gr/1.14:gr;
   var tax=useTax?gr-sub:0;
   var pd=CT.pays.reduce(function(a,p){return a+p.amount;},0);
@@ -2415,6 +2447,10 @@ function doPrint(){
   /* ── TOTALS ── */
   html+='<div style="display:flex;justify-content:flex-end;margin-bottom:18px">';
   html+='<div style="min-width:220px">';
+  if(discAmt>0){
+    html+='<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:11px"><span style="color:#666">Products total</span><span>'+Math.round(grRaw).toLocaleString()+' L.E</span></div>';
+    html+='<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:11px;color:#c0392b"><span>Discount'+(CT.discount_note?' ('+CT.discount_note+')':'')+'</span><span>- '+Math.round(discAmt).toLocaleString()+' L.E</span></div>';
+  }
   if(useTax){
     html+='<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:11px"><span style="color:#666">Subtotal (before tax)</span><span>'+Math.round(sub).toLocaleString()+' L.E</span></div>';
     html+='<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:11px"><span style="color:#666">Tax (14%)</span><span>'+Math.round(tax).toLocaleString()+' L.E</span></div>';
@@ -4730,7 +4766,7 @@ async function finTab(type,btn){
   // Sales / Maintenance / Installation / Uninstall / All
   var typeFilter=type==='sales'?null:({'maintenance':'maintenance','installation':'installation','uninstall':'uninstall'}[type]||null);
   var salesTypes=type==='sales'?['sales']:null;
-  var q=db.from('tasks').select('id,task_num,customer_name,date,type,branch,salesperson,pay_status').neq('status','cancel').order('date',{ascending:false});
+  var q=db.from('tasks').select('id,task_num,customer_name,date,type,branch,salesperson,pay_status,discount_amount,discount_percent').neq('status','cancel').order('date',{ascending:false});
   if(salesTypes)q=q.in('type',salesTypes);
   else if(typeFilter)q=q.eq('type',typeFilter);
   var{data:tasks3}=await q;tasks3=tasks3||[];
@@ -4740,7 +4776,8 @@ async function finTab(type,btn){
     var pr=await db.from('task_products').select('task_id,qty,price').in('task_id',tids);prods3=pr.data||[];
     var pa=await db.from('payments').select('task_id,amount,approved').in('task_id',tids);pays3=pa.data||[];
   }
-  var grand3=function(id){return prods3.filter(function(p){return p.task_id===id;}).reduce(function(a,p){return a+p.qty*p.price;},0);};
+  var _tk3={};tasks3.forEach(function(t){_tk3[t.id]=t;});
+  var grand3=function(id){var raw=prods3.filter(function(p){return p.task_id===id;}).reduce(function(a,p){return a+p.qty*p.price;},0);var tk=_tk3[id];if(tk){var da=parseFloat(tk.discount_amount)||0;var dp=parseFloat(tk.discount_percent)||0;if(da>0)raw=raw-da;else if(dp>0)raw=raw-Math.round(raw*dp/100);}return Math.max(0,raw);};
   var paid3=function(id){return pays3.filter(function(p){return p.task_id===id&&p.approved!==false;}).reduce(function(a,p){return a+p.amount;},0);};
   var psMap={paid:t('paidinfull'),unpaid:t('unpaid'),downpayment:t('downpayment'),installments:t('installments')};
   var psColor={paid:'#3B6D11',unpaid:'#A32D2D',downpayment:'#854F0B',installments:'#185FA5'};
@@ -6312,14 +6349,15 @@ async function loadDailyReport(dateStr){
 
   try{
     // Fetch tasks for this date
-    var{data:allTasks}=await db.from('tasks').select('id,task_num,type,customer_name,date,installation_date,branch,salesperson,status,technician_name,created_at,customers(address)').limit(10000);
+    var{data:allTasks}=await db.from('tasks').select('id,task_num,type,customer_name,date,installation_date,branch,salesperson,status,technician_name,created_at,discount_amount,discount_percent,customers(address)').limit(10000);
     allTasks=allTasks||[];
     var{data:allProds}=await db.from('task_products').select('task_id,qty,price').limit(20000);
     allProds=allProds||[];
     var{data:allPays}=await db.from('payments').select('task_id,amount,method,approved,created_at').limit(20000);
     allPays=allPays||[];
 
-    var grand=function(id){return allProds.filter(function(p){return p.task_id===id;}).reduce(function(a,p){return a+p.qty*p.price;},0);};
+    var _tkDR={};allTasks.forEach(function(t){_tkDR[t.id]=t;});
+    var grand=function(id){var raw=allProds.filter(function(p){return p.task_id===id;}).reduce(function(a,p){return a+p.qty*p.price;},0);var tk=_tkDR[id];if(tk){var da=parseFloat(tk.discount_amount)||0;var dp=parseFloat(tk.discount_percent)||0;if(da>0)raw=raw-da;else if(dp>0)raw=raw-Math.round(raw*dp/100);}return Math.max(0,raw);};
     var paidFn=function(id){return allPays.filter(function(p){return p.task_id===id&&p.approved!==false;}).reduce(function(a,p){return a+p.amount;},0);};
     var payStatus=function(id){var g=grand(id),p=paidFn(id);if(g<=0)return'-';if(p<=0)return'unpaid';if(p<g)return'partial';return'paid';};
 
