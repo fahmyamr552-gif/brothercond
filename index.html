@@ -6230,6 +6230,9 @@ async function sendFbApology(phone,name){
   try{await db.from('feedback_attempts').insert({customer_name:name,attempt_type:'whatsapp',outcome:'اعتذار + كوبون خصم 50%',attempted_by:CU.full_name||CU.username});}catch(e){}
   if(phone.startsWith('0'))phone='2'+phone;
   else if(!phone.startsWith('20'))phone='20'+phone;
+  // Compute a concrete expiry date (3 months from today) so validity is easy to verify
+  var _exp=new Date();_exp.setMonth(_exp.getMonth()+3);
+  var _expStr=_exp.getFullYear()+'-'+String(_exp.getMonth()+1).padStart(2,'0')+'-'+String(_exp.getDate()).padStart(2,'0');
   var sep='━━━━━━━━━━━━━━━';
   var msg='عزيزنا العميل '+name+'\u{1F339}\n\n'
     +'نتواصل معكم من إدارة برازر كوند للتكييف.\n\n'
@@ -6240,7 +6243,7 @@ async function sendFbApology(phone,name){
     +sep+'\n'
     +'\u{1F381} وتقديراً لكم، يسعدنا أن نقدم لكم:\n'
     +'كوبون خصم 50% على أعمال الصيانة القادمة\n'
-    +'صالح لمدة 3 شهور من تاريخه.\n'
+    +'صالح حتى تاريخ: '+_expStr+'\n'
     +'كل ما عليكم عند الحجز هو ذكر هذه الرسالة.\n'
     +sep+'\n\n'
     +'نتمنى أن تمنحونا فرصة أخرى لنعوّض تجربتكم ونثبت لكم جودة خدمتنا التي نفخر بها.\n\n'
@@ -6853,9 +6856,22 @@ async function loadSalesDashboard(body){
     (tps||[]).forEach(function(p){if(p.inventory_id&&monthSet[p.task_id])acSold+=(p.qty||0);});
   }
 
-  // My deductions
-  var{data:myDeds}=await db.from('deductions').select('*').eq('employee_name',myName).order('date',{ascending:false}).limit(1000);
-  myDeds=myDeds||[];
+  // My deductions.
+  // Deductions are stored under the HR/employee name chosen by the owner, which often
+  // differs from the login name (e.g. login "alaa khaled" vs deduction "الاء", or Arabic
+  // vs English). The reliable link is users.deduction_name, set by the owner per user.
+  // We match: (1) exact deduction_name if set, else (2) flexible name variants.
+  var dedName=(CU.deduction_name||'').toLowerCase().trim();
+  var{data:allDeds}=await db.from('deductions').select('*').order('date',{ascending:false}).limit(10000);
+  var myDeds=(allDeds||[]).filter(function(d){
+    var en=(d.employee_name||'').toLowerCase().trim();
+    if(!en)return false;
+    if(dedName)return en===dedName; // explicit mapping wins
+    for(var i=0;i<nameVariants.length;i++){
+      if(en===nameVariants[i]||en.indexOf(nameVariants[i])>=0||nameVariants[i].indexOf(en)>=0)return true;
+    }
+    return false;
+  });
 
   var typeLabels2={maintenance:'صيانة',installation:'تركيب',uninstall:'فك',uninstall_install:'فك و تركيب',pull:'سحب',inspection:'معاينة',workshop:'اصلاح ورشة',sales:'بيع'};
   var stLabel={pending:'معلق',progress:'جاري',field_done:'مكتمل',done:'مكتمل',completed:'مكتمل',cancel:'ملغي'};
@@ -7701,6 +7717,11 @@ function applyTranslations(){
     if(!saved)return;
     CU=JSON.parse(saved);
     if(!CU||!CU.id){localStorage.removeItem('bc_user');return;}
+    // Refresh CU from DB in the background so fields like deduction_name stay current
+    // without forcing a re-login (cached session may predate new columns).
+    (function(){var uid=CU.id;db.from('users').select('*').eq('id',uid).single().then(function(r){
+      if(r&&r.data){CU=r.data;try{localStorage.setItem('bc_user',JSON.stringify(CU));}catch(e){}}
+    }).catch(function(){});})();
     document.getElementById('ls').style.display='none';
     document.getElementById('app').classList.remove('h');
     document.getElementById('sname').textContent=CU.full_name;
