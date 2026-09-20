@@ -6070,6 +6070,13 @@ async function loadFeedback(){
     var satisfied=_fbTab==='satisfied';
     var{data:fbs}=await db.from('feedback').select('*').eq('satisfied',satisfied).order('created_at',{ascending:false});
     fbs=fbs||[];
+    // Fetch each feedback's task date (feedback table doesn't store it)
+    var _fbTaskDates={};
+    var _fbTaskIds=fbs.map(function(f){return f.task_id;}).filter(Boolean);
+    if(_fbTaskIds.length){
+      var{data:_fbTasks}=await db.from('tasks').select('id,date').in('id',_fbTaskIds).limit(20000);
+      (_fbTasks||[]).forEach(function(tk){_fbTaskDates[tk.id]=tk.date;});
+    }
     // Fetch WhatsApp sends to show per customer
     var{data:waAtt}=await db.from('feedback_attempts').select('customer_name,created_at,attempted_by').eq('attempt_type','whatsapp').limit(20000);
     var waByName={};(waAtt||[]).forEach(function(a){if(!waByName[a.customer_name])waByName[a.customer_name]=[];waByName[a.customer_name].push(a);});
@@ -6083,7 +6090,7 @@ async function loadFeedback(){
       html+='<div style="background:#fff;border:1px solid '+(satisfied?'#d9ead3':'#f4cccc')+';border-radius:10px;padding:14px">'
         +'<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:8px">'
           +'<div>'
-            +'<div style="font-size:11px;font-weight:700;color:#1D9E75">'+(f.task_num||'-')+' <span style="font-size:10px;color:#888;font-weight:500">'+(typeLabels[f.task_type]||f.task_type||'')+'</span></div>'
+            +'<div style="font-size:11px;font-weight:700;color:#1D9E75">'+(f.task_num||'-')+' <span style="font-size:10px;color:#888;font-weight:500">'+(typeLabels[f.task_type]||f.task_type||'')+'</span>'+(_fbTaskDates[f.task_id]?' <span style="font-size:10px;color:#888;font-weight:500">&middot; 📅 '+_fbTaskDates[f.task_id]+'</span>':'')+'</div>'
             +'<div style="font-weight:700">'+(f.customer_name||'-')+'</div>'
             +'<div style="font-size:11px;color:#888">'+(f.customer_phone||'-')+' &middot; '+(f.customer_address||'-')+'</div>'
           +'</div>'
