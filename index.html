@@ -210,6 +210,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     <div class="ni" id="ni-plan" onclick="openPlan()">&#9632; <span data-t="navplan">خطة يومية</span></div>
     <div class="ni" id="ni-fb" onclick="openFeedback()">&#9632; <span data-t="navfeedback">آراء العملاء</span></div>
     <div class="ni" id="ni-fu" onclick="openFollowup()">&#9632; <span data-t="navfollowup">الاستكمالات</span></div>
+    <div class="ni" id="ni-bk" onclick="openBookings()">&#9632; <span data-t="navbookings">طلبات الحجز</span> <span id="bk-badge" style="display:none;background:#c0392b;color:#fff;border-radius:10px;padding:0 7px;font-size:10px;font-weight:700;margin-right:4px"></span></div>
     <div class="ni" id="ni-ds" onclick="openDispatchOrders()">&#9632; <span data-t="navdispatch">أوامر الصرف</span></div>
     <div class="ni" id="ni-rep" onclick="openDailyReport()">&#9632; <span data-t="navreport">التقرير اليومي</span></div>
     <div class="ni" id="ni-ded" onclick="openDeductions()">&#9632; <span data-t="navded">الخصومات</span></div>
@@ -692,6 +693,10 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
   <div id="rep-body" style="max-width:100%"></div>
 </div>
 
+<div class="pg" id="pg-bk">
+  <div id="bk-body" style="max-width:100%"></div>
+</div>
+
 <div class="pg" id="pg-ded">
   <div id="ded-body" style="max-width:100%"></div>
 </div>
@@ -1169,6 +1174,9 @@ function applyRole(){
   if(payNav)payNav.style.display=(CU&&(CU.role==='owner'||CU.role==='admin'||CU.role==='finance'))?'':'none';
   var attNav=document.getElementById('ni-att');
   if(attNav)attNav.style.display=(CU&&(CU.role==='owner'||CU.role==='admin'||CU.role==='finance'))?'':'none';
+  var bkNav=document.getElementById('ni-bk');
+  if(bkNav)bkNav.style.display=(CU&&['owner','admin','salesperson','sales_feedback','inventory_manager'].includes(CU.role))?'':'none';
+  if(CU)updateBkBadge();
 }
 
 function toggleSidebar(){
@@ -6253,6 +6261,110 @@ async function sendFbApology(phone,name){
   window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(msg),'_blank');
 }
 // ── END FEEDBACK ─────────────────────────────────────────────
+
+// ── BOOKING REQUESTS (from public booking page) ──────────────
+async function openBookings(){
+  if(!CU||!['owner','admin','salesperson','sales_feedback','inventory_manager'].includes(CU.role)){toast('غير مسموح',true);return;}
+  go('bk',document.getElementById('ni-bk'));
+  loadBookings();
+}
+async function updateBkBadge(){
+  try{
+    var{data}=await db.from('booking_requests').select('id').eq('status','new').limit(1000);
+    var n=(data||[]).length;var b=document.getElementById('bk-badge');
+    if(b){if(n>0){b.textContent=n;b.style.display='';}else{b.style.display='none';}}
+  }catch(e){}
+}
+async function loadBookings(){
+  var body=document.getElementById('bk-body');if(!body)return;
+  body.innerHTML='<div style="text-align:center;padding:30px;color:#888">جاري التحميل...</div>';
+  var tab=window._bkTab||'new';
+  var{data:rows}=await db.from('booking_requests').select('*').order('created_at',{ascending:false}).limit(2000);
+  rows=rows||[];
+  var newRows=rows.filter(function(r){return r.status==='new';});
+  var doneRows=rows.filter(function(r){return r.status!=='new';});
+  var list=tab==='new'?newRows:doneRows;
+  var svcLabel={'صيانة':'صيانة','تركيب':'تركيب','فك و تركيب':'فك و تركيب','سحب':'سحب','بيع جهاز':'بيع','أخرى':'أخرى'};
+  var brLabel={'Madinaty':'مدينتي','Rehab':'الرحاب','Head Office':'التجمع الأول','Nasr City':'مدينة نصر'};
+  var html='<div style="display:flex;gap:8px;margin-bottom:16px">'
+    +'<button onclick="window._bkTab=\'new\';loadBookings()" style="padding:8px 18px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:700;'+(tab==='new'?'background:#1D9E75;color:#fff':'background:#eee;color:#666')+'">جديدة ('+newRows.length+')</button>'
+    +'<button onclick="window._bkTab=\'done\';loadBookings()" style="padding:8px 18px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:700;'+(tab==='done'?'background:#1D9E75;color:#fff':'background:#eee;color:#666')+'">تمت المعالجة ('+doneRows.length+')</button>'
+    +'</div>';
+  if(!list.length){html+='<div style="text-align:center;padding:30px;color:#aaa">لا توجد طلبات</div>';body.innerHTML=html;return;}
+  html+='<div style="display:flex;flex-direction:column;gap:10px">';
+  list.forEach(function(r){
+    var when=r.created_at?r.created_at.slice(0,16).replace('T',' '):'';
+    var statusBadge=r.status==='new'?'<span style="background:#FAEEDA;color:#854F0B;border-radius:6px;padding:2px 10px;font-size:11px;font-weight:700">جديد</span>':(r.status==='converted'?'<span style="background:#EAF3DE;color:#3B6D11;border-radius:6px;padding:2px 10px;font-size:11px;font-weight:700">تم إنشاء طلب '+(r.created_task_num||'')+'</span>':'<span style="background:#eee;color:#888;border-radius:6px;padding:2px 10px;font-size:11px;font-weight:700">مرفوض</span>');
+    html+='<div style="background:#fff;border:1px solid #e8e6e0;border-radius:12px;padding:14px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:8px">'
+        +'<div><div style="font-weight:800;font-size:15px">'+r.customer_name+'</div>'
+        +'<div style="font-size:12px;color:#666;margin-top:2px">📞 '+r.phone+'</div></div>'
+        +'<div style="text-align:left">'+statusBadge+'<div style="font-size:10px;color:#aaa;margin-top:4px">'+when+'</div></div>'
+      +'</div>'
+      +'<div style="font-size:13px;color:#444;line-height:1.7">'
+        +(r.from_address||r.to_address
+           ?'<div>📍 من: '+(r.from_address||'-')+'</div><div>📍 إلى: '+(r.to_address||'-')+'</div>'
+           :'<div>📍 '+(r.address||'-')+'</div>')
+        +'<div>🏢 '+(brLabel[r.branch]||r.branch||'-')+' · 🔧 '+(svcLabel[r.service_type]||r.service_type||'-')+'</div>'
+        +(r.ac_units?'<div style="margin-top:4px;background:#f0f9f4;border:1px solid #cdeadd;border-radius:8px;padding:8px;white-space:pre-line">🔧 الأجهزة:\n'+r.ac_units+'</div>':'')
+        +(r.problem?'<div style="margin-top:4px;background:#f9f9f6;border-radius:8px;padding:8px">📝 '+r.problem+'</div>':'')
+        +(r.preferred_date?'<div style="margin-top:4px;color:#185FA5">📅 مفضل: '+r.preferred_date+(r.preferred_time?' · '+r.preferred_time:'')+'</div>':'')
+      +'</div>';
+    if(r.status==='new'){
+      html+='<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">'
+        +'<button data-id="'+r.id+'" onclick="convertBooking(this.dataset.id)" style="background:#1D9E75;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer">✓ تحويل إلى مهمة</button>'
+        +'<a href="https://wa.me/2'+r.phone.replace(/^0/,'')+'" target="_blank" style="background:#25D366;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;text-decoration:none">💬 واتساب</a>'
+        +'<button data-id="'+r.id+'" onclick="dismissBooking(this.dataset.id)" style="background:#FCEBEB;color:#A32D2D;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer">✕ رفض</button>'
+      +'</div>';
+    }
+    html+='</div>';
+  });
+  html+='</div>';
+  body.innerHTML=html;
+}
+async function convertBooking(id){
+  var{data:bk}=await db.from('booking_requests').select('*').eq('id',id).single();
+  if(!bk){toast('غير موجود',true);return;}
+  if(!confirm('تحويل طلب '+bk.customer_name+' إلى مهمة جديدة؟'))return;
+  // Find or create customer by phone
+  var custId=null;
+  try{
+    var norm=(bk.phone||'').replace(/[^0-9]/g,'');
+    var cr=await db.from('customers').select('id').eq('phone',norm).limit(1);
+    if(cr.data&&cr.data.length)custId=cr.data[0].id;
+    if(!custId){
+      var nc=await db.from('customers').insert({full_name:bk.customer_name,phone:norm,address:bk.address||''}).select().single();
+      if(nc.data)custId=nc.data.id;
+    }
+  }catch(e){}
+  // Map service to task type
+  var typeMap={'صيانة':'maintenance','تركيب':'installation','فك و تركيب':'uninstall_install','سحب':'pull','بيع جهاز':'sales','أخرى':'maintenance'};
+  var ttype=typeMap[bk.service_type]||'maintenance';
+  // Next task number
+  var lt=await db.from('tasks').select('task_num').order('created_at',{ascending:false}).limit(1);
+  var lastN=lt.data&&lt.data.length?parseInt((lt.data[0].task_num||'0').replace(/[^0-9]/g,''))||0:0;
+  var tnum='#'+String(lastN+1).padStart(5,'0');
+  var desc=(bk.problem||bk.service_type||'')+(bk.ac_units?' | الأجهزة المطلوبة: '+bk.ac_units.replace(/\n/g,' ، '):'')+(bk.preferred_time?' | الوقت المفضل: '+bk.preferred_time:'')+' (حجز أونلاين)';
+  var ins=await db.from('tasks').insert({
+    task_num:tnum,customer_id:custId,customer_name:bk.customer_name,
+    type:ttype,branch:bk.branch||'Head Office',
+    description:desc,address:bk.address||null,
+    from_address:bk.from_address||null,to_address:bk.to_address||null,
+    date:bk.preferred_date||new Date().toISOString().slice(0,10),
+    status:'pending',pay_status:'unpaid',
+    created_by:'حجز أونلاين'
+  }).select().single();
+  if(ins.error){toast('خطأ: '+ins.error.message,true);return;}
+  await db.from('booking_requests').update({status:'converted',handled_by:CU.full_name||CU.username,handled_at:new Date().toISOString(),created_task_num:tnum}).eq('id',id);
+  toast('تم إنشاء المهمة '+tnum);
+  loadBookings();updateBkBadge();
+}
+async function dismissBooking(id){
+  if(!confirm('رفض هذا الطلب؟'))return;
+  await db.from('booking_requests').update({status:'dismissed',handled_by:CU.full_name||CU.username,handled_at:new Date().toISOString()}).eq('id',id);
+  toast('تم الرفض');loadBookings();updateBkBadge();
+}
+// ── END BOOKINGS ─────────────────────────────────────────────
 
 // ── FOLLOWUP SECTION ─────────────────────────────────────────
 var _fuTab='pending';
