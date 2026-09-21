@@ -6866,7 +6866,9 @@ async function loadSalesDashboard(body){
   var myDeds=(allDeds||[]).filter(function(d){
     var en=(d.employee_name||'').toLowerCase().trim();
     if(!en)return false;
-    if(dedName)return en===dedName; // explicit mapping wins
+    if(dedName){ // explicit mapping wins; substring both ways catches "الاء" vs "الاء خالد"
+      return en===dedName||en.indexOf(dedName)>=0||dedName.indexOf(en)>=0;
+    }
     for(var i=0;i<nameVariants.length;i++){
       if(en===nameVariants[i]||en.indexOf(nameVariants[i])>=0||nameVariants[i].indexOf(en)>=0)return true;
     }
@@ -6914,7 +6916,75 @@ async function loadSalesDashboard(body){
 }
 
 async function loadTechDashboard(body){
-  body.innerHTML='<div style="padding:30px;text-align:center;color:#888">لوحة الفني - قريباً</div>';
+  try{
+  var myName=CU.full_name||CU.username;
+  var todayStr=new Date().toISOString().slice(0,10);
+  var monthStr=todayStr.slice(0,7);
+  // Name variants to match technician_name (stored as "محمد عمر+نزار" etc.)
+  var nameVariants=[];
+  if(CU.full_name)nameVariants.push(CU.full_name.toLowerCase().trim());
+  if(CU.username)nameVariants.push(CU.username.toLowerCase().trim());
+  if(CU.deduction_name)nameVariants.push(CU.deduction_name.toLowerCase().trim());
+  if(CU.full_name){var fn=CU.full_name.trim().split(' ')[0];if(fn)nameVariants.push(fn.toLowerCase());}
+
+  var{data:allT}=await db.from('tasks').select('id,task_num,type,customer_name,date,status,technician_name').limit(20000);
+  allT=allT||[];
+  var myTasks=allT.filter(function(t){
+    var tech=(t.technician_name||'').toLowerCase();
+    if(!tech)return false;
+    for(var i=0;i<nameVariants.length;i++){if(nameVariants[i]&&tech.indexOf(nameVariants[i])>=0)return true;}
+    return false;
+  });
+  var todayTasks=myTasks.filter(function(t){return t.date===todayStr;});
+  var completedTotal=myTasks.filter(function(t){return t.status==='done'||t.status==='field_done'||t.status==='completed';});
+  var pendingTasks=myTasks.filter(function(t){return t.status==='pending'||t.status==='progress';});
+
+  // My deductions (same flexible matching as sales dashboard)
+  var dedName=(CU.deduction_name||'').toLowerCase().trim();
+  var{data:allDeds}=await db.from('deductions').select('*').order('date',{ascending:false}).limit(10000);
+  var myDeds=(allDeds||[]).filter(function(d){
+    var en=(d.employee_name||'').toLowerCase().trim();
+    if(!en)return false;
+    if(dedName)return en===dedName||en.indexOf(dedName)>=0||dedName.indexOf(en)>=0;
+    for(var i=0;i<nameVariants.length;i++){if(en===nameVariants[i]||en.indexOf(nameVariants[i])>=0||nameVariants[i].indexOf(en)>=0)return true;}
+    return false;
+  });
+
+  var typeLabels2={maintenance:'صيانة',installation:'تركيب',uninstall:'فك',uninstall_install:'فك و تركيب',pull:'سحب',inspection:'معاينة',workshop:'اصلاح ورشة',sales:'بيع'};
+  var stLabel={pending:'معلق',progress:'جاري',field_done:'مكتمل',done:'مكتمل',completed:'مكتمل',cancel:'ملغي'};
+  var stColor={pending:'#FAEEDA;color:#854F0B',progress:'#E6F1FB;color:#185FA5',field_done:'#EAF3DE;color:#0F6E56',done:'#EAF3DE;color:#0F6E56',completed:'#EAF3DE;color:#0F6E56',cancel:'#FCEBEB;color:#A32D2D'};
+  var listTasks=todayTasks.length?todayTasks:myTasks.slice().sort(function(a,b){return (b.date||'').localeCompare(a.date||'');}).slice(0,10);
+  var taskRows=listTasks.map(function(t){
+    return '<tr><td style="padding:9px 10px;font-weight:600">'+t.task_num+'</td><td style="padding:9px 10px">'+(t.customer_name||'-')+'</td><td style="padding:9px 10px">'+(typeLabels2[t.type]||t.type)+'</td><td style="padding:9px 10px">'+(t.date||'-')+'</td><td style="padding:9px 10px"><span style="font-size:11px;padding:2px 8px;border-radius:5px;background:'+(stColor[t.status]||'#eee;color:#888')+';font-weight:600">'+(stLabel[t.status]||t.status)+'</span></td></tr>';
+  }).join('')||'<tr><td colspan="5" style="text-align:center;padding:16px;color:#aaa">لا توجد مهام</td></tr>';
+  var dedRows=myDeds.map(function(d){
+    return '<tr><td style="padding:9px 10px">'+(d.ded_type||'-')+'</td><td style="padding:9px 10px;font-weight:700;color:#A32D2D">'+(d.ded_value||'-')+'</td><td style="padding:9px 10px">'+(d.reason||'-')+'</td><td style="padding:9px 10px;color:#888;font-size:12px">'+(d.date||'-')+'</td></tr>';
+  }).join('')||'<tr><td colspan="4" style="text-align:center;padding:16px;color:#aaa">لا توجد خصومات</td></tr>';
+
+  var html=''
+    +'<div style="background:linear-gradient(135deg,#0F6E56,#1D9E75);color:#fff;border-radius:14px;padding:20px 24px;margin-bottom:18px">'
+      +'<div style="font-size:20px;font-weight:800">أهلاً '+myName+' 👋</div>'
+      +'<div style="font-size:13px;opacity:.9;margin-top:4px">لوحتك — مهامك وخصوماتك</div>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px">'
+      +'<div class="cd" style="padding:16px;border-right:4px solid #185FA5"><div style="font-size:12px;color:#888;margin-bottom:6px">مهامي اليوم</div><div style="font-size:24px;font-weight:800">'+todayTasks.length+'</div></div>'
+      +'<div class="cd" style="padding:16px;border-right:4px solid #1D9E75"><div style="font-size:12px;color:#888;margin-bottom:6px">المكتملة (الكلي)</div><div style="font-size:24px;font-weight:800">'+completedTotal.length+'</div></div>'
+      +'<div class="cd" style="padding:16px;border-right:4px solid #EF9F27"><div style="font-size:12px;color:#888;margin-bottom:6px">قيد الانتظار</div><div style="font-size:24px;font-weight:800">'+pendingTasks.length+'</div></div>'
+    +'</div>'
+    +'<div class="cd" style="padding:0;overflow:hidden;margin-bottom:16px">'
+      +'<div style="padding:14px 18px;font-weight:800;font-size:15px;border-bottom:1px solid #f0efe8">📋 مهامي</div>'
+      +'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:420px"><thead><tr style="background:#f7f6f1"><th style="padding:8px 10px;text-align:right;font-size:12px;color:#666">الطلب</th><th style="padding:8px 10px;text-align:right;font-size:12px;color:#666">العميل</th><th style="padding:8px 10px;text-align:right;font-size:12px;color:#666">النوع</th><th style="padding:8px 10px;text-align:right;font-size:12px;color:#666">التاريخ</th><th style="padding:8px 10px;text-align:right;font-size:12px;color:#666">الحالة</th></tr></thead><tbody>'+taskRows+'</tbody></table></div>'
+    +'</div>'
+    +'<div class="cd" style="padding:0;overflow:hidden">'
+      +'<div style="padding:14px 18px;font-weight:800;font-size:15px;border-bottom:1px solid #f0efe8">➖ خصوماتي</div>'
+      +'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:400px"><thead><tr style="background:#f7f6f1"><th style="padding:8px 10px;text-align:right;font-size:12px;color:#666">النوع</th><th style="padding:8px 10px;text-align:right;font-size:12px;color:#666">القيمة</th><th style="padding:8px 10px;text-align:right;font-size:12px;color:#666">السبب</th><th style="padding:8px 10px;text-align:right;font-size:12px;color:#666">التاريخ</th></tr></thead><tbody>'+dedRows+'</tbody></table></div>'
+      +'<div style="padding:10px 18px;font-size:11px;color:#999">للعرض فقط</div>'
+    +'</div>';
+  body.innerHTML=html;
+  }catch(e){
+    body.innerHTML='<div style="padding:30px;text-align:center;color:#A32D2D">خطأ: '+(e.message||e)+'</div>';
+    console.error('Tech dashboard error:',e);
+  }
 }
 // ── END ROLE DASHBOARDS ───────────────────────────────────────
 
