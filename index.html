@@ -7254,7 +7254,11 @@ async function loadPayrollData(){
   var html='<div class="cd" style="padding:20px">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px">'
       +'<div style="font-size:16px;font-weight:800">👤 بيانات راتب الموظف</div>'
-      +'<select id="pay-emp-sel" onchange="loadEmpPayroll()" style="padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;min-width:200px">'+empOpts+'</select>'
+      +'<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">'
+        +'<label style="font-size:12px;color:#666;font-weight:700">الشهر:</label>'
+        +'<input type="month" id="pay-month-sel" value="'+thisMonth+'" onchange="onPayMonthChange()" style="padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px">'
+        +'<select id="pay-emp-sel" onchange="loadEmpPayroll()" style="padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;min-width:200px">'+empOpts+'</select>'
+      +'</div>'
     +'</div>'
     +'<div id="pay-emp-detail"><div style="color:#888;padding:20px;text-align:center">اختر موظف</div></div>'
   +'</div>';
@@ -7262,6 +7266,12 @@ async function loadPayrollData(){
   window._payMonth=thisMonth;
   window._payIsOwner=isOwner;
   if(emps.length)loadEmpPayroll();
+}
+// Owner/admin picks which month to view; salary + سلف/مكافآت all follow this month
+function onPayMonthChange(){
+  var m=document.getElementById('pay-month-sel');
+  if(m&&m.value)window._payMonth=m.value;
+  loadEmpPayroll();
 }
 async function loadEmpPayroll(){
   var sel=document.getElementById('pay-emp-sel');
@@ -7293,7 +7303,10 @@ async function loadEmpPayroll(){
   var bonRows=bonuses.map(function(b){
     return '<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><span style="font-weight:700;color:#0F6E56;min-width:70px">'+b.amount+'</span><span style="font-size:11px;color:#888;min-width:78px">'+(b.entry_date||'')+'</span><span style="flex:1;font-size:12px;color:#666">'+(b.note||'')+'</span>'+(canDeleteItems?'<button data-id="'+b.id+'" onclick="deletePayItem(this.dataset.id)" style="background:#FCEBEB;color:#A32D2D;border:none;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer">✕</button>':'')+'</div>';
   }).join('')||'<div style="font-size:12px;color:#aaa">لا توجد</div>';
-  var _today=new Date().toISOString().slice(0,10);
+  var _todayFull=new Date().toISOString().slice(0,10);
+  // Default the new-item date to today if viewing this month, else the 1st of the
+  // selected month, so entries land inside the month you're actually looking at.
+  var _today=(month===_todayFull.slice(0,7))?_todayFull:(month+'-01');
   var html='';
   if(canSeeSalary){
     html+=''
@@ -7350,7 +7363,11 @@ async function addPayItem(type){
   var amt=parseFloat(amtEl.value)||0;
   if(amt<=0){toast('أدخل مبلغ',true);return;}
   var entryDate=dateEl&&dateEl.value?dateEl.value:new Date().toISOString().slice(0,10);
-  await db.from('payroll_items').insert({employee_id:empId,employee_name:empName,item_type:type,amount:amt,note:noteEl.value.trim()||null,month:month,entry_date:entryDate,created_by:CU.full_name||CU.username});
+  // The item belongs to the month of its ENTRY DATE, not the month currently shown
+  // on screen. So a 500 advance dated in August always counts in August, never
+  // in September, even if you were viewing September when you recorded it.
+  var itemMonth=entryDate.slice(0,7); // "2026-08"
+  await db.from('payroll_items').insert({employee_id:empId,employee_name:empName,item_type:type,amount:amt,note:noteEl.value.trim()||null,month:itemMonth,entry_date:entryDate,created_by:CU.full_name||CU.username});
   toast('تم الإضافة');
   loadEmpPayroll();
 }
