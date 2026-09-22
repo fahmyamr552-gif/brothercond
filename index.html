@@ -6292,24 +6292,53 @@ async function openBookings(){
 }
 // Loud attention chime when a new booking arrives (Web Audio, no file needed)
 var _bkAudioCtx=null;
-function playBkChime(){
+function _bkGetCtx(){
   try{
-    if(!_bkAudioCtx)_bkAudioCtx=new(window.AudioContext||window.webkitAudioContext)();
-    var ctx=_bkAudioCtx;if(ctx.state==='suspended')ctx.resume();
-    // three rising beeps, fairly loud
+    if(!_bkAudioCtx){
+      var AC=window.AudioContext||window.webkitAudioContext;
+      if(!AC)return null;
+      _bkAudioCtx=new AC();
+    }
+    if(_bkAudioCtx.state==='suspended'){try{_bkAudioCtx.resume();}catch(e){}}
+    return _bkAudioCtx;
+  }catch(e){return null;}
+}
+// Browsers block audio until the user interacts. Unlock the context on the
+// first click/tap/keypress anywhere in the app, so later chimes are allowed.
+function _bkUnlockAudio(){
+  var ctx=_bkGetCtx();
+  if(ctx&&ctx.state==='suspended'){try{ctx.resume();}catch(e){}}
+  // play a silent blip to fully unlock on iOS/Safari
+  try{
+    if(ctx){var o=ctx.createOscillator();var g=ctx.createGain();
+      g.gain.value=0.0001;o.connect(g);g.connect(ctx.destination);
+      o.start();o.stop(ctx.currentTime+0.02);}
+  }catch(e){}
+}
+document.addEventListener('click',_bkUnlockAudio,{once:false});
+document.addEventListener('keydown',_bkUnlockAudio,{once:false});
+document.addEventListener('touchstart',_bkUnlockAudio,{once:false});
+
+function playBkChime(){
+  var ctx=_bkGetCtx();
+  if(!ctx){return;}
+  try{
+    // three rising beeps, loud
     var notes=[880,1175,1568];
     notes.forEach(function(f,i){
-      var t0=ctx.currentTime+i*0.18;
+      var t0=ctx.currentTime+i*0.20;
       var o=ctx.createOscillator();var g=ctx.createGain();
       o.type='square';o.frequency.value=f;
       g.gain.setValueAtTime(0.0001,t0);
-      g.gain.exponentialRampToValueAtTime(0.6,t0+0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001,t0+0.17);
+      g.gain.exponentialRampToValueAtTime(0.7,t0+0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001,t0+0.19);
       o.connect(g);g.connect(ctx.destination);
-      o.start(t0);o.stop(t0+0.18);
+      o.start(t0);o.stop(t0+0.20);
     });
   }catch(e){}
 }
+// Test button handler — lets staff confirm sound works on this device
+function testBkSound(){_bkUnlockAudio();setTimeout(playBkChime,60);}
 // Repeating reminder: keep chiming every 20s while there are unhandled bookings
 // and staff are NOT looking at the bookings page. Stops when count hits 0 or page opened.
 var _bkReminderTimer=null;
@@ -6361,6 +6390,7 @@ async function loadBookings(){
   var html='<div style="display:flex;gap:8px;margin-bottom:16px">'
     +'<button onclick="window._bkTab=\'new\';loadBookings()" style="padding:8px 18px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:700;'+(tab==='new'?'background:#1D9E75;color:#fff':'background:#eee;color:#666')+'">جديدة ('+newRows.length+')</button>'
     +'<button onclick="window._bkTab=\'done\';loadBookings()" style="padding:8px 18px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:700;'+(tab==='done'?'background:#1D9E75;color:#fff':'background:#eee;color:#666')+'">تمت المعالجة ('+doneRows.length+')</button>'
+    +'<button onclick="testBkSound()" style="padding:8px 18px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:700;background:#185FA5;color:#fff;margin-inline-start:auto">🔊 اختبار الصوت</button>'
     +'</div>';
   if(!list.length){html+='<div style="text-align:center;padding:30px;color:#aaa">لا توجد طلبات</div>';body.innerHTML=html;return;}
   html+='<div style="display:flex;flex-direction:column;gap:10px">';
