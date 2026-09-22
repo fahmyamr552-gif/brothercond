@@ -6290,14 +6290,64 @@ async function openBookings(){
   go('bk',document.getElementById('ni-bk'));
   loadBookings();
 }
+// Loud attention chime when a new booking arrives (Web Audio, no file needed)
+var _bkAudioCtx=null;
+function playBkChime(){
+  try{
+    if(!_bkAudioCtx)_bkAudioCtx=new(window.AudioContext||window.webkitAudioContext)();
+    var ctx=_bkAudioCtx;if(ctx.state==='suspended')ctx.resume();
+    // three rising beeps, fairly loud
+    var notes=[880,1175,1568];
+    notes.forEach(function(f,i){
+      var t0=ctx.currentTime+i*0.18;
+      var o=ctx.createOscillator();var g=ctx.createGain();
+      o.type='square';o.frequency.value=f;
+      g.gain.setValueAtTime(0.0001,t0);
+      g.gain.exponentialRampToValueAtTime(0.6,t0+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001,t0+0.17);
+      o.connect(g);g.connect(ctx.destination);
+      o.start(t0);o.stop(t0+0.18);
+    });
+  }catch(e){}
+}
+// Repeating reminder: keep chiming every 20s while there are unhandled bookings
+// and staff are NOT looking at the bookings page. Stops when count hits 0 or page opened.
+var _bkReminderTimer=null;
+function _bkOnBookingsPage(){
+  var pg=document.getElementById('pg-bk');
+  return pg&&pg.classList.contains('on');
+}
+function startBkReminder(){
+  if(_bkReminderTimer)return;
+  _bkReminderTimer=setInterval(function(){
+    if(!_bkLastCount||_bkLastCount<=0||_bkOnBookingsPage()){stopBkReminder();return;}
+    playBkChime();
+  },20000);
+}
+function stopBkReminder(){
+  if(_bkReminderTimer){clearInterval(_bkReminderTimer);_bkReminderTimer=null;}
+}
+var _bkLastCount=null;   // current number of new bookings
+var _bkPrevCount=null;   // previous number, to detect an increase
 async function updateBkBadge(){
   try{
     var{data}=await db.from('booking_requests').select('id').eq('status','new').limit(1000);
     var n=(data||[]).length;var b=document.getElementById('bk-badge');
     if(b){if(n>0){b.textContent=n;b.style.display='';}else{b.style.display='none';}}
+    _bkLastCount=n;
+    // Stop reminding once everything is handled or staff are viewing the page
+    if(n<=0||_bkOnBookingsPage())stopBkReminder();
+    // Chime only when the count goes UP (a genuinely new order), not on first load
+    if(_bkPrevCount!==null&&n>_bkPrevCount){
+      playBkChime();
+      try{toast('🔔 طلب حجز جديد وصل!');}catch(e){}
+      if(!_bkOnBookingsPage())startBkReminder();
+    }
+    _bkPrevCount=n;
   }catch(e){}
 }
 async function loadBookings(){
+  stopBkReminder();  // staff are now looking at the bookings — stop the repeating alert
   var body=document.getElementById('bk-body');if(!body)return;
   body.innerHTML='<div style="text-align:center;padding:30px;color:#888">جاري التحميل...</div>';
   var tab=window._bkTab||'new';
