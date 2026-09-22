@@ -6366,17 +6366,33 @@ async function convertBooking(id){
   var lt=await db.from('tasks').select('task_num').order('created_at',{ascending:false}).limit(1);
   var lastN=lt.data&&lt.data.length?parseInt((lt.data[0].task_num||'0').replace(/[^0-9]/g,''))||0:0;
   var tnum='#'+String(lastN+1).padStart(5,'0');
-  var desc=(bk.problem||bk.service_type||'')+(bk.ac_units?' | الأجهزة المطلوبة: '+bk.ac_units.replace(/\n/g,' ، '):'')+(bk.preferred_time?' | الوقت المفضل: '+bk.preferred_time:'')+' (حجز أونلاين)';
+  // Description = the customer's problem/notes only (products & time go to their own fields)
+  var desc=(bk.problem||'').trim()||bk.service_type||'حجز أونلاين';
   var ins=await db.from('tasks').insert({
     task_num:tnum,customer_id:custId,customer_name:bk.customer_name,
     type:ttype,branch:bk.branch||'Head Office',
     description:desc,address:bk.address||null,
     from_address:bk.from_address||null,to_address:bk.to_address||null,
     date:bk.preferred_date||new Date().toISOString().slice(0,10),
+    time_slot:bk.preferred_time||null,
     status:'pending',pay_status:'unpaid',
     created_by:'حجز أونلاين'
   }).select().single();
   if(ins.error){toast('خطأ: '+ins.error.message,true);return;}
+  // Turn each AC unit line ("2 × كاريير 3HP بارد") into a task product row.
+  // Products stay UNLINKED to inventory (inventory_id null) so staff pick the exact
+  // inventory item during review — matches the approval step and avoids wrong deductions.
+  if(bk.ac_units){
+    var prodRows=[];
+    bk.ac_units.split('\n').forEach(function(line){
+      line=(line||'').trim();if(!line)return;
+      var m=line.match(/^\s*(\d+)\s*[×xX*]\s*(.+)$/);
+      var q=1,nm=line;
+      if(m){q=parseInt(m[1])||1;nm=m[2].trim();}
+      if(nm)prodRows.push({task_id:ins.data.id,name:nm,qty:q,price:0,inventory_id:null});
+    });
+    if(prodRows.length){try{await db.from('task_products').insert(prodRows);}catch(e){}}
+  }
   await db.from('booking_requests').update({status:'converted',handled_by:CU.full_name||CU.username,handled_at:new Date().toISOString(),created_task_num:tnum}).eq('id',id);
   toast('تم إنشاء المهمة '+tnum);
   loadBookings();updateBkBadge();
