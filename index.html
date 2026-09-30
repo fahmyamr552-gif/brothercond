@@ -211,6 +211,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     <div class="ni" id="ni-fb" onclick="openFeedback()">&#9632; <span data-t="navfeedback">آراء العملاء</span></div>
     <div class="ni" id="ni-fu" onclick="openFollowup()">&#9632; <span data-t="navfollowup">الاستكمالات</span></div>
     <div class="ni" id="ni-bk" onclick="openBookings()">&#9632; <span data-t="navbookings">طلبات الحجز</span> <span id="bk-badge" style="display:none;background:#c0392b;color:#fff;border-radius:10px;padding:0 7px;font-size:10px;font-weight:700;margin-right:4px"></span></div>
+    <div class="ni" id="ni-ct" onclick="openContracts()">&#9632; <span data-t="navcontracts">عقود الصيانة</span> <span id="ct-badge" style="display:none;background:#b5852a;color:#fff;border-radius:10px;padding:0 7px;font-size:10px;font-weight:700;margin-right:4px"></span></div>
     <div class="ni" id="ni-ds" onclick="openDispatchOrders()">&#9632; <span data-t="navdispatch">أوامر الصرف</span></div>
     <div class="ni" id="ni-rep" onclick="openDailyReport()">&#9632; <span data-t="navreport">التقرير اليومي</span></div>
     <div class="ni" id="ni-ded" onclick="openDeductions()">&#9632; <span data-t="navded">الخصومات</span></div>
@@ -240,6 +241,8 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
   <div style="display:flex;align-items:center;gap:8px"><div class="lang-btns"><button class="lbtn on" onclick="setLang('en',this)">EN</button><button class="lbtn" onclick="setLang('ar',this)">عربي</button></div><div id="tact" style="display:flex;gap:7px"></div></div>
 </div>
 <div class="ct">
+
+<div id="backup-nudge" style="display:none;background:#f6efdd;border:1px solid #b5852a;color:#8a6a1e;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:600;margin-bottom:12px"></div>
 
 <!-- DASHBOARD -->
 <div class="pg on" id="pg-dash">
@@ -697,6 +700,10 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
   <div id="bk-body" style="max-width:100%"></div>
 </div>
 
+<div class="pg" id="pg-ct">
+  <div id="ct-body" style="max-width:100%"></div>
+</div>
+
 <div class="pg" id="pg-ded">
   <div id="ded-body" style="max-width:100%"></div>
 </div>
@@ -1036,6 +1043,20 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
       <button class="btn bs bp" onclick="saveUsr()">&#10003; <span data-t="newuser">Create user</span></button>
     </div>
   </div>
+
+  <div id="backup-card" class="cd" style="margin-top:16px;display:none">
+    <div class="sh">💾 النسخ الاحتياطي للبيانات</div>
+    <div style="font-size:13px;color:#666;line-height:1.7;margin-bottom:12px">
+      احفظ نسخة كاملة من بيانات النظام (المهام، العملاء، المخزون، الرواتب، العقود، وكل شيء) على جهازك.
+      ننصح بعمل نسخة أسبوعياً. الملف يحفظ على جهازك ولا يُرسل لأي مكان.
+    </div>
+    <div id="backup-status" style="font-size:12px;color:#888;margin-bottom:10px"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn bs bp" onclick="runFullBackup('json')">⬇️ نسخة كاملة (للاسترجاع)</button>
+      <button class="btn bs" onclick="runFullBackup('excel')">📊 نسخة Excel (للقراءة)</button>
+    </div>
+    <div style="font-size:11px;color:#aaa;margin-top:8px">JSON: لاسترجاع النظام إذا حدث خطأ · Excel: لقراءة البيانات بسهولة</div>
+  </div>
 </div>
 
 </div>
@@ -1044,6 +1065,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 let LANG='en';
 var typeLabels={maintenance:'صيانة',installation:'تركيب',uninstall:'فك',uninstall_install:'فك و تركيب',pull:'سحب',inspection:'معاينة',workshop:'اصلاح ورشة',sales:'بيع'};
@@ -1176,7 +1198,11 @@ function applyRole(){
   if(attNav)attNav.style.display=(CU&&(CU.role==='owner'||CU.role==='admin'||CU.role==='finance'))?'':'none';
   var bkNav=document.getElementById('ni-bk');
   if(bkNav)bkNav.style.display=(CU&&['owner','admin','salesperson','sales_feedback','inventory_manager'].includes(CU.role))?'':'none';
+  var ctNav=document.getElementById('ni-ct');
+  if(ctNav)ctNav.style.display=(CU&&['owner','admin','salesperson','finance'].includes(CU.role))?'':'none';
   if(CU)updateBkBadge();
+  if(CU)updateCtBadge();
+  if(CU)checkBackupReminder();
   if(CU)startBkPoll();
 }
 
@@ -1214,7 +1240,7 @@ function go(pg,el){
   const pge=document.getElementById('pg-'+pg);
   if(pge)pge.classList.add('on');
   if(el)el.classList.add('on');
-  const titlesMap={dash:'dashboard',tasks:'tasks',inv:'inventory','np':'addproduct',pur:'purchases','npo':'newpo',fin:'finance',cust:'customers','cd':'customer',sup:'suppliers','sd':'supplier',usr:'users',disp:'dispatches','nt':'newtask','td':'tasks',plan:'خطة يومية',fb:'آراء العملاء',fu:'الاستكمالات',ds:'أوامر الصرف',rep:'التقرير اليومي',ded:'الخصومات',mydash:'لوحتي',pay:'الرواتب',att:'الحضور'};
+  const titlesMap={dash:'dashboard',tasks:'tasks',inv:'inventory','np':'addproduct',pur:'purchases','npo':'newpo',fin:'finance',cust:'customers','cd':'customer',sup:'suppliers','sd':'supplier',usr:'users',disp:'dispatches','nt':'newtask','td':'tasks',plan:'خطة يومية',fb:'آراء العملاء',fu:'الاستكمالات',ds:'أوامر الصرف',rep:'التقرير اليومي',ded:'الخصومات',mydash:'لوحتي',pay:'الرواتب',att:'الحضور',ct:'عقود الصيانة',bk:'طلبات الحجز'};
   const titles={}; Object.entries(titlesMap).forEach(([k,v])=>titles[k]=t(v));
   document.getElementById('ptitle').textContent=titles[pg]||pg;
   const ta=document.getElementById('tact');ta.innerHTML='';
@@ -1573,6 +1599,7 @@ async function openTask(id){
           b.textContent=s.l;
           b.onclick=async()=>{
             await db.from('tasks').update({status:s.k}).eq('id',CT.id);
+            syncContractVisitFromTask(CT.id,s.k);
             CT.status=s.k;
             ss.querySelectorAll('.ss').forEach(x=>x.className='ss');
             b.className='ss '+s.c;
@@ -5258,8 +5285,74 @@ async function getActiveSales(){
   return(emps||[]).map(function(e){return e.full_name;});
 }
 
+// ── FULL DATA BACKUP (owner only) ────────────────────────────
+var BACKUP_TABLES=['tasks','task_products','payments','customers','inventory','spare_parts',
+  'suppliers','purchase_orders','po_items','po_payments','dispatches','dispatch_items',
+  'dispatch_assignments','employees','payroll','payroll_items','deductions','attendance',
+  'leave_usage','feedback','feedback_attempts','booking_requests','maintenance_contracts',
+  'contract_visits','install_templates','users'];
+async function runFullBackup(fmt){
+  if(!CU||CU.role!=='owner'){toast('فقط المالك',true);return;}
+  fmt=fmt||'json';
+  if(fmt==='excel'&&typeof XLSX==='undefined'){toast('مكتبة Excel لم تُحمّل، حاول تحديث الصفحة',true);return;}
+  var stat=document.getElementById('backup-status');
+  var backup={_meta:{generated_at:new Date().toISOString(),by:CU.full_name||CU.username,app:'BrotherCond'}};
+  var perTable={};
+  var totalRows=0;
+  for(var i=0;i<BACKUP_TABLES.length;i++){
+    var tb=BACKUP_TABLES[i];
+    if(stat)stat.textContent='جاري نسخ: '+tb+' ('+(i+1)+'/'+BACKUP_TABLES.length+')...';
+    try{
+      var{data,error}=await db.from(tb).select('*').limit(100000);
+      if(error){backup[tb]={_error:error.message};perTable[tb]=[];}
+      else{backup[tb]=data||[];perTable[tb]=data||[];totalRows+=(data||[]).length;}
+    }catch(e){backup[tb]={_error:String(e)};perTable[tb]=[];}
+  }
+  var stamp=new Date().toISOString().slice(0,10);
+  if(fmt==='json'){
+    var blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement('a');a.href=url;a.download='BrotherCond_Backup_'+stamp+'.json';
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    setTimeout(function(){URL.revokeObjectURL(url);},2000);
+  }else{
+    // Excel: one sheet per table (sheet names max 31 chars, must be unique)
+    var wb=XLSX.utils.book_new();
+    BACKUP_TABLES.forEach(function(tb){
+      var rows=perTable[tb]&&perTable[tb].length?perTable[tb]:[{}];
+      var ws=XLSX.utils.json_to_sheet(rows);
+      var sn=tb.substring(0,31);
+      XLSX.utils.book_append_sheet(wb,ws,sn);
+    });
+    XLSX.writeFile(wb,'BrotherCond_Backup_'+stamp+'.xlsx');
+  }
+  if(stat)stat.textContent='✅ تم تنزيل النسخة ('+totalRows.toLocaleString()+' سجل) بصيغة '+(fmt==='excel'?'Excel':'JSON')+' بتاريخ '+stamp;
+  toast('تم تنزيل النسخة الاحتياطية');
+  try{localStorage.setItem('bc_last_backup',stamp);}catch(e){}
+  var nudge=document.getElementById('backup-nudge');if(nudge)nudge.style.display='none';
+}
+// Weekly reminder: show a banner if the owner hasn't backed up in 7+ days
+function checkBackupReminder(){
+  if(!CU||CU.role!=='owner')return;
+  var nudge=document.getElementById('backup-nudge');if(!nudge)return;
+  var last=null;try{last=localStorage.getItem('bc_last_backup');}catch(e){}
+  var show=false,msg='';
+  if(!last){show=true;msg='لم تقم بعمل نسخة احتياطية بعد — ننصح بحفظ نسخة الآن.';}
+  else{
+    var days=Math.round((new Date()-new Date(last))/86400000);
+    if(days>=7){show=true;msg='آخر نسخة احتياطية كانت منذ '+days+' يوم — حان وقت نسخة جديدة.';}
+  }
+  if(show){
+    nudge.innerHTML='💾 '+msg+' <button onclick="go(\'usr\',document.getElementById(\'ni-usr\'))" style="background:#fff;color:#8a6a1e;border:none;border-radius:6px;padding:4px 12px;font-size:12px;font-weight:700;cursor:pointer;margin-right:8px">افتح النسخ الاحتياطي</button><button onclick="document.getElementById(\'backup-nudge\').style.display=\'none\'" style="background:transparent;color:#8a6a1e;border:1px solid #8a6a1e;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer">لاحقاً</button>';
+    nudge.style.display='';
+  }else{nudge.style.display='none';}
+}
+
 async function loadUsr(){
   var body=document.getElementById('usrl');if(!body)return;
+  // Backup card visible to owner only
+  var bc=document.getElementById('backup-card');
+  if(bc)bc.style.display=(CU&&CU.role==='owner')?'':'none';
   body.innerHTML='<div style="padding:20px;text-align:center;color:#888">'+t('loadin')+'</div>';
   var{data}=await db.from('users').select('*').order('full_name');
   if(!data?.length){body.innerHTML='<div style="padding:20px;text-align:center;color:#888">No users found.</div>';return;}
@@ -5765,6 +5858,7 @@ function planStatusDropdown(taskId,status){
 async function savePlanStatus(taskId,newStatus){
   var{error}=await db.from('tasks').update({status:newStatus}).eq('id',taskId);
   if(error){toast('Error: '+error.message,true);return;}
+  syncContractVisitFromTask(taskId,newStatus);
   toast('تم تحديث الحالة');
   loadPlan();
 }
@@ -6382,8 +6476,9 @@ async function loadBookings(){
   var tab=window._bkTab||'new';
   var{data:rows}=await db.from('booking_requests').select('*').order('created_at',{ascending:false}).limit(2000);
   rows=rows||[];
-  var newRows=rows.filter(function(r){return r.status==='new';});
-  var doneRows=rows.filter(function(r){return r.status!=='new';});
+  // New tab shows both brand-new AND in-progress (still open) bookings
+  var newRows=rows.filter(function(r){return r.status==='new'||r.status==='in_progress';});
+  var doneRows=rows.filter(function(r){return r.status==='converted'||r.status==='dismissed';});
   var list=tab==='new'?newRows:doneRows;
   var svcLabel={'صيانة':'صيانة','تركيب':'تركيب','فك و تركيب':'فك و تركيب','سحب':'سحب','بيع جهاز':'بيع','أخرى':'أخرى'};
   var brLabel={'Madinaty':'مدينتي','Rehab':'الرحاب','Head Office':'التجمع الأول','Nasr City':'مدينة نصر'};
@@ -6396,7 +6491,7 @@ async function loadBookings(){
   html+='<div style="display:flex;flex-direction:column;gap:10px">';
   list.forEach(function(r){
     var when=r.created_at?r.created_at.slice(0,16).replace('T',' '):'';
-    var statusBadge=r.status==='new'?'<span style="background:#FAEEDA;color:#854F0B;border-radius:6px;padding:2px 10px;font-size:11px;font-weight:700">جديد</span>':(r.status==='converted'?'<span style="background:#EAF3DE;color:#3B6D11;border-radius:6px;padding:2px 10px;font-size:11px;font-weight:700">تم إنشاء طلب '+(r.created_task_num||'')+'</span>':'<span style="background:#eee;color:#888;border-radius:6px;padding:2px 10px;font-size:11px;font-weight:700">مرفوض</span>');
+    var statusBadge=r.status==='new'?'<span style="background:#FAEEDA;color:#854F0B;border-radius:6px;padding:2px 10px;font-size:11px;font-weight:700">جديد</span>':(r.status==='in_progress'?'<span style="background:#E3EEF9;color:#185FA5;border-radius:6px;padding:2px 10px;font-size:11px;font-weight:700">🙋 قيد المتابعة'+(r.handled_by?' · '+r.handled_by:'')+'</span>':(r.status==='converted'?'<span style="background:#EAF3DE;color:#3B6D11;border-radius:6px;padding:2px 10px;font-size:11px;font-weight:700">تم إنشاء طلب '+(r.created_task_num||'')+'</span>':'<span style="background:#eee;color:#888;border-radius:6px;padding:2px 10px;font-size:11px;font-weight:700">مرفوض</span>'));
     html+='<div style="background:#fff;border:1px solid #e8e6e0;border-radius:12px;padding:14px">'
       +'<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:8px">'
         +'<div><div style="font-weight:800;font-size:15px">'+r.customer_name+'</div>'
@@ -6412,11 +6507,31 @@ async function loadBookings(){
         +(r.problem?'<div style="margin-top:4px;background:#f9f9f6;border-radius:8px;padding:8px">📝 '+r.problem+'</div>':'')
         +(r.preferred_date?'<div style="margin-top:4px;color:#185FA5">📅 مفضل: '+r.preferred_date+(r.preferred_time?' · '+r.preferred_time:'')+'</div>':'')
       +'</div>';
-    if(r.status==='new'){
-      html+='<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">'
+    if(r.status==='new'||r.status==='in_progress'){
+      html+='<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">';
+      // Claim button — only when not yet claimed
+      if(r.status==='new'){
+        html+='<button data-id="'+r.id+'" onclick="claimBooking(this.dataset.id)" style="background:#185FA5;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer">🙋 أنا أتابع هذا الطلب</button>';
+      }else{
+        html+='<button data-id="'+r.id+'" onclick="releaseBooking(this.dataset.id)" style="background:#eee;color:#555;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer">↩️ إلغاء المتابعة</button>';
+      }
+      html+='<a href="'+waLink(r.phone)+'" target="_blank" style="background:#25D366;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;text-decoration:none">💬 واتساب</a>'
+        +'<button data-id="'+r.id+'" onclick="toggleBkEdit(this.dataset.id)" style="background:#F4EFE2;color:#854F0B;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer">✏️ تعديل البيانات</button>'
         +'<button data-id="'+r.id+'" onclick="convertBooking(this.dataset.id)" style="background:#1D9E75;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer">✓ تحويل إلى مهمة</button>'
-        +'<a href="'+waLink(r.phone)+'" target="_blank" style="background:#25D366;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;text-decoration:none">💬 واتساب</a>'
         +'<button data-id="'+r.id+'" onclick="dismissBooking(this.dataset.id)" style="background:#FCEBEB;color:#A32D2D;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer">✕ رفض</button>'
+      +'</div>';
+      // Hidden inline edit panel
+      html+='<div id="bkedit-'+r.id+'" style="display:none;margin-top:12px;background:#faf9f5;border:1px solid #e8e6e0;border-radius:10px;padding:14px">'
+        +'<div style="display:flex;gap:10px;flex-wrap:wrap">'
+          +'<div style="flex:1;min-width:150px"><label style="font-size:11px;font-weight:700;color:#666">الاسم</label><input id="bke-name-'+r.id+'" value="'+(r.customer_name||'').replace(/"/g,'&quot;')+'" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;margin-top:3px"></div>'
+          +'<div style="flex:1;min-width:150px"><label style="font-size:11px;font-weight:700;color:#666">الهاتف</label><input id="bke-phone-'+r.id+'" value="'+(r.phone||'').replace(/"/g,'&quot;')+'" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;margin-top:3px"></div>'
+        +'</div>'
+        +'<div style="margin-top:8px"><label style="font-size:11px;font-weight:700;color:#666">العنوان</label><input id="bke-addr-'+r.id+'" value="'+(r.address||'').replace(/"/g,'&quot;')+'" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;margin-top:3px"></div>'
+        +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">'
+          +'<div style="flex:1;min-width:130px"><label style="font-size:11px;font-weight:700;color:#666">التاريخ</label><input type="date" id="bke-date-'+r.id+'" value="'+(r.preferred_date||'')+'" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;margin-top:3px"></div>'
+          +'<div style="flex:1;min-width:130px"><label style="font-size:11px;font-weight:700;color:#666">الوقت</label><input id="bke-time-'+r.id+'" value="'+(r.preferred_time||'').replace(/"/g,'&quot;')+'" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;margin-top:3px"></div>'
+        +'</div>'
+        +'<button data-id="'+r.id+'" onclick="saveBkEdit(this.dataset.id)" style="background:#0F6E56;color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:12px;font-weight:700;cursor:pointer;margin-top:10px">حفظ التعديلات</button>'
       +'</div>';
     }
     html+='</div>';
@@ -6424,21 +6539,59 @@ async function loadBookings(){
   html+='</div>';
   body.innerHTML=html;
 }
+// Claim a booking — marks it "in progress" with the agent's name so others know it's being handled
+async function claimBooking(id){
+  await db.from('booking_requests').update({status:'in_progress',handled_by:CU.full_name||CU.username,handled_at:new Date().toISOString()}).eq('id',id);
+  toast('تم — الطلب الآن قيد متابعتك');
+  loadBookings();updateBkBadge();
+}
+async function releaseBooking(id){
+  await db.from('booking_requests').update({status:'new',handled_by:null}).eq('id',id);
+  toast('تم إرجاع الطلب كجديد');
+  loadBookings();updateBkBadge();
+}
+function toggleBkEdit(id){
+  var el=document.getElementById('bkedit-'+id);
+  if(el)el.style.display=(el.style.display==='none'||!el.style.display)?'block':'none';
+}
+async function saveBkEdit(id){
+  var g=function(p){var e=document.getElementById('bke-'+p+'-'+id);return e?e.value.trim():'';};
+  var name=g('name');
+  if(!name){toast('الاسم مطلوب',true);return;}
+  var upd={customer_name:name,phone:g('phone'),address:g('addr')||null,
+    preferred_date:g('date')||null,preferred_time:g('time')||null};
+  var{error}=await db.from('booking_requests').update(upd).eq('id',id);
+  if(error){toast('خطأ: '+error.message,true);return;}
+  toast('تم حفظ التعديلات');
+  loadBookings();
+}
 async function convertBooking(id){
   var{data:bk}=await db.from('booking_requests').select('*').eq('id',id).single();
   if(!bk){toast('غير موجود',true);return;}
   if(!confirm('تحويل طلب '+bk.customer_name+' إلى مهمة جديدة؟'))return;
-  // Find or create customer by phone
+  // Find or create customer. Match on the phone as the customer entered it (don't
+  // over-strip — the rest of the app stores phones as typed). Save the same shape the
+  // normal "Add customer" form uses (full_name, phone, address, addresses JSON) so the
+  // record shows up correctly in the Customers section.
   var custId=null;
+  var phoneVal=(bk.phone||'').trim();
   try{
-    var norm=(bk.phone||'').replace(/[^0-9]/g,'');
-    var cr=await db.from('customers').select('id').eq('phone',norm).limit(1);
-    if(cr.data&&cr.data.length)custId=cr.data[0].id;
-    if(!custId){
-      var nc=await db.from('customers').insert({full_name:bk.customer_name,phone:norm,address:bk.address||''}).select().single();
-      if(nc.data)custId=nc.data.id;
+    if(phoneVal){
+      var cr=await db.from('customers').select('id').eq('phone',phoneVal).limit(1);
+      if(cr.data&&cr.data.length)custId=cr.data[0].id;
     }
-  }catch(e){}
+    if(!custId){
+      var addr=bk.address||bk.from_address||'';
+      var nc=await db.from('customers').insert({
+        full_name:bk.customer_name,
+        phone:phoneVal,
+        address:addr,
+        addresses:JSON.stringify(addr?[addr]:[])
+      }).select().single();
+      if(nc.error){toast('تحذير: لم يُحفظ العميل - '+nc.error.message,true);}
+      else if(nc.data)custId=nc.data.id;
+    }
+  }catch(e){toast('تحذير في حفظ العميل',true);}
   // Map service to task type
   var typeMap={'صيانة':'maintenance','تركيب':'installation','فك و تركيب':'uninstall_install','سحب':'pull','بيع جهاز':'sales','أخرى':'maintenance'};
   var ttype=typeMap[bk.service_type]||'maintenance';
@@ -6483,6 +6636,299 @@ async function dismissBooking(id){
   toast('تم الرفض');loadBookings();updateBkBadge();
 }
 // ── END BOOKINGS ─────────────────────────────────────────────
+
+// ── MAINTENANCE CONTRACTS (B2B) ──────────────────────────────
+var CT_TIERS={basic:{ar:'الأساسية',visits:2},advanced:{ar:'المتقدمة',visits:3},premium:{ar:'المميزة',visits:4}};
+function ctTierAr(t){return (CT_TIERS[t]&&CT_TIERS[t].ar)||t||'-';}
+function ctToday(){return new Date().toISOString().slice(0,10);}
+function ctDaysBetween(a,b){return Math.round((new Date(b)-new Date(a))/86400000);}
+
+async function openContracts(){
+  if(!CU||!['owner','admin','salesperson','finance'].includes(CU.role)){toast('غير مسموح',true);return;}
+  go('ct',document.getElementById('ni-ct'));
+  window._ctView='list';
+  loadContracts();
+}
+
+async function updateCtBadge(){
+  try{
+    if(!CU||!['owner','admin','salesperson','finance'].includes(CU.role))return;
+    var today=ctToday();
+    // count active contracts with a visit due within 14 days, or expiring within 30 days
+    var vr=await db.from('contract_visits').select('scheduled_date,status').eq('status','scheduled').limit(10000);
+    var dueVisits=(vr.data||[]).filter(function(v){return v.scheduled_date&&ctDaysBetween(today,v.scheduled_date)<=14;}).length;
+    var cr=await db.from('maintenance_contracts').select('end_date,status').eq('status','active').limit(10000);
+    var dueRenew=(cr.data||[]).filter(function(c){return c.end_date&&ctDaysBetween(today,c.end_date)<=30&&ctDaysBetween(today,c.end_date)>=0;}).length;
+    var n=dueVisits+dueRenew;
+    var b=document.getElementById('ct-badge');
+    if(b){if(n>0){b.textContent=n;b.style.display='';}else{b.style.display='none';}}
+  }catch(e){}
+}
+
+async function loadContracts(){
+  var body=document.getElementById('ct-body');if(!body)return;
+  var view=window._ctView||'list';
+  if(view==='new'){renderContractForm();return;}
+  if(view==='detail'){renderContractDetail(window._ctCurId);return;}
+  body.innerHTML='<div style="text-align:center;padding:30px;color:#888">جاري التحميل...</div>';
+  var cr=await db.from('maintenance_contracts').select('*').order('created_at',{ascending:false}).limit(5000);
+  var rows=cr.data||[];
+  var vr=await db.from('contract_visits').select('contract_id,scheduled_date,status').limit(20000);
+  var visits=vr.data||[];
+  var today=ctToday();
+  // next due visit per contract
+  var nextVisit={};
+  visits.forEach(function(v){
+    if(v.status!=='scheduled'||!v.scheduled_date)return;
+    if(!nextVisit[v.contract_id]||v.scheduled_date<nextVisit[v.contract_id])nextVisit[v.contract_id]=v.scheduled_date;
+  });
+  var active=rows.filter(function(c){return c.status==='active';});
+  var totalValue=active.reduce(function(s,c){return s+(parseFloat(c.annual_value)||0);},0);
+  var canEdit=['owner','admin','salesperson'].includes(CU.role);
+  var html='<div class="cd" style="padding:20px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px">'
+      +'<div><div style="font-size:16px;font-weight:800">📋 عقود الصيانة</div>'
+        +'<div style="font-size:12px;color:#888;margin-top:2px">'+active.length+' عقد نشط · قيمة سنوية '+totalValue.toLocaleString()+' ج.م</div></div>'
+      +(canEdit?'<button onclick="window._ctView=\'new\';loadContracts()" style="background:#0F6E56;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer">+ عقد جديد</button>':'')
+    +'</div>';
+  if(!rows.length){
+    html+='<div style="text-align:center;padding:40px;color:#aaa">لا توجد عقود بعد. ابدأ بإضافة عقد جديد للعملاء التجاريين.</div>';
+  }else{
+    html+='<div style="display:flex;flex-direction:column;gap:10px">';
+    rows.forEach(function(c){
+      var nv=nextVisit[c.id];
+      var dueSoon=nv&&ctDaysBetween(today,nv)<=14;
+      var renewSoon=c.status==='active'&&c.end_date&&ctDaysBetween(today,c.end_date)<=30&&ctDaysBetween(today,c.end_date)>=0;
+      var expired=c.status==='active'&&c.end_date&&ctDaysBetween(today,c.end_date)<0;
+      var statusColor=c.status==='active'?(expired?'#A32D2D':'#0F6E56'):'#888';
+      var statusText=c.status==='active'?(expired?'منتهي (بحاجة تجديد)':'نشط'):(c.status==='expired'?'منتهي':'ملغي');
+      html+='<div onclick="window._ctView=\'detail\';window._ctCurId=\''+c.id+'\';loadContracts()" style="background:#fff;border:1px solid '+(dueSoon||renewSoon||expired?'#b5852a':'#eee')+';border-radius:12px;padding:14px;cursor:pointer">'
+        +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">'
+          +'<div><div style="font-weight:800;font-size:15px">'+(c.company_name||c.customer_name||'-')+'</div>'
+          +'<div style="font-size:12px;color:#666;margin-top:2px">📞 '+(c.phone||'-')+' · '+(c.unit_count||0)+' وحدة · باقة '+ctTierAr(c.tier)+'</div></div>'
+          +'<div style="text-align:left"><span style="background:'+statusColor+';color:#fff;border-radius:8px;padding:3px 10px;font-size:11px;font-weight:700">'+statusText+'</span></div>'
+        +'</div>'
+        +'<div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;font-size:12px;color:#555">'
+          +'<span>💰 '+(parseFloat(c.annual_value)||0).toLocaleString()+' ج.م/سنة</span>'
+          +(c.end_date?'<span>ينتهي: '+c.end_date+'</span>':'')
+          +(nv?'<span style="'+(dueSoon?'color:#b5852a;font-weight:700':'')+'">🔧 زيارة قادمة: '+nv+'</span>':'')
+        +'</div>'
+        +((dueSoon||renewSoon)?'<div style="margin-top:8px;background:#f6efdd;border-radius:8px;padding:6px 10px;font-size:12px;color:#8a6a1e;font-weight:700">'+(dueSoon?'⏰ زيارة صيانة مستحقة قريباً':'')+(dueSoon&&renewSoon?' · ':'')+(renewSoon?'🔄 العقد قارب على الانتهاء - جدّد':'')+'</div>':'')
+      +'</div>';
+    });
+    html+='</div>';
+  }
+  html+='</div>';
+  body.innerHTML=html;
+  updateCtBadge();
+}
+
+async function renderContractForm(){
+  var body=document.getElementById('ct-body');if(!body)return;
+  // customers datalist for linking
+  var cr=await db.from('customers').select('id,full_name,phone').order('full_name').limit(20000);
+  var custs=cr.data||[];
+  var opts=custs.map(function(c){return '<option data-id="'+c.id+'" data-phone="'+(c.phone||'')+'" value="'+(c.full_name||'').replace(/"/g,'')+'">';}).join('');
+  var today=ctToday();
+  var yearLater=new Date();yearLater.setFullYear(yearLater.getFullYear()+1);var endDef=yearLater.toISOString().slice(0,10);
+  var html='<div class="cd" style="padding:20px;max-width:640px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">'
+      +'<div style="font-size:16px;font-weight:800">+ عقد صيانة جديد</div>'
+      +'<button onclick="window._ctView=\'list\';loadContracts()" style="background:#eee;border:none;border-radius:8px;padding:7px 14px;font-size:13px;cursor:pointer">رجوع</button>'
+    +'</div>'
+    +'<div style="display:flex;flex-direction:column;gap:12px">'
+      +'<div><label style="font-size:12px;font-weight:700;color:#666">اسم العميل / الشركة *</label>'
+        +'<input id="ct-cust" list="ct-cust-list" oninput="ctPickCust()" placeholder="اكتب اسم العميل أو الشركة" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-top:4px">'
+        +'<datalist id="ct-cust-list">'+opts+'</datalist></div>'
+      +'<div style="display:flex;gap:10px;flex-wrap:wrap">'
+        +'<div style="flex:1;min-width:140px"><label style="font-size:12px;font-weight:700;color:#666">رقم الهاتف</label><input id="ct-phone" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-top:4px"></div>'
+        +'<div style="flex:1;min-width:140px"><label style="font-size:12px;font-weight:700;color:#666">عدد الوحدات</label><input id="ct-units" type="number" min="0" value="1" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-top:4px"></div>'
+      +'</div>'
+      +'<div><label style="font-size:12px;font-weight:700;color:#666">عنوان الموقع</label><input id="ct-addr" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-top:4px"></div>'
+      +'<div style="display:flex;gap:10px;flex-wrap:wrap">'
+        +'<div style="flex:1;min-width:140px"><label style="font-size:12px;font-weight:700;color:#666">الباقة *</label>'
+          +'<select id="ct-tier" onchange="ctTierChange()" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-top:4px">'
+            +'<option value="basic">الأساسية (زيارتان)</option><option value="advanced">المتقدمة (٣ زيارات)</option><option value="premium">المميزة (٤ زيارات)</option></select></div>'
+        +'<div style="flex:1;min-width:140px"><label style="font-size:12px;font-weight:700;color:#666">القيمة السنوية (ج.م)</label><input id="ct-value" type="number" min="0" value="0" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-top:4px"></div>'
+      +'</div>'
+      +'<div style="display:flex;gap:10px;flex-wrap:wrap">'
+        +'<div style="flex:1;min-width:140px"><label style="font-size:12px;font-weight:700;color:#666">تاريخ البداية *</label><input id="ct-start" type="date" value="'+today+'" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-top:4px"></div>'
+        +'<div style="flex:1;min-width:140px"><label style="font-size:12px;font-weight:700;color:#666">تاريخ الانتهاء *</label><input id="ct-end" type="date" value="'+endDef+'" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-top:4px"></div>'
+      +'</div>'
+      +'<div><label style="font-size:12px;font-weight:700;color:#666">ملاحظات</label><textarea id="ct-notes" rows="2" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-top:4px"></textarea></div>'
+      +'<div style="background:#e8f3ee;border-radius:8px;padding:10px 12px;font-size:12px;color:#0a4d3c">💡 سيتم إنشاء جدول الزيارات تلقائياً بالتساوي على مدة العقد حسب عدد زيارات الباقة.</div>'
+      +'<button onclick="saveContract()" style="background:#0F6E56;color:#fff;border:none;border-radius:8px;padding:11px;font-size:14px;font-weight:700;cursor:pointer">حفظ العقد وإنشاء الزيارات</button>'
+    +'</div></div>';
+  body.innerHTML=html;
+}
+function ctPickCust(){
+  var inp=document.getElementById('ct-cust');var dl=document.getElementById('ct-cust-list');
+  if(!inp||!dl)return;
+  for(var i=0;i<dl.options.length;i++){
+    if(dl.options[i].value===inp.value){document.getElementById('ct-phone').value=dl.options[i].dataset.phone||'';inp.dataset.custId=dl.options[i].dataset.id||'';break;}
+  }
+}
+function ctTierChange(){
+  var t=document.getElementById('ct-tier').value;
+  // no auto price; just informational
+}
+async function saveContract(){
+  if(!CU||!['owner','admin','salesperson'].includes(CU.role)){toast('غير مسموح',true);return;}
+  var name=document.getElementById('ct-cust').value.trim();
+  if(!name){toast('اكتب اسم العميل',true);return;}
+  var tier=document.getElementById('ct-tier').value;
+  var start=document.getElementById('ct-start').value;
+  var end=document.getElementById('ct-end').value;
+  if(!start||!end){toast('حدد تاريخ البداية والنهاية',true);return;}
+  if(end<=start){toast('تاريخ الانتهاء يجب أن يكون بعد البداية',true);return;}
+  var custId=document.getElementById('ct-cust').dataset.custId||null;
+  var visitsN=(CT_TIERS[tier]&&CT_TIERS[tier].visits)||2;
+  var ins=await db.from('maintenance_contracts').insert({
+    customer_id:custId,customer_name:name,company_name:name,
+    phone:document.getElementById('ct-phone').value.trim()||null,
+    site_address:document.getElementById('ct-addr').value.trim()||null,
+    tier:tier,visits_per_year:visitsN,
+    unit_count:parseInt(document.getElementById('ct-units').value)||0,
+    annual_value:parseFloat(document.getElementById('ct-value').value)||0,
+    start_date:start,end_date:end,status:'active',
+    notes:document.getElementById('ct-notes').value.trim()||null,
+    created_by:CU.full_name||CU.username
+  }).select().single();
+  if(ins.error){toast('خطأ: '+ins.error.message,true);return;}
+  // auto-generate evenly spaced visits between start and end
+  var span=ctDaysBetween(start,end);
+  var step=Math.floor(span/visitsN);
+  var vrows=[];
+  for(var i=0;i<visitsN;i++){
+    var d=new Date(start);d.setDate(d.getDate()+step*i+Math.floor(step/2));
+    vrows.push({contract_id:ins.data.id,customer_name:name,scheduled_date:d.toISOString().slice(0,10),status:'scheduled',created_by:CU.full_name||CU.username});
+  }
+  if(vrows.length){try{await db.from('contract_visits').insert(vrows);}catch(e){}}
+  toast('تم إنشاء العقد');
+  window._ctView='list';loadContracts();
+}
+
+async function renderContractDetail(id){
+  var body=document.getElementById('ct-body');if(!body)return;
+  body.innerHTML='<div style="text-align:center;padding:30px;color:#888">جاري التحميل...</div>';
+  var cr=await db.from('maintenance_contracts').select('*').eq('id',id).single();
+  var c=cr.data;if(!c){toast('غير موجود',true);window._ctView='list';loadContracts();return;}
+  var vr=await db.from('contract_visits').select('*').eq('contract_id',id).order('scheduled_date');
+  var visits=vr.data||[];
+  var today=ctToday();
+  var canEdit=['owner','admin','salesperson'].includes(CU.role);
+  var doneCount=visits.filter(function(v){return v.status==='done';}).length;
+  var html='<div class="cd" style="padding:20px;max-width:720px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">'
+      +'<div style="font-size:17px;font-weight:800">'+(c.company_name||c.customer_name)+'</div>'
+      +'<button onclick="window._ctView=\'list\';loadContracts()" style="background:#eee;border:none;border-radius:8px;padding:7px 14px;font-size:13px;cursor:pointer">رجوع</button>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:18px">'
+      +ctStat('الباقة',ctTierAr(c.tier))+ctStat('الوحدات',(c.unit_count||0))
+      +ctStat('القيمة السنوية',(parseFloat(c.annual_value)||0).toLocaleString()+' ج.م')
+      +ctStat('الزيارات',doneCount+' / '+visits.length)
+    +'</div>'
+    +'<div style="font-size:13px;color:#555;margin-bottom:6px">📞 '+(c.phone||'-')+'</div>'
+    +(c.site_address?'<div style="font-size:13px;color:#555;margin-bottom:6px">📍 '+c.site_address+'</div>':'')
+    +'<div style="font-size:13px;color:#555;margin-bottom:16px">📅 من '+(c.start_date||'-')+' إلى '+(c.end_date||'-')+'</div>'
+    +(c.notes?'<div style="background:#f9f9f6;border-radius:8px;padding:10px;font-size:13px;margin-bottom:16px">📝 '+c.notes+'</div>':'')
+    +'<div style="font-weight:800;font-size:14px;margin-bottom:10px">جدول الزيارات</div>'
+    +'<div style="display:flex;flex-direction:column;gap:8px">';
+  visits.forEach(function(v){
+    var overdue=v.status==='scheduled'&&v.scheduled_date&&v.scheduled_date<today;
+    var col=v.status==='done'?'#0F6E56':(overdue?'#A32D2D':'#b5852a');
+    var st=v.status==='done'?'تمت':(v.status==='skipped'?'ملغاة':(overdue?'متأخرة':'مجدولة'));
+    var hasTask=!!v.task_id;
+    html+='<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;background:#fff;border:1px solid #eee;border-radius:10px;padding:10px 12px;flex-wrap:wrap">'
+      +'<div style="font-size:13px"><span style="background:'+col+';color:#fff;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700">'+st+'</span> '
+        +'<span style="margin-right:6px">'+(v.done_date||v.scheduled_date||'-')+'</span>'
+        +(hasTask?'<span style="margin-right:6px;font-size:11px;color:#185FA5;font-weight:700">🔗 '+(v.task_num||'مهمة مرتبطة')+'</span>':'')+'</div>'
+      +'<div style="display:flex;gap:6px;flex-wrap:wrap">'
+      +(canEdit&&v.status==='scheduled'&&!hasTask?'<button onclick="createTaskFromVisit(\''+v.id+'\',\''+id+'\')" style="background:#E3EEF9;color:#185FA5;border:none;border-radius:6px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer">➕ إنشاء مهمة</button>':'')
+      +(canEdit&&v.status==='scheduled'?'<button onclick="markContractVisitDone(\''+v.id+'\',\''+id+'\')" style="background:#EAF3DE;color:#0F6E56;border:none;border-radius:6px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer">✓ تمت الزيارة</button>':'')
+      +'</div>'
+    +'</div>';
+  });
+  html+='</div>';
+  if(canEdit){
+    html+='<div style="display:flex;gap:8px;margin-top:18px;flex-wrap:wrap">'
+      +(c.status==='active'?'<button onclick="renewContract(\''+id+'\')" style="background:#185FA5;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer">🔄 تجديد سنة</button>':'')
+      +'<button onclick="cancelContract(\''+id+'\')" style="background:#FCEBEB;color:#A32D2D;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer">إلغاء العقد</button>'
+    +'</div>';
+  }
+  html+='</div>';
+  body.innerHTML=html;
+}
+function ctStat(l,v){return '<div style="background:#fff;border:1px solid #eee;border-radius:10px;padding:12px;text-align:center"><div style="font-size:11px;color:#888">'+l+'</div><div style="font-size:16px;font-weight:800;margin-top:2px">'+v+'</div></div>';}
+
+// Contract → Task: turn a scheduled visit into a real maintenance task
+async function createTaskFromVisit(vid,cid){
+  if(!CU||!['owner','admin','salesperson'].includes(CU.role)){toast('غير مسموح',true);return;}
+  var vr=await db.from('contract_visits').select('*').eq('id',vid).single();
+  var v=vr.data;if(!v){toast('غير موجود',true);return;}
+  if(v.task_id){toast('المهمة موجودة بالفعل',true);return;}
+  var cr=await db.from('maintenance_contracts').select('*').eq('id',cid).single();
+  var c=cr.data;if(!c)return;
+  if(!confirm('إنشاء مهمة صيانة لزيارة '+(v.scheduled_date||'')+'؟'))return;
+  // next task number
+  var lt=await db.from('tasks').select('task_num').order('created_at',{ascending:false}).limit(1);
+  var lastN=lt.data&&lt.data.length?parseInt((lt.data[0].task_num||'0').replace(/[^0-9]/g,''))||0:0;
+  var tnum='#'+String(lastN+1).padStart(5,'0');
+  var ins=await db.from('tasks').insert({
+    task_num:tnum,customer_id:c.customer_id||null,customer_name:c.customer_name,
+    type:'maintenance',branch:'Head Office',
+    description:'صيانة دورية - عقد صيانة'+(c.company_name?' ('+c.company_name+')':''),
+    address:c.site_address||null,
+    date:v.scheduled_date||ctToday(),
+    status:'pending',pay_status:'no_payment',
+    contract_id:cid,contract_visit_id:vid,
+    created_by:'عقد صيانة'
+  }).select().single();
+  if(ins.error){toast('خطأ: '+ins.error.message,true);return;}
+  await db.from('contract_visits').update({task_id:ins.data.id,task_num:tnum}).eq('id',vid);
+  toast('تم إنشاء المهمة '+tnum);
+  renderContractDetail(cid);
+}
+async function markContractVisitDone(vid,cid){
+  if(!CU||!['owner','admin','salesperson'].includes(CU.role)){toast('غير مسموح',true);return;}
+  await db.from('contract_visits').update({status:'done',done_date:ctToday()}).eq('id',vid);
+  toast('تم تسجيل الزيارة');
+  renderContractDetail(cid);updateCtBadge();
+}
+async function renewContract(id){
+  if(!CU||!['owner','admin','salesperson'].includes(CU.role)){toast('غير مسموح',true);return;}
+  if(!confirm('تجديد العقد لمدة سنة إضافية وإنشاء زيارات جديدة؟'))return;
+  var cr=await db.from('maintenance_contracts').select('*').eq('id',id).single();
+  var c=cr.data;if(!c)return;
+  var newStart=c.end_date||ctToday();
+  var ns=new Date(newStart);var ne=new Date(newStart);ne.setFullYear(ne.getFullYear()+1);
+  var newEnd=ne.toISOString().slice(0,10);
+  await db.from('maintenance_contracts').update({start_date:newStart,end_date:newEnd,status:'active'}).eq('id',id);
+  var visitsN=c.visits_per_year||2;var span=ctDaysBetween(newStart,newEnd);var step=Math.floor(span/visitsN);
+  var vrows=[];
+  for(var i=0;i<visitsN;i++){var d=new Date(ns);d.setDate(d.getDate()+step*i+Math.floor(step/2));
+    vrows.push({contract_id:id,customer_name:c.customer_name,scheduled_date:d.toISOString().slice(0,10),status:'scheduled',created_by:CU.full_name||CU.username});}
+  if(vrows.length){try{await db.from('contract_visits').insert(vrows);}catch(e){}}
+  toast('تم التجديد');renderContractDetail(id);updateCtBadge();
+}
+async function cancelContract(id){
+  if(!CU||!['owner','admin'].includes(CU.role)){toast('فقط المالك أو المدير',true);return;}
+  if(!confirm('إلغاء هذا العقد؟'))return;
+  await db.from('maintenance_contracts').update({status:'cancelled'}).eq('id',id);
+  toast('تم الإلغاء');window._ctView='list';loadContracts();updateCtBadge();
+}
+// When a task linked to a contract visit is completed, auto-mark that visit done.
+async function syncContractVisitFromTask(taskId,newStatus){
+  try{
+    if(!taskId)return;
+    if(!(newStatus==='done'||newStatus==='field_done'||newStatus==='completed'))return;
+    var vr=await db.from('contract_visits').select('id,status').eq('task_id',taskId).limit(1);
+    if(vr.data&&vr.data.length&&vr.data[0].status!=='done'){
+      await db.from('contract_visits').update({status:'done',done_date:ctToday()}).eq('id',vr.data[0].id);
+    }
+  }catch(e){}
+}
+// ── END CONTRACTS ────────────────────────────────────────────
 
 // ── FOLLOWUP SECTION ─────────────────────────────────────────
 var _fuTab='pending';
