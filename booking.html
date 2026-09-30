@@ -68,7 +68,7 @@ textarea{resize:vertical;min-height:70px}
     <label id="l-service">نوع الخدمة <span class="req">*</span></label>
     <select id="f-service" onchange="onServiceChange()"></select>
     <div id="ac-section">
-      <div class="ttl" id="l-ac">🔧 الأجهزة المطلوبة <span class="req">*</span></div>
+      <div class="ttl" id="l-ac">🔧 الأجهزة (اختياري - إن كنت تعرف النوع)</div>
       <div id="ac-rows"></div>
       <button type="button" class="add-ac" id="l-addac" onclick="addAc()">+ إضافة جهاز</button>
     </div>
@@ -95,7 +95,7 @@ var T={
   ar:{title:"برازر كوند للتكييف",sub:"احجز زيارة صيانة أو تركيب - سنتواصل معك للتأكيد",
     fname:"الاسم الأول",lname:"الاسم الأخير",phone:"رقم الهاتف",address:"العنوان",
     from:"عنوان الفك (المكان الحالي)",to:"عنوان التركيب (المكان الجديد)",
-    branch:"الفرع الأقرب",service:"نوع الخدمة",ac:"🔧 الأجهزة المطلوبة",addac:"+ إضافة جهاز",
+    branch:"الفرع الأقرب",service:"نوع الخدمة",ac:"🔧 الأجهزة (اختياري - إن كنت تعرف النوع)",addac:"+ إضافة جهاز",
     problem:"وصف العطل / ملاحظات",date:"التاريخ المفضل للزيارة",time:"الوقت المفضل",
     submit:"إرسال طلب الحجز",okh:"تم استلام طلبك بنجاح",
     okp:"شكراً لك! سيتواصل معك فريق برازر كوند في أقرب وقت لتأكيد موعد الزيارة.<br><br>للاستعجال: 01222211310",
@@ -119,7 +119,7 @@ var T={
   en:{title:"Brother Cond A/C",sub:"Book a maintenance or installation visit - we'll contact you to confirm",
     fname:"First Name",lname:"Last Name",phone:"Phone Number",address:"Address",
     from:"Remove-from Address (current)",to:"Install-at Address (new)",
-    branch:"Nearest Branch",service:"Service Type",ac:"🔧 Required Units",addac:"+ Add Unit",
+    branch:"Nearest Branch",service:"Service Type",ac:"🔧 Units (optional - if you know them)",addac:"+ Add Unit",
     problem:"Problem / Notes",date:"Preferred Visit Date",time:"Preferred Time",
     submit:"Send Booking Request",okh:"Request Received Successfully",
     okp:"Thank you! The Brother Cond team will contact you shortly to confirm your visit.<br><br>Hotline: 01222211310",
@@ -164,7 +164,7 @@ function applyLang(){
   el("l-to").innerHTML=t.to+' <span class="req">*</span>';
   el("l-branch").innerHTML=t.branch+' <span class="req">*</span>';
   el("l-service").innerHTML=t.service+' <span class="req">*</span>';
-  el("l-ac").innerHTML=t.ac+' <span class="req">*</span>';
+  el("l-ac").textContent=t.ac;
   el("l-addac").textContent=t.addac;
   el("l-problem").innerHTML=t.problem+' <span class="req">*</span>';
   el("l-date").innerHTML=t.date+' <span class="req">*</span>';
@@ -224,7 +224,9 @@ function collectAc(){
   rows.forEach(function(r){
     var brand=r.querySelector(".ac-brand").value;var hp=r.querySelector(".ac-hp").value;
     var cool=r.querySelector(".ac-cool").value;var qty=parseInt(r.querySelector(".ac-qty").value)||1;
-    out.push(qty+" × "+brand+" "+hp+" "+cool);
+    // Skip fully-empty rows; include a row only if the customer filled something
+    if(!brand&&!hp&&!cool)return;
+    out.push(qty+" × "+[brand,hp,cool].filter(Boolean).join(" "));
   });
   return out.join("\n");
 }
@@ -249,14 +251,8 @@ async function submitBooking(){
   var branch=el("f-branch").value;
   if(!branch){err.textContent=t.e_branch;err.style.display="block";return;}
   if(!service){err.textContent=t.e_service;err.style.display="block";return;}
-  var acRows=document.querySelectorAll("#ac-rows .ac-row");
-  if(!acRows.length){err.textContent=t.e_ac1;err.style.display="block";return;}
-  var acBad=false;
-  acRows.forEach(function(r){
-    var q=parseInt(r.querySelector(".ac-qty").value)||0;if(q<1)acBad=true;
-    if(!r.querySelector(".ac-brand").value||!r.querySelector(".ac-hp").value||!r.querySelector(".ac-cool").value)acBad=true;
-  });
-  if(acBad){err.textContent=t.e_ac2;err.style.display="block";return;}
+  // AC units are OPTIONAL — many customers don't know their brand/capacity.
+  // We only validate rows the customer partially filled, so a blank section is fine.
   var problem=el("f-problem").value.trim();
   if(!problem){err.textContent=t.e_problem;err.style.display="block";return;}
   var pdate=el("f-date").value;var ptime=el("f-time").value;
