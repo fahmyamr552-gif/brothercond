@@ -5391,7 +5391,7 @@ async function saveTask(){
   var taskRows=[];
   document.querySelectorAll('#ntb tr').forEach(function(tr2){
     var sel2=tr2.cells[0]?.querySelector('select');
-    var inp2=tr2.cells[0]?.querySelector('input[type="text"]');
+    var inp2=tr2.cells[0]?.querySelector('.nt-prod-inp')||tr2.cells[0]?.querySelector('input[type="text"]');
     var q2=parseFloat(tr2.querySelector('td:nth-child(2) input')?.value)||0;
     var p2=parseFloat(tr2.querySelector('td:nth-child(3) input')?.value)||0;
     if(q2>0){
@@ -5530,7 +5530,7 @@ async function addRow(){
     var tr=document.createElement('tr');
     var td0=document.createElement('td');td0.style.cssText='position:relative;min-width:220px';
     var srchInp=document.createElement('input');
-    srchInp.type='text';srchInp.placeholder='Search product...';
+    srchInp.setAttribute('type','text');srchInp.className='nt-prod-inp';srchInp.placeholder='Search product...';
     srchInp.style.cssText='width:100%;padding:6px 8px;border:1px solid #ccc;border-radius:6px;font-size:12px;box-sizing:border-box';
     srchInp.dataset.price='0';srchInp.dataset.invId='';srchInp.dataset.stock='0';
     var dd=document.createElement('div');
