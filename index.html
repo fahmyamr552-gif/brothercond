@@ -2667,9 +2667,11 @@ function onTC(v){
     var tr=document.createElement('tr');
     var td0=document.createElement('td');
     var nameInp=document.createElement('input');
-    nameInp.type='text';nameInp.value='تركيب';nameInp.readOnly=true;
+    nameInp.setAttribute('type','text');nameInp.value='تركيب';nameInp.readOnly=true;
+    nameInp.className='nt-service-inp';nameInp.dataset.service='1';
     nameInp.style.cssText='width:100%;padding:6px 8px;border:1px solid #b3d9f7;border-radius:6px;font-size:12px;background:#f0f9ff;font-weight:700;color:#185FA5;box-sizing:border-box';
     nameInp.dataset.invId='';
+    tr.dataset.service='1';
     td0.appendChild(nameInp);
     var td1=document.createElement('td');
     var qi=document.createElement('input');qi.type='number';qi.value='1';qi.min='0.1';qi.step='0.1';qi.style.cssText='width:60px;text-align:center';qi.oninput=function(){calcR(this);};
@@ -5395,10 +5397,12 @@ async function saveTask(){
     var q2=parseFloat(tr2.querySelector('td:nth-child(2) input')?.value)||0;
     var p2=parseFloat(tr2.querySelector('td:nth-child(3) input')?.value)||0;
     if(q2>0){
-      var nm2='',pid2=null;
-      if(inp2){nm2=inp2.value.trim()||'Product';pid2=(tr2.dataset&&tr2.dataset.invId)||inp2.dataset.invId||null;}
-      else if(sel2){nm2=sel2.value||'Service';pid2=null;}
-      taskRows.push({name:nm2,qty:q2,price:p2,pid:pid2});
+      var nm2='',pid2=null,isService=false;
+      if(inp2){nm2=inp2.value.trim()||'Product';pid2=(tr2.dataset&&tr2.dataset.invId)||inp2.dataset.invId||null;
+        // Service/labor lines (e.g. the auto-added تركيب row) are not inventory products
+        isService=(tr2.dataset&&tr2.dataset.service==='1')||(inp2.dataset&&inp2.dataset.service==='1');}
+      else if(sel2){nm2=sel2.value||'Service';pid2=null;isService=true;}
+      taskRows.push({name:nm2,qty:q2,price:p2,pid:pid2,service:isService});
     }
   });
   var taskDate=document.getElementById('ntdate')?.value||'';
@@ -5416,7 +5420,7 @@ async function saveTask(){
     if(INV&&INV.length){
       var normName=function(s){return (s||'').toString().toLowerCase().replace(/hp|ح|حصان/g,' ').replace(/[^0-9a-z؀-ۿ.]+/g,' ').replace(/\s+/g,' ').trim();};
       taskRows.forEach(function(r){
-        if(r.pid||!r.name)return;
+        if(r.pid||!r.name||r.service)return;
         var target=normName(r.name);
         if(!target)return;
         var m=INV.find(function(p){
@@ -5426,7 +5430,7 @@ async function saveTask(){
         if(m)r.pid=m.id;
       });
     }
-    var _unlinked=taskRows.filter(function(r){return r.qty>0&&!r.pid;});
+    var _unlinked=taskRows.filter(function(r){return r.qty>0&&!r.pid&&!r.service;});
     if(_unlinked.length){
       var _names=_unlinked.map(function(r){return r.name;}).join('، ');
       toast(LANG==='ar'
