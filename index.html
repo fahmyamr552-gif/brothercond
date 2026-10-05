@@ -5410,13 +5410,17 @@ async function saveTask(){
   // Prevents employees typing a product name freely (which would not deduct stock).
   var _ntType=document.getElementById('ntt')?.value||'maintenance';
   if(_ntType==='sales'){
-    // First, try to auto-link any unlinked row whose typed name exactly matches an inventory product.
+    // Safety net: auto-link any unlinked row whose name matches an inventory product.
+    // Matches loosely (ignores spaces, case, and an "HP"/"ح" suffix after the capacity)
+    // so a product chosen from the dropdown always links even if the id didn't attach.
     if(INV&&INV.length){
+      var normName=function(s){return (s||'').toString().toLowerCase().replace(/hp|ح|حصان/g,' ').replace(/[^0-9a-z؀-ۿ.]+/g,' ').replace(/\s+/g,' ').trim();};
       taskRows.forEach(function(r){
         if(r.pid||!r.name)return;
-        var target=r.name.trim().replace(/\s+/g,' ').toLowerCase();
+        var target=normName(r.name);
+        if(!target)return;
         var m=INV.find(function(p){
-          var nm=(p.brand+' '+p.model+' '+p.hp+' '+(p.unit_type||'')+' '+(p.cooling||'')+' '+(p.ac_type||'')).trim().replace(/\s+/g,' ').toLowerCase();
+          var nm=normName(p.brand+' '+p.model+' '+p.hp+' '+(p.unit_type||'')+' '+(p.cooling||'')+' '+(p.ac_type||''));
           return nm===target;
         });
         if(m)r.pid=m.id;
