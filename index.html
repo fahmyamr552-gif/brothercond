@@ -5535,6 +5535,8 @@ async function saveTask(){
       var nm2='',pid2=null,isService=false,bundleId=null;
       if(inp2){nm2=inp2.value.trim()||'Product';pid2=(tr2.dataset&&tr2.dataset.invId)||inp2.dataset.invId||null;
         bundleId=(tr2.dataset&&tr2.dataset.bundleId)||inp2.dataset.bundleId||null;
+        // For a bundle, save the CLEAN name (no 📦) so the customer invoice looks normal
+        if(bundleId){nm2=(tr2.dataset&&tr2.dataset.invName)||inp2.dataset.bundleName||nm2.replace(/^📦\s*/,'');}
         // Service/labor lines (e.g. the auto-added تركيب row) are not inventory products
         isService=(tr2.dataset&&tr2.dataset.service==='1')||(inp2.dataset&&inp2.dataset.service==='1');}
       else if(sel2){nm2=sel2.value||'Service';pid2=null;isService=true;}
@@ -5703,8 +5705,8 @@ async function addRow(){
         item.onmouseenter=function(){this.style.background='#e3eef9';};item.onmouseleave=function(){this.style.background='#f0f9ff';};
         var pickB=function(e){
           if(e){e.preventDefault();e.stopPropagation();}
-          srchInp.value='📦 '+b.name;srchInp.dataset.price=b.price||0;srchInp.dataset.invId='';srchInp.dataset.bundleId=b.id;srchInp.dataset.stock=st;srchInp.style.borderColor='#185FA5';dd.style.display='none';
-          tr.dataset.invId='';tr.dataset.bundleId=b.id;tr.dataset.invName='📦 '+b.name;
+          srchInp.value='📦 '+b.name;srchInp.dataset.price=b.price||0;srchInp.dataset.invId='';srchInp.dataset.bundleId=b.id;srchInp.dataset.bundleName=b.name;srchInp.dataset.stock=st;srchInp.style.borderColor='#185FA5';dd.style.display='none';
+          tr.dataset.invId='';tr.dataset.bundleId=b.id;tr.dataset.invName=b.name;
           var priceInp=tr.querySelector('td:nth-child(3) input');var qtyInp=tr.querySelector('td:nth-child(2) input');
           if(priceInp){priceInp.value=Math.round(b.price||0);calcR(priceInp);}if(qtyInp)chkStk(qtyInp);
         };
