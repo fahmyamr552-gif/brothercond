@@ -2393,13 +2393,25 @@ async function deleteTask(){
   if(!CT)return;
   if(!CU||CU.role!=='owner'){toast('فقط المالك يمكنه حذف الطلبات',true);return;}
   if(!confirm(t('taskdelconfirm')+' '+CT.task_num))return;
-  // Restore inventory for sales tasks
+  // Restore inventory for sales tasks (direct products AND bundles)
   if(CT.type==='sales'){
-    var{data:saleProds}=await db.from('task_products').select('inventory_id,qty').eq('task_id',CT.id);
+    var{data:saleProds}=await db.from('task_products').select('inventory_id,bundle_id,qty').eq('task_id',CT.id);
     for(var i=0;i<(saleProds||[]).length;i++){
-      var sp=saleProds[i];if(!sp.inventory_id)continue;
-      var{data:inv}=await db.from('inventory').select('qty').eq('id',sp.inventory_id).single();
-      if(inv)await db.from('inventory').update({qty:(inv.qty||0)+sp.qty}).eq('id',sp.inventory_id);
+      var sp=saleProds[i];
+      if(sp.bundle_id){
+        // Bundle: restore each part
+        var{data:bRow}=await db.from('product_bundles').select('parts').eq('id',sp.bundle_id).single();
+        if(bRow&&bRow.parts){
+          for(var bi=0;bi<bRow.parts.length;bi++){
+            var pt=bRow.parts[bi];if(!pt.inventory_id)continue;
+            var{data:pInv}=await db.from('inventory').select('qty').eq('id',pt.inventory_id).single();
+            if(pInv)await db.from('inventory').update({qty:(pInv.qty||0)+((pt.qty||1)*(sp.qty||1))}).eq('id',pt.inventory_id);
+          }
+        }
+      }else if(sp.inventory_id){
+        var{data:inv}=await db.from('inventory').select('qty').eq('id',sp.inventory_id).single();
+        if(inv)await db.from('inventory').update({qty:(inv.qty||0)+sp.qty}).eq('id',sp.inventory_id);
+      }
     }
   }
   // If بيع مباشر task, restore inventory
@@ -4154,18 +4166,33 @@ async function showProductSales(invId,prodName){
   ov.appendChild(box);document.body.appendChild(ov);
   ov.onclick=function(e){if(e.target===ov)ov.remove();};
 
-  // Find all task_products with this inventory_id
-  var{data:tps}=await db.from('task_products').select('task_id,qty,price,tasks(task_num,customer_name,date,status,type)').eq('inventory_id',invId).limit(5000);
+  // Find all task_products with this inventory_id (direct sales)
+  var{data:tps}=await db.from('task_products').select('task_id,qty,price,inventory_id,bundle_id,tasks(task_num,customer_name,date,status,type)').eq('inventory_id',invId).limit(5000);
   tps=tps||[];
+  // Also include bundle sales whose bundle contains this product
+  if(!BUNDLES.length){await loadBundles();}
+  var bundlesWithProduct=(BUNDLES||[]).filter(function(b){return (b.parts||[]).some(function(pt){return pt.inventory_id===invId;});}).map(function(b){return b.id;});
+  if(bundlesWithProduct.length){
+    var{data:btps}=await db.from('task_products').select('task_id,qty,price,inventory_id,bundle_id,tasks(task_num,customer_name,date,status,type)').in('bundle_id',bundlesWithProduct).limit(5000);
+    (btps||[]).forEach(function(r){r._bundle=true;tps.push(r);});
+  }
 
   var rows='';
   var totalQty=0;
+  var _bMap2={};(BUNDLES||[]).forEach(function(b){_bMap2[b.id]=b;});
   tps.forEach(function(tp){
     var tk=tp.tasks||{};
     if(tk.status==='cancel')return;
-    totalQty+=(tp.qty||0);
+    // For a bundle sale, this product's qty = part.qty × row qty
+    var effQty=(tp.qty||0);var viaBundle=false;
+    if(tp.bundle_id&&_bMap2[tp.bundle_id]){
+      viaBundle=true;
+      var pp=(_bMap2[tp.bundle_id].parts||[]).find(function(pt){return pt.inventory_id===invId;});
+      effQty=(pp?(pp.qty||1):1)*(tp.qty||1);
+    }
+    totalQty+=effQty;
     var stLabel={pending:'معلق',progress:'يتم',field_done:'مكتمل',done:'مكتمل مع تقرير',completed:'مكتمل'}[tk.status]||tk.status||'-';
-    rows+='<tr style="border-bottom:1px solid #f0f0e8"><td style="padding:8px">'+(tk.task_num||'-')+'</td><td style="padding:8px">'+(tk.customer_name||'-')+'</td><td style="padding:8px">'+(tk.date||'-')+'</td><td style="padding:8px;text-align:center;font-weight:700">'+(tp.qty||0)+'</td><td style="padding:8px;font-size:11px;color:#888">'+stLabel+'</td></tr>';
+    rows+='<tr style="border-bottom:1px solid #f0f0e8"><td style="padding:8px">'+(tk.task_num||'-')+(viaBundle?' <span style="font-size:10px;color:#185FA5">📦</span>':'')+'</td><td style="padding:8px">'+(tk.customer_name||'-')+'</td><td style="padding:8px">'+(tk.date||'-')+'</td><td style="padding:8px;text-align:center;font-weight:700">'+effQty+'</td><td style="padding:8px;font-size:11px;color:#888">'+stLabel+'</td></tr>';
   });
 
   if(!rows)rows='<tr><td colspan="5" style="padding:20px;text-align:center;color:#aaa">لا توجد مبيعات</td></tr>';
@@ -4270,10 +4297,18 @@ async function loadInv(search,brand){
   if(search)q=q.or(('brand.ilike.%'+(search)+'%,model.ilike.%'+(search)+'%'));
   if(brand)q=q.eq('brand',brand);
   var{data}=await q;INV=data||[];body.innerHTML='';
-  // Sold count from task_products
+  // Sold count from task_products — counts direct products AND bundle parts
   var soldMap={};
-  var{data:soldData}=await db.from('task_products').select('inventory_id,qty,tasks!inner(type)').in('tasks.type',['sales']);
-  (soldData||[]).forEach(function(row){if(row.inventory_id)soldMap[row.inventory_id]=(soldMap[row.inventory_id]||0)+(row.qty||0);});
+  if(!BUNDLES.length){await loadBundles();}
+  var _bMap={};(BUNDLES||[]).forEach(function(b){_bMap[b.id]=b;});
+  var{data:soldData}=await db.from('task_products').select('inventory_id,bundle_id,qty,tasks!inner(type)').in('tasks.type',['sales']);
+  (soldData||[]).forEach(function(row){
+    if(row.bundle_id&&_bMap[row.bundle_id]){
+      (_bMap[row.bundle_id].parts||[]).forEach(function(pt){
+        if(pt.inventory_id)soldMap[pt.inventory_id]=(soldMap[pt.inventory_id]||0)+((pt.qty||1)*(row.qty||1));
+      });
+    }else if(row.inventory_id){soldMap[row.inventory_id]=(soldMap[row.inventory_id]||0)+(row.qty||0);}
+  });
   if(!data||!data.length){body.innerHTML='<tr><td colspan="10" style="text-align:center;padding:16px;color:#888">'+t('noproducts')+'</td></tr>';
     document.getElementById('iskus').textContent=0;document.getElementById('iunit').textContent=0;document.getElementById('ilow').textContent=0;return;}
   var low=0,units=0;
@@ -5608,7 +5643,7 @@ async function saveTask(){
     installation_status:null
   }).select().single();
   if(te){toast('Error: '+te.message,true);return;}
-  var rows=taskRows.map(function(r){return{task_id:task.id,name:r.name,qty:r.qty,price:r.price,inventory_id:r.pid||null};});
+  var rows=taskRows.map(function(r){return{task_id:task.id,name:r.name,qty:r.qty,price:r.price,inventory_id:r.pid||null,bundle_id:r.bundleId||null};});
   if(rows.length){
     var{error:re}=await db.from('task_products').insert(rows);
     if(re){toast('Error saving products: '+re.message,true);return;}
