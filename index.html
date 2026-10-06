@@ -237,7 +237,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
 <div class="mn">
 <div class="tb">
   <button class="hamburger" onclick="toggleSidebar()" style="display:none;background:none;border:none;font-size:22px;cursor:pointer;padding:4px 10px;color:#333">&#9776;</button>
-  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-10-05b</span>
+  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-10-06</span>
   <div style="display:flex;align-items:center;gap:8px"><div class="lang-btns"><button class="lbtn on" onclick="setLang('en',this)">EN</button><button class="lbtn" onclick="setLang('ar',this)">عربي</button></div><div id="tact" style="display:flex;gap:7px"></div></div>
 </div>
 <div class="ct">
@@ -722,7 +722,9 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     <button id="inv-tab-ac" onclick="showInvTab('ac',this)" class="btn bp" style="font-size:12px">&#127968; AC Units</button>
     <button id="inv-tab-sp1" onclick="showInvTab('sp1',this)" class="btn bs" style="font-size:12px">&#128295; مخزن رئيسي</button>
     <button id="inv-tab-sp2" onclick="showInvTab('sp2',this)" class="btn bs" style="font-size:12px">&#128295; مخزن تجمع</button>
+    <button id="inv-tab-bundles" onclick="openBundles()" class="btn bs" style="font-size:12px">&#128230; الباقات المجمّعة</button>
   </div>
+  <div id="inv-bundles-section" style="display:none"></div>
   <div id="inv-ac-section">
   <div class="r3" style="margin-bottom:14px">
     <div class="sc"><div class="sl" data-t="totalskus">Total SKUs</div><div class="sv" id="iskus">—</div></div>
@@ -1115,6 +1117,19 @@ function cacheSet(key,val){_cache[key]={v:val,t:Date.now()};}
 function cacheClear(key){if(key)delete _cache[key];else _cache={};}
 
 let CU=null,CT=null,scid=null,ssid=null,INV=[],PFO=false,TASK_PAGE=0,TASK_PAGE_SIZE=50,TASK_HAS_MORE=false;
+let BUNDLES=[];
+async function loadBundles(){try{var r=await db.from('product_bundles').select('*').eq('active',true);BUNDLES=r.data||[];}catch(e){BUNDLES=[];}}
+// available stock of a bundle = smallest of its parts' quantities
+function bundleStock(b){
+  if(!b||!b.parts||!b.parts.length)return 0;
+  var min=Infinity;
+  b.parts.forEach(function(pt){
+    var iv=INV.find(function(p){return p.id===pt.inventory_id;});
+    var avail=iv?Math.floor((iv.qty||0)/(pt.qty||1)):0;
+    if(avail<min)min=avail;
+  });
+  return min===Infinity?0:min;
+}
 const f=n=>'EGP '+Math.round(n||0).toLocaleString();
 const ini=n=>(n||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
 function toast(m,e){const t=document.getElementById('tst');t.textContent=m;t.style.background=e?'#A32D2D':'#111';t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2800);}
@@ -4162,6 +4177,91 @@ async function showProductSales(invId,prodName){
     +'<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="background:#f7f6f1"><th style="padding:8px;text-align:right">رقم الطلب</th><th style="padding:8px;text-align:right">العميل</th><th style="padding:8px;text-align:right">التاريخ</th><th style="padding:8px;text-align:center">الكمية</th><th style="padding:8px;text-align:right">الحالة</th></tr></thead><tbody>'+rows+'</tbody></table>'
     +'<div style="text-align:left;margin-top:16px"><button onclick="this.closest(\'div\').parentElement.parentElement.remove()" style="background:#888;color:#fff;border:none;border-radius:8px;padding:8px 20px;font-size:13px;cursor:pointer">إغلاق</button></div>';
 }
+// ── PRODUCT BUNDLES (combined outdoor+indoor AC) ──────────────
+async function openBundles(){
+  if(!CU||!['owner','admin','inventory_manager'].includes(CU.role)){toast('غير مسموح',true);return;}
+  // hide other inv sections, show bundles
+  ['inv-ac-section','inv-sp-section'].forEach(function(id){var e=document.getElementById(id);if(e)e.style.display='none';});
+  document.querySelectorAll('[id^="inv-tab-"]').forEach(function(b){b.className='btn bs';b.style.fontSize='12px';});
+  var bb=document.getElementById('inv-tab-bundles');if(bb){bb.className='btn bp';bb.style.fontSize='12px';}
+  var sec=document.getElementById('inv-bundles-section');if(!sec)return;sec.style.display='block';
+  if(!INV.length){var ir=await db.from('inventory').select('*');INV=ir.data||[];}
+  await loadBundles();
+  renderBundles();
+}
+function renderBundles(){
+  var sec=document.getElementById('inv-bundles-section');if(!sec)return;
+  var canEdit=['owner','admin','inventory_manager'].includes(CU.role);
+  var html='<div class="cd" style="padding:20px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">'
+      +'<div><div style="font-size:16px;font-weight:800">📦 الباقات المجمّعة</div>'
+        +'<div style="font-size:12px;color:#888;margin-top:2px">جهاز واحد مكوّن من وحدة خارجية + داخلية — عند بيعه يُخصم من الاثنين تلقائياً</div></div>'
+      +(canEdit?'<button onclick="bundleForm()" style="background:#0F6E56;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer">+ باقة جديدة</button>':'')
+    +'</div>';
+  if(!BUNDLES.length){html+='<div style="text-align:center;padding:30px;color:#aaa">لا توجد باقات بعد</div>';}
+  else{
+    html+='<div style="display:flex;flex-direction:column;gap:10px">';
+    BUNDLES.forEach(function(b){
+      var st=bundleStock(b);
+      var partsNames=(b.parts||[]).map(function(pt){var iv=INV.find(function(p){return p.id===pt.inventory_id;});return iv?((pt.qty||1)+'× '+[iv.brand,iv.model].filter(Boolean).join(' ')):'(غير موجود)';}).join(' + ');
+      html+='<div style="background:#fff;border:1px solid #e8e6e0;border-radius:12px;padding:14px">'
+        +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">'
+          +'<div><div style="font-weight:800;font-size:15px;color:#185FA5">📦 '+b.name+'</div>'
+          +'<div style="font-size:12px;color:#666;margin-top:3px">'+partsNames+'</div></div>'
+          +'<div style="text-align:left"><div style="font-weight:700">EGP '+Math.round(b.price||0).toLocaleString()+'</div><div style="font-size:12px;color:#0F6E56;font-weight:700;margin-top:2px">متاح: '+st+'</div></div>'
+        +'</div>'
+        +(canEdit?'<div style="display:flex;gap:8px;margin-top:10px"><button onclick="bundleForm(\''+b.id+'\')" style="background:#F4EFE2;color:#854F0B;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer">تعديل</button><button onclick="deleteBundle(\''+b.id+'\')" style="background:#FCEBEB;color:#A32D2D;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer">حذف</button></div>':'')
+      +'</div>';
+    });
+    html+='</div>';
+  }
+  html+='</div>';
+  sec.innerHTML=html;
+}
+function bundleForm(id){
+  var sec=document.getElementById('inv-bundles-section');if(!sec)return;
+  var b=id?BUNDLES.find(function(x){return x.id===id;}):null;
+  var acOpts=INV.map(function(p){var nm=[p.brand,p.model,p.hp].filter(Boolean).join(' ');return '<option value="'+p.id+'">'+nm+' (متاح '+(p.qty||0)+')</option>';}).join('');
+  var p1=b&&b.parts&&b.parts[0]?b.parts[0].inventory_id:'';
+  var p2=b&&b.parts&&b.parts[1]?b.parts[1].inventory_id:'';
+  var html='<div class="cd" style="padding:20px;max-width:560px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><div style="font-size:16px;font-weight:800">'+(b?'تعديل باقة':'+ باقة جديدة')+'</div>'
+      +'<button onclick="renderBundles()" style="background:#eee;border:none;border-radius:8px;padding:7px 14px;font-size:13px;cursor:pointer">رجوع</button></div>'
+    +'<div style="display:flex;flex-direction:column;gap:12px">'
+      +'<div><label style="font-size:12px;font-weight:700;color:#666">اسم الباقة *</label><input id="b-name" value="'+(b?(b.name||'').replace(/"/g,'&quot;'):'')+'" placeholder="مثال: ترين 1.5 بارد ساخن 6G (كامل)" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-top:4px"></div>'
+      +'<div><label style="font-size:12px;font-weight:700;color:#666">الوحدة الخارجية (الفانة) *</label><select id="b-part1" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-top:4px"><option value="">اختر...</option>'+acOpts+'</select></div>'
+      +'<div><label style="font-size:12px;font-weight:700;color:#666">الوحدة الداخلية (الكباس) *</label><select id="b-part2" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-top:4px"><option value="">اختر...</option>'+acOpts+'</select></div>'
+      +'<div><label style="font-size:12px;font-weight:700;color:#666">سعر البيع للباقة (ج.م)</label><input id="b-price" type="number" min="0" value="'+(b?(b.price||0):0)+'" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-top:4px"></div>'
+      +'<button onclick="saveBundle('+(b?('\''+b.id+'\''):'null')+')" style="background:#0F6E56;color:#fff;border:none;border-radius:8px;padding:11px;font-size:14px;font-weight:700;cursor:pointer">حفظ الباقة</button>'
+    +'</div></div>';
+  sec.innerHTML=html;
+  if(p1)document.getElementById('b-part1').value=p1;
+  if(p2)document.getElementById('b-part2').value=p2;
+}
+async function saveBundle(id){
+  if(!CU||!['owner','admin','inventory_manager'].includes(CU.role)){toast('غير مسموح',true);return;}
+  var name=document.getElementById('b-name').value.trim();
+  var p1=document.getElementById('b-part1').value;
+  var p2=document.getElementById('b-part2').value;
+  var price=parseFloat(document.getElementById('b-price').value)||0;
+  if(!name){toast('اكتب اسم الباقة',true);return;}
+  if(!p1||!p2){toast('اختر الوحدتين الخارجية والداخلية',true);return;}
+  if(p1===p2){toast('لا يمكن اختيار نفس الوحدة مرتين',true);return;}
+  var parts=[{inventory_id:p1,qty:1},{inventory_id:p2,qty:1}];
+  var payload={name:name,price:price,parts:parts,active:true,created_by:CU.full_name||CU.username};
+  var res=id?await db.from('product_bundles').update(payload).eq('id',id):await db.from('product_bundles').insert(payload);
+  if(res.error){toast('خطأ: '+res.error.message,true);return;}
+  toast('تم حفظ الباقة');
+  await loadBundles();renderBundles();
+}
+async function deleteBundle(id){
+  if(!CU||!['owner','admin'].includes(CU.role)){toast('فقط المالك أو المدير',true);return;}
+  if(!confirm('حذف هذه الباقة؟'))return;
+  await db.from('product_bundles').update({active:false}).eq('id',id);
+  toast('تم الحذف');await loadBundles();renderBundles();
+}
+// ── END BUNDLES ──────────────────────────────────────────────
+
 async function loadInv(search,brand){
   var body=document.getElementById('invb');
   if(!body)return;
@@ -5397,12 +5497,13 @@ async function saveTask(){
     var q2=parseFloat(tr2.querySelector('td:nth-child(2) input')?.value)||0;
     var p2=parseFloat(tr2.querySelector('td:nth-child(3) input')?.value)||0;
     if(q2>0){
-      var nm2='',pid2=null,isService=false;
+      var nm2='',pid2=null,isService=false,bundleId=null;
       if(inp2){nm2=inp2.value.trim()||'Product';pid2=(tr2.dataset&&tr2.dataset.invId)||inp2.dataset.invId||null;
+        bundleId=(tr2.dataset&&tr2.dataset.bundleId)||inp2.dataset.bundleId||null;
         // Service/labor lines (e.g. the auto-added تركيب row) are not inventory products
         isService=(tr2.dataset&&tr2.dataset.service==='1')||(inp2.dataset&&inp2.dataset.service==='1');}
       else if(sel2){nm2=sel2.value||'Service';pid2=null;isService=true;}
-      taskRows.push({name:nm2,qty:q2,price:p2,pid:pid2,service:isService});
+      taskRows.push({name:nm2,qty:q2,price:p2,pid:pid2,service:isService,bundleId:bundleId});
     }
   });
   var taskDate=document.getElementById('ntdate')?.value||'';
@@ -5420,7 +5521,7 @@ async function saveTask(){
     if(INV&&INV.length){
       var normName=function(s){return (s||'').toString().toLowerCase().replace(/hp|ح|حصان/g,' ').replace(/[^0-9a-z؀-ۿ.]+/g,' ').replace(/\s+/g,' ').trim();};
       taskRows.forEach(function(r){
-        if(r.pid||!r.name||r.service)return;
+        if(r.pid||r.bundleId||!r.name||r.service)return;
         var target=normName(r.name);
         if(!target)return;
         var m=INV.find(function(p){
@@ -5430,7 +5531,7 @@ async function saveTask(){
         if(m)r.pid=m.id;
       });
     }
-    var _unlinked=taskRows.filter(function(r){return r.qty>0&&!r.pid&&!r.service;});
+    var _unlinked=taskRows.filter(function(r){return r.qty>0&&!r.pid&&!r.service&&!r.bundleId;});
     if(_unlinked.length){
       var _names=_unlinked.map(function(r){return r.name;}).join('، ');
       toast(LANG==='ar'
@@ -5516,7 +5617,17 @@ async function saveTask(){
   if(taskType==='sales'){
     for(var ri=0;ri<taskRows.length;ri++){
       var rr=taskRows[ri];
-      if(rr.pid){
+      if(rr.bundleId){
+        // Bundle: deduct each part (part.qty × row qty)
+        var b=(BUNDLES||[]).find(function(x){return x.id===rr.bundleId;});
+        if(b&&b.parts){
+          for(var bi=0;bi<b.parts.length;bi++){
+            var pt=b.parts[bi];if(!pt.inventory_id)continue;
+            var{data:pRow}=await db.from('inventory').select('qty').eq('id',pt.inventory_id).single();
+            if(pRow)await db.from('inventory').update({qty:(pRow.qty||0)-((pt.qty||1)*rr.qty)}).eq('id',pt.inventory_id);
+          }
+        }
+      }else if(rr.pid){
         var{data:invRow}=await db.from('inventory').select('qty').eq('id',rr.pid).single();
         if(invRow)await db.from('inventory').update({qty:(invRow.qty||0)-rr.qty}).eq('id',rr.pid);
       }
@@ -5535,6 +5646,7 @@ async function addRow(){
   var taxStyle=useTax?'':'display:none';
   if(isSales2){
     if(!INV.length){var ir=await db.from('inventory').select('*');INV=ir.data||[];}
+    if(!BUNDLES.length){await loadBundles();}
     var tr=document.createElement('tr');
     var td0=document.createElement('td');td0.style.cssText='position:relative;min-width:220px';
     var srchInp=document.createElement('input');
@@ -5544,9 +5656,28 @@ async function addRow(){
     var dd=document.createElement('div');
     dd.style.cssText='display:none;position:fixed;background:#fff;border:1px solid #ccc;border-radius:6px;z-index:9999;max-height:240px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.18);min-width:320px';
     function showItems(q){
-      var fil=INV.filter(function(p){var nm=(p.brand+' '+p.model+' '+p.hp+' '+(p.unit_type||'')+' '+(p.cooling||'')+' '+(p.ac_type||'')).toLowerCase();return !q||nm.includes(q.toLowerCase());});
       dd.innerHTML='';
-      if(!fil.length){dd.innerHTML='<div style="padding:8px 10px;color:#888;font-size:12px">No products found</div>';return;}
+      // Bundles first (📦) — picking one deducts all its parts
+      var qb=(q||'').toLowerCase();
+      var fb=(BUNDLES||[]).filter(function(b){return !qb||(b.name||'').toLowerCase().includes(qb);});
+      fb.forEach(function(b){
+        var st=bundleStock(b);
+        var item=document.createElement('div');
+        item.style.cssText='padding:8px 12px;cursor:pointer;font-size:12px;border-bottom:1px solid #f0f0e8;display:flex;justify-content:space-between;align-items:center;background:#f0f9ff';
+        item.innerHTML='<span style="font-weight:700;color:#185FA5">📦 '+b.name+'</span><span style="color:#888;font-size:11px;margin-left:8px;white-space:nowrap">متاح: '+st+' | EGP '+Math.round(b.price||0).toLocaleString()+'</span>';
+        item.onmouseenter=function(){this.style.background='#e3eef9';};item.onmouseleave=function(){this.style.background='#f0f9ff';};
+        var pickB=function(e){
+          if(e){e.preventDefault();e.stopPropagation();}
+          srchInp.value='📦 '+b.name;srchInp.dataset.price=b.price||0;srchInp.dataset.invId='';srchInp.dataset.bundleId=b.id;srchInp.dataset.stock=st;srchInp.style.borderColor='#185FA5';dd.style.display='none';
+          tr.dataset.invId='';tr.dataset.bundleId=b.id;tr.dataset.invName='📦 '+b.name;
+          var priceInp=tr.querySelector('td:nth-child(3) input');var qtyInp=tr.querySelector('td:nth-child(2) input');
+          if(priceInp){priceInp.value=Math.round(b.price||0);calcR(priceInp);}if(qtyInp)chkStk(qtyInp);
+        };
+        item.onmousedown=pickB;item.ontouchstart=pickB;item.onclick=pickB;
+        dd.appendChild(item);
+      });
+      var fil=INV.filter(function(p){var nm=(p.brand+' '+p.model+' '+p.hp+' '+(p.unit_type||'')+' '+(p.cooling||'')+' '+(p.ac_type||'')).toLowerCase();return !q||nm.includes(q.toLowerCase());});
+      if(!fil.length&&!fb.length){dd.innerHTML='<div style="padding:8px 10px;color:#888;font-size:12px">No products found</div>';return;}
       fil.forEach(function(p){
         var nm=(p.brand+' '+p.model+' '+p.hp+' '+(p.unit_type||'')+' '+(p.cooling||'')+' '+(p.ac_type||'')).trim().replace(/\s+/g,' ');
         var item=document.createElement('div');
@@ -5567,7 +5698,7 @@ async function addRow(){
       });
     }
     function posDD(){var rect=srchInp.getBoundingClientRect();dd.style.top=(rect.bottom+4)+'px';dd.style.left=rect.left+'px';dd.style.width=Math.max(rect.width,340)+'px';}
-    srchInp.addEventListener('input',function(){tr.dataset.invId='';srchInp.dataset.invId='';srchInp.style.borderColor='#ccc';posDD();showItems(this.value);dd.style.display='block';});
+    srchInp.addEventListener('input',function(){tr.dataset.invId='';tr.dataset.bundleId='';srchInp.dataset.invId='';srchInp.dataset.bundleId='';srchInp.style.borderColor='#ccc';posDD();showItems(this.value);dd.style.display='block';});
     srchInp.addEventListener('focus',function(){posDD();showItems(this.value);dd.style.display='block';});
     srchInp.addEventListener('blur',function(){setTimeout(function(){dd.style.display='none';},200);});
     window.addEventListener('scroll',function(){if(dd.style.display!=='none')posDD();},true);
@@ -5731,6 +5862,7 @@ function showInvTab(tab,btn){
   if(btn){btn.className='btn bp';btn.style.fontSize='12px';}
   var acSec=document.getElementById('inv-ac-section');
   var spSec=document.getElementById('inv-sp-section');
+  var bSec=document.getElementById('inv-bundles-section');if(bSec)bSec.style.display='none';
   if(acSec)acSec.style.display=tab==='ac'?'':'none';
   if(spSec)spSec.style.display=(tab==='sp1'||tab==='sp2')?'':'none';
   if(tab==='ac'){
