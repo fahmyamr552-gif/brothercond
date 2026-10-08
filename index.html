@@ -3228,7 +3228,7 @@ async function refundDirectSale(dispId){
     if(!CU||!['owner','inventory_manager','finance'].includes(CU.role)){toast('غير مسموح',true);return;}
     var{data:disp}=await db.from('dispatches').select('*').eq('id',dispId).single();
     if(!disp){toast('غير موجود',true);return;}
-    if(disp.status==='returned'){toast('تم استرجاعه بالفعل',true);return;}
+    if(disp.return_num){toast('تم استرجاعه بالفعل — '+disp.return_num,true);return;}
     if(disp.dispatch_type!=='بيع مباشر'){toast('الاسترجاع متاح للبيع المباشر فقط',true);return;}
     if(!confirm('تأكيد استرجاع هذا البيع؟ سيتم إرجاع القطع للمخزون وإلغاء البيع (مع الاحتفاظ بالسجل كمرتجع).'))return;
     var{data:items}=await db.from('dispatch_items').select('*').eq('dispatch_id',dispId);
@@ -3239,13 +3239,15 @@ async function refundDirectSale(dispId){
       var{data:sp}=await db.from('spare_parts').select('qty').eq('id',it.part_id).single();
       if(sp)await db.from('spare_parts').update({qty:(sp.qty||0)+(it.qty_out||0)}).eq('id',it.part_id);
     }
-    // 2) find linked sale task, compute refunded amount, cancel it + void payments
-    var{data:linkedTasks}=await db.from('tasks').select('id,task_num,customer_name').eq('type','بيع مباشر').eq('date',disp.date).eq('created_by',disp.created_by).order('created_at',{ascending:false});
+    // 2) find linked sale task by the RELIABLE stored link (never guess by date+creator)
+    var linkedTasks=null;
+    if(disp.linked_task_id){var r0=await db.from('tasks').select('id,task_num,customer_name').eq('id',disp.linked_task_id).limit(1);linkedTasks=r0.data;}
     var refundAmount=0,custName='',taskNum='';
     if(linkedTasks&&linkedTasks.length){
       var tk=linkedTasks[0];custName=tk.customer_name||'';taskNum=tk.task_num||'';
-      var{data:tprods}=await db.from('task_products').select('qty,price').eq('task_id',tk.id);
-      (tprods||[]).forEach(function(p){refundAmount+=(p.qty||0)*(p.price||0);});
+      // Refund = what the customer ACTUALLY PAID (sum of payments), not the price list.
+      var{data:pays}=await db.from('payments').select('amount').eq('task_id',tk.id);
+      (pays||[]).forEach(function(p){refundAmount+=(parseFloat(p.amount)||0);});
       await db.from('tasks').update({status:'cancel',pay_status:'unpaid'}).eq('id',tk.id);
       try{await db.from('payments').delete().eq('task_id',tk.id);}catch(e){}
     }
@@ -3253,10 +3255,22 @@ async function refundDirectSale(dispId){
     var{data:lastRet}=await db.from('dispatches').select('return_num').not('return_num','is',null).order('returned_at',{ascending:false}).limit(1);
     var lastN=lastRet&&lastRet.length?parseInt((lastRet[0].return_num||'0').replace(/[^0-9]/g,''))||0:0;
     var retNum='RET-'+String(lastN+1).padStart(5,'0');
-    // 4) mark dispatch as returned (record kept)
-    await db.from('dispatches').update({status:'returned',return_num:retNum,returned_at:new Date().toISOString(),returned_by:CU.full_name||CU.username,refund_amount:refundAmount}).eq('id',dispId);
+    // 4) Create a SEPARATE return dispatch record (original sale dispatch stays untouched).
+    var nowISO=new Date().toISOString();
+    var{data:retDisp}=await db.from('dispatches').insert({
+      dispatch_num:retNum,return_num:retNum,dispatch_type:'مرتجع',status:'returned',
+      technician_name:'مرتجع',customer_name:custName,task_num:taskNum,linked_task_id:disp.linked_task_id||null,
+      date:nowISO.slice(0,10),warehouse:disp.warehouse||'',notes:'مرتجع للبيع '+(disp.dispatch_num||''),
+      created_by:CU.full_name||CU.username,returned_at:nowISO,returned_by:CU.full_name||CU.username,refund_amount:refundAmount
+    }).select().single();
+    // copy the returned items onto the return dispatch for the record
+    if(retDisp){
+      try{await db.from('dispatch_items').insert(items.map(function(it){return{dispatch_id:retDisp.id,part_id:it.part_id,part_name:it.part_name,unit:it.unit,qty_out:it.qty_out,qty_returned:it.qty_out,cost_per_unit:it.cost_per_unit};}));}catch(e){}
+    }
+    // tag the original dispatch as "has a return" without changing its status
+    await db.from('dispatches').update({return_num:retNum}).eq('id',dispId);
     document.querySelectorAll('.disp-overlay').forEach(function(e){e.remove();});
-    toast('تم الاسترجاع — رقم المرتجع '+retNum);
+    toast('تم إنشاء مرتجع منفصل — رقم '+retNum);
     // 5) open printable return receipt
     printReturnReceipt({retNum:retNum,date:new Date().toISOString().slice(0,10),customer:custName,taskNum:taskNum,
       warehouse:disp.warehouse||'',by:CU.full_name||CU.username,amount:refundAmount,
@@ -3745,7 +3759,7 @@ async function loadDispatches(){
   var rows=(pendingSection+otherDisps.map(dispCard).join(''));
   var newBtn=(CU.role==='inventory_manager'||CU.role==='owner')
     ?('<button onclick="openNewDispatch()" style="padding:8px 18px;font-size:13px;border:none;border-radius:8px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:700">+ New Dispatch</button>'):'';
-  var typeFilterOpts=[['','كل الأنواع'],['عادي','عادي'],['بيع مباشر','بيع مباشر'],['مستهلك','مستهلك'],['عهدة','عهدة']]
+  var typeFilterOpts=[['','كل الأنواع'],['عادي','عادي'],['بيع مباشر','بيع مباشر'],['مرتجع','مرتجع'],['مستهلك','مستهلك'],['عهدة','عهدة']]
     .map(function(o){return '<option value="'+o[0]+'"'+((window._dsTypeFilter||'')===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('');
   body.innerHTML='<div style="padding:20px">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:10px">'
@@ -4212,17 +4226,17 @@ async function openDispatch(id){
   printDispBtn.onclick=function(){printSparePartsDispatch(id);};
   ftr.appendChild(printDispBtn);
   // Refund/return for direct sales — returns parts to stock + cancels sale (keeps record)
-  if(disp.dispatch_type==='بيع مباشر'&&disp.status!=='returned'&&CU&&(CU.role==='owner'||CU.role==='inventory_manager'||CU.role==='finance')){
+  if(disp.dispatch_type==='بيع مباشر'&&!disp.return_num&&CU&&(CU.role==='owner'||CU.role==='inventory_manager'||CU.role==='finance')){
     var refundBtn=document.createElement('button');
     refundBtn.innerHTML='&#8617; استرجاع ومرتجع';refundBtn.className='btn bs';
     refundBtn.style.cssText='border-color:#854F0B;color:#854F0B;background:#FFF8E1;margin-right:auto';
     refundBtn.onclick=function(){refundDirectSale(id);};
     ftr.insertBefore(refundBtn,ftr.firstChild);
   }
-  if(disp.dispatch_type==='بيع مباشر'&&disp.status==='returned'){
+  if(disp.dispatch_type==='بيع مباشر'&&disp.return_num){
     var retLbl=document.createElement('div');
     retLbl.style.cssText='margin-right:auto;font-size:12px;font-weight:700;color:#A32D2D;align-self:center';
-    retLbl.textContent='↩️ تم الاسترجاع';
+    retLbl.textContent='↩️ تم الاسترجاع — '+disp.return_num;
     ftr.insertBefore(retLbl,ftr.firstChild);
   }
   if(CU&&CU.role==='owner'){
