@@ -3711,8 +3711,11 @@ async function loadDispatches(){
   var isHussein=CU&&(CU.role==='inventory_manager'||CU.role==='owner'||CU.role==='finance');
   if(!isHussein){body.innerHTML='<div style="padding:40px;text-align:center;color:#888">Access restricted to Inventory Manager, Finance and Owner.</div>';return;}
   body.innerHTML='<div style="padding:20px;text-align:center;color:#888">Loading...</div>';
-  var{data:disps}=await db.from('dispatches').select('*').order('created_at',{ascending:false}).limit(50);
+  var{data:disps}=await db.from('dispatches').select('*').order('created_at',{ascending:false}).limit(10000);
   disps=disps||[];
+  // apply type filter
+  var _ft=window._dsTypeFilter||'';
+  if(_ft)disps=disps.filter(function(d){return (d.dispatch_type||'عادي')===_ft;});
   var statusColor={open:'#854F0B',pending_confirm:'#185FA5',confirmed:'#3B6D11'};
   var statusLabel={open:td('Open'),pending_confirm:td('Pending Approval'),confirmed:'مؤكد',partial:'مُستردة جزئياً',returned:'مُستردة كاملاً'};
   var isApprover=CU&&(CU.role==='owner'||CU.role==='finance');
@@ -3742,12 +3745,14 @@ async function loadDispatches(){
   var rows=(pendingSection+otherDisps.map(dispCard).join(''));
   var newBtn=(CU.role==='inventory_manager'||CU.role==='owner')
     ?('<button onclick="openNewDispatch()" style="padding:8px 18px;font-size:13px;border:none;border-radius:8px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:700">+ New Dispatch</button>'):'';
+  var typeFilterOpts=[['','كل الأنواع'],['عادي','عادي'],['بيع مباشر','بيع مباشر'],['مستهلك','مستهلك'],['عهدة','عهدة']]
+    .map(function(o){return '<option value="'+o[0]+'"'+((window._dsTypeFilter||'')===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('');
   body.innerHTML='<div style="padding:20px">'
-    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">'
-      +'<div style="font-size:18px;font-weight:700">'+td('Dispatch Sessions')+'</div>'
-      +newBtn
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:10px">'
+      +'<div style="font-size:18px;font-weight:700">'+td('Dispatch Sessions')+' <span style="font-size:12px;color:#888;font-weight:400">('+disps.length+')</span></div>'
+      +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><select onchange="window._dsTypeFilter=this.value;loadDispatches()" style="padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px">'+typeFilterOpts+'</select>'+newBtn+'</div>'
     +'</div>'
-    +(rows||'<div style="padding:20px;text-align:center;color:#888">No dispatches yet.</div>')
+    +(rows||'<div style="padding:20px;text-align:center;color:#888">لا توجد نتائج</div>')
     +'</div>';
 }
 
