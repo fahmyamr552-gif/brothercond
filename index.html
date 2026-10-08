@@ -4004,6 +4004,12 @@ async function saveNewDispatch(){
       description:'بيع مباشر - '+warehouse
     }).select().single();
     if(st.error||!st.data){toast('خطأ في إنشاء الطلب: '+(st.error?.message||''),true);resetBtn();return;}
+    // Directly link task <-> dispatch so they always find each other (even with
+    // multiple same-day sales by the same person)
+    try{
+      await db.from('tasks').update({dispatch_id:disp.id}).eq('id',st.data.id);
+      await db.from('dispatches').update({task_num:taskNum,linked_task_id:st.data.id}).eq('id',disp.id);
+    }catch(e){}
     // Task products (store pre-tax price)
     var tProds=items.map(function(it){return{task_id:st.data.id,name:it.part_name,qty:it.qty_out,price:it.unit_price};});
     if(tProds.length)await db.from('task_products').insert(tProds);
@@ -4151,9 +4157,13 @@ async function openDispatch(id){
   });
   // For بيع مباشر - show customer + task info
   if(disp.dispatch_type==='بيع مباشر'){
-    // Find linked task
-    var{data:linkedTask}=await db.from('tasks').select('id,task_num,customer_name,pay_status,type').eq('type','بيع مباشر').eq('date',disp.date).eq('created_by',disp.created_by).order('created_at',{ascending:false}).limit(1);
-    var task=linkedTask&&linkedTask.length?linkedTask[0]:null;
+    // Find linked task ONLY by the stored direct link — never guess by date+creator
+    // (guessing picked the wrong same-day sale and showed the wrong customer).
+    var task=null;
+    if(disp.linked_task_id){
+      var{data:lt0}=await db.from('tasks').select('id,task_num,customer_name,pay_status,type').eq('id',disp.linked_task_id).limit(1);
+      if(lt0&&lt0.length)task=lt0[0];
+    }
     var saleDiv=document.createElement('div');
     saleDiv.style.cssText='background:#f0f9ff;border:1px solid #b3d9f7;border-radius:10px;padding:14px;margin-bottom:12px';
     var psColors={paid:'#3B6D11',downpayment:'#854F0B',unpaid:'#A32D2D'};
@@ -4164,7 +4174,10 @@ async function openDispatch(id){
         +'<span style="font-size:13px;font-weight:600">'+task.customer_name+'</span>'
         +'<span style="font-size:11px;padding:2px 8px;border-radius:6px;font-weight:700;background:'+(psColors[task.pay_status]||'#888')+'22;color:'+(psColors[task.pay_status]||'#888')+'">'+task.pay_status+'</span>'
         +'<button data-tid="'+task.id+'" onclick="openTask(this.dataset.tid)" style="margin-left:auto;font-size:11px;padding:4px 12px;border:1px solid #185FA5;border-radius:6px;background:#fff;color:#185FA5;cursor:pointer">فتح الطلب &#8594;</button>'
-        +'</div>':'')
+        +'</div>'
+        :(disp.customer_name
+            ?'<div style="margin-bottom:6px"><span style="font-size:13px;font-weight:600">'+disp.customer_name+'</span></div>'
+            :'<div style="margin-bottom:6px;background:#FFF8E1;border:1px solid #F5A623;border-radius:6px;padding:6px 10px;font-size:12px;color:#8a6a1e;font-weight:700">⚠️ غير مرتبط بطلب بيع — لا يوجد عميل مسجّل</div>'))
       +'<div style="font-size:11px;color:#888">المخزن: '+disp.warehouse+'</div>';
     body.appendChild(saleDiv);
   }
