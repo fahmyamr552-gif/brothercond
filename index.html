@@ -8258,7 +8258,8 @@ async function openAttendance(){
 function renderAttShell(){
   var body=document.getElementById('att-body');
   if(!body)return;
-  var canEdit=CU&&(CU.role==='owner'||CU.role==='admin');
+  var _attDailyUsers=['heba'];
+  var canEdit=CU&&(CU.role==='owner'||CU.role==='admin'||_attDailyUsers.includes(CU.username));
   var tab=window._attTab||'sheet';
   var html='<div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:2px solid #e0ddd8">'
     +(canEdit?'<div onclick="switchAttTab(\'sheet\')" style="padding:10px 20px;cursor:pointer;font-size:14px;font-weight:600;'+(tab==='sheet'?'color:#0F6E56;border-bottom:2px solid #0F6E56':'color:#888;border-bottom:2px solid transparent')+';margin-bottom:-2px">📅 كشف اليوم</div>':'')
@@ -8318,7 +8319,8 @@ function setAllAtt(status){
 }
 
 async function saveAttSheet(){
-  if(!CU||(CU.role!=='owner'&&CU.role!=='admin')){toast('غير مسموح',true);return;}
+  var _attDailyUsers=['heba'];
+  if(!CU||(CU.role!=='owner'&&CU.role!=='admin'&&!_attDailyUsers.includes(CU.username))){toast('غير مسموح',true);return;}
   var date=window._attDate;
   var rows=document.querySelectorAll('#att-sheet-body tr');
   toast('جاري الحفظ...');
