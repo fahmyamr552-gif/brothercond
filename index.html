@@ -7883,7 +7883,7 @@ async function loadDeductions(){
   body.innerHTML='<div style="text-align:center;padding:30px;color:#888">جاري التحميل...</div>';
   var empOptions='';
   if(isOwner){
-    var er=await db.from('employees').select('full_name').order('full_name');
+    var er=await db.from('employees').select('full_name').eq('active',true).order('full_name');
     var emps=er.data||[];
     empOptions=emps.map(function(e){return '<option value="'+(e.full_name||'')+'">'+(e.full_name||'')+'</option>';}).join('');
   }
@@ -8186,7 +8186,7 @@ async function loadPayrollData(){
   if(!body)return;
   var isOwner=CU&&CU.role==='owner';
   body.innerHTML='<div style="text-align:center;padding:30px;color:#888">جاري التحميل...</div>';
-  var er=await db.from('employees').select('id,full_name,position').order('full_name');
+  var er=await db.from('employees').select('id,full_name,position').eq('active',true).order('full_name');
   var emps=er.data||[];
   var empOpts=emps.map(function(e){return '<option value="'+e.id+'" data-name="'+(e.full_name||'')+'">'+(e.full_name||'')+'</option>';}).join('');
   var thisMonth=new Date().toISOString().slice(0,7);
@@ -8327,7 +8327,7 @@ async function loadSalaryCalc(){
   var year=parseInt(month.slice(0,4));
 
   // Employees
-  var er=await db.from('employees').select('id,full_name').order('full_name');
+  var er=await db.from('employees').select('id,full_name').eq('active',true).order('full_name');
   var emps=er.data||[];
   // Payroll fixed
   var pr=await db.from('payroll').select('*').limit(5000);
@@ -8463,7 +8463,7 @@ async function loadAttSheet(){
   c.innerHTML='<div style="text-align:center;padding:30px;color:#888">جاري...</div>';
   var today=window._attDate||new Date().toISOString().slice(0,10);
   window._attDate=today;
-  var er=await db.from('employees').select('id,full_name,position').order('full_name');
+  var er=await db.from('employees').select('id,full_name,position').eq('active',true).order('full_name');
   var emps=er.data||[];
   // existing attendance for that day
   var ar=await db.from('attendance').select('*').eq('date',today);
@@ -8592,6 +8592,18 @@ function printAttDoc(title,headHtml,bodyHtml){
 async function loadAttReport(){
   var c=document.getElementById('att-content');
   if(!c)return;
+  // Finance can only view the monthly report during days 3–10 (payroll is on the 5th)
+  if(CU&&CU.role==='finance'){
+    var today=new Date().getDate();
+    if(today<3||today>10){
+      c.innerHTML='<div class="cd" style="padding:40px;text-align:center">'
+        +'<div style="font-size:40px;margin-bottom:10px">🔒</div>'
+        +'<div style="font-size:16px;font-weight:800;margin-bottom:6px">التقرير الشهري غير متاح حالياً</div>'
+        +'<div style="font-size:13px;color:#888;line-height:1.8">يظهر تقرير الحضور للمالية من يوم 3 إلى يوم 10 من كل شهر<br>(قبل صرف الرواتب في يوم 5)</div>'
+      +'</div>';
+      return;
+    }
+  }
   c.innerHTML='<div style="text-align:center;padding:30px;color:#888">جاري...</div>';
   var month=window._attMonth||new Date().toISOString().slice(0,7);
   window._attMonth=month;
@@ -8600,8 +8612,8 @@ async function loadAttReport(){
   var _mp=month.split('-');var _y=parseInt(_mp[0]);var _m=parseInt(_mp[1]);var _ny=_m===12?_y+1:_y;var _nm=_m===12?1:_m+1;var nextMonth=_ny+'-'+String(_nm).padStart(2,'0')+'-01';
   var ar=await db.from('attendance').select('*').gte('date',month+'-01').lt('date',nextMonth).limit(20000);
   var att=ar.data||[];
-  // Fetch employees
-  var er=await db.from('employees').select('id,full_name').order('full_name');
+  // Fetch employees (active only — deactivated staff drop out of attendance & payroll)
+  var er=await db.from('employees').select('id,full_name').eq('active',true).order('full_name');
   var emps=er.data||[];
   // Fetch payroll for annual leave + daily rate
   var pr=await db.from('payroll').select('*').limit(5000);
