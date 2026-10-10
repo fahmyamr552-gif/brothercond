@@ -8614,13 +8614,17 @@ async function loadAttReport(){
   var lyr=await db.from('leave_usage').select('*').eq('year',parseInt(year));
   var leaveThisYear={};(lyr.data||[]).forEach(function(l){leaveThisYear[l.employee_id]=(leaveThisYear[l.employee_id]||0)+(l.days_deducted||0);});
 
+  window._attDetail={}; // employee_id -> {status -> [dates]} for drill-down
   var rows=emps.map(function(e){
     var myAtt=att.filter(function(a){return a.employee_id===e.id;});
-    var present=myAtt.filter(function(a){return a.status==='حاضر';}).length;
-    var absent=myAtt.filter(function(a){return a.status==='غائب';}).length;
-    var leave=myAtt.filter(function(a){return a.status==='إجازة';}).length;
-    var late=myAtt.filter(function(a){return a.status==='متأخر';}).length;
-    var half=myAtt.filter(function(a){return a.status==='نصف يوم';}).length;
+    var byStatus={};myAtt.forEach(function(a){if(!byStatus[a.status])byStatus[a.status]=[];byStatus[a.status].push(a.date);});
+    Object.keys(byStatus).forEach(function(k){byStatus[k].sort();});
+    window._attDetail[e.id]={name:e.full_name||'-',byStatus:byStatus};
+    var present=(byStatus['حاضر']||[]).length;
+    var absent=(byStatus['غائب']||[]).length;
+    var leave=(byStatus['إجازة']||[]).length;
+    var late=(byStatus['متأخر']||[]).length;
+    var half=(byStatus['نصف يوم']||[]).length;
     var p=payMap[e.id]||{annual_leave:21,base_salary:0};
     var annualTotal=p.annual_leave||21;
     var usedYear=leaveThisYear[e.id]||0;
@@ -8630,13 +8634,17 @@ async function loadAttReport(){
     var monthLeft=Math.max(0,2-usedMonth); // 2/month cap
     var canDeduct=isOwner&&monthLeft>0&&remaining>0&&(absent+leave)>0;
     var btnCell=isOwner?('<td style="padding:8px 10px">'+(monthLeft>0&&remaining>0?'<button data-eid="'+e.id+'" data-ename="'+(e.full_name||'')+'" data-abs="'+(absent+leave)+'" data-maxm="'+monthLeft+'" data-rem="'+remaining+'" data-daily="'+Math.round((p.base_salary||0)/30)+'" onclick="openLeaveDeduct(this)" style="background:#EF9F27;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;cursor:pointer;font-weight:700">احتساب</button>':'<span style="font-size:11px;color:#aaa">'+(remaining<=0?'انتهى الرصيد':'تم هذا الشهر')+'</span>')+'</td>'):'';
+    var cell=function(n,color,status){
+      if(!n)return '<td style="padding:8px 10px;text-align:center;color:#ccc">0</td>';
+      return '<td style="padding:8px 10px;text-align:center"><span onclick="showAttDays(\''+e.id+'\',\''+status+'\')" style="color:'+color+';font-weight:700;cursor:pointer;text-decoration:underline;text-underline-offset:2px">'+n+'</span></td>';
+    };
     return '<tr>'
       +'<td style="padding:8px 10px;font-weight:600">'+(e.full_name||'-')+'</td>'
-      +'<td style="padding:8px 10px;text-align:center;color:#0F6E56">'+present+'</td>'
-      +'<td style="padding:8px 10px;text-align:center;color:#A32D2D">'+absent+'</td>'
-      +'<td style="padding:8px 10px;text-align:center;color:#185FA5">'+leave+'</td>'
-      +'<td style="padding:8px 10px;text-align:center;color:#854F0B">'+late+'</td>'
-      +'<td style="padding:8px 10px;text-align:center;color:#3C3489">'+half+'</td>'
+      +cell(present,'#0F6E56','حاضر')
+      +cell(absent,'#A32D2D','غائب')
+      +cell(leave,'#185FA5','إجازة')
+      +cell(late,'#854F0B','متأخر')
+      +cell(half,'#3C3489','نصف يوم')
       +'<td style="padding:8px 10px;text-align:center;font-weight:700;color:'+balColor+'">'+remaining+' / '+annualTotal+'</td>'
       +btnCell
     +'</tr>';
@@ -8650,6 +8658,26 @@ async function loadAttReport(){
     +'<div style="font-size:11px;color:#888;margin-top:12px">زر الاحتساب: يخصم من رصيد الإجازة (حد أقصى 2 يوم/شهر)، والزائد يتحول لخصم من الراتب</div>'
   +'</div>';
   c.innerHTML=html;
+}
+
+function showAttDays(eid,status){
+  var d=(window._attDetail||{})[eid];if(!d)return;
+  var dates=(d.byStatus&&d.byStatus[status])||[];
+  var statusColor={'حاضر':'#0F6E56','غائب':'#A32D2D','إجازة':'#185FA5','متأخر':'#854F0B','نصف يوم':'#3C3489'}[status]||'#555';
+  var dayName=['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+  var rows=dates.map(function(ds){
+    var dt=new Date(ds+'T00:00:00');var dn=dayName[dt.getDay()];
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;border:1px solid #eee;border-radius:8px;margin-bottom:6px;font-size:13px"><span style="font-weight:600">'+ds+'</span><span style="color:#888">'+dn+'</span></div>';
+  }).join('')||'<div style="color:#aaa;text-align:center;padding:16px">لا توجد أيام</div>';
+  var ov=document.getElementById('att-days-overlay');if(ov)ov.remove();
+  var html='<div id="att-days-overlay" onclick="if(event.target===this)this.remove()" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px">'
+    +'<div style="background:#fff;border-radius:14px;max-width:420px;width:100%;max-height:80vh;overflow:auto;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><div style="font-size:16px;font-weight:800">'+(d.name||'')+'</div>'
+        +'<button onclick="document.getElementById(\'att-days-overlay\').remove()" style="background:#eee;border:none;border-radius:8px;width:30px;height:30px;font-size:16px;cursor:pointer">×</button></div>'
+      +'<div style="margin-bottom:14px"><span style="display:inline-block;background:'+statusColor+';color:#fff;border-radius:7px;padding:3px 12px;font-size:12px;font-weight:700">'+status+' · '+dates.length+' يوم</span></div>'
+      +rows
+    +'</div></div>';
+  document.body.insertAdjacentHTML('beforeend',html);
 }
 
 function openLeaveDeduct(btn){
