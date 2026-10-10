@@ -1210,7 +1210,9 @@ function applyRole(){
   var payNav=document.getElementById('ni-pay');
   if(payNav)payNav.style.display=(CU&&(CU.role==='owner'||CU.role==='admin'||CU.role==='finance'))?'':'none';
   var attNav=document.getElementById('ni-att');
-  if(attNav)attNav.style.display=(CU&&(CU.role==='owner'||CU.role==='admin'||CU.role==='finance'))?'':'none';
+  // Attendance: owner/admin/finance, plus specific users granted access by username
+  var ATT_USERS=['heba'];
+  if(attNav)attNav.style.display=(CU&&(CU.role==='owner'||CU.role==='admin'||CU.role==='finance'||ATT_USERS.includes(CU.username)))?'':'none';
   var bkNav=document.getElementById('ni-bk');
   if(bkNav)bkNav.style.display=(CU&&['owner','admin','salesperson','sales_feedback','inventory_manager'].includes(CU.role))?'':'none';
   var ctNav=document.getElementById('ni-ct');
@@ -4408,14 +4410,21 @@ async function deleteBundle(id){
 }
 // ── END BUNDLES ──────────────────────────────────────────────
 
+var _invLoadToken=0;
 async function loadInv(search,brand){
   var body=document.getElementById('invb');
   if(!body)return;
+  var myToken=++_invLoadToken; // guard against overlapping tab switches
   body.innerHTML='<tr><td colspan="10" style="text-align:center;padding:16px;color:#888">'+t('loadin')+'</td></tr>';
   var q=db.from('inventory').select('*').order('brand');
   if(search)q=q.or(('brand.ilike.%'+(search)+'%,model.ilike.%'+(search)+'%'));
   if(brand)q=q.eq('brand',brand);
-  var{data}=await q;INV=data||[];body.innerHTML='';
+  var{data,error}=await q;
+  // If a newer load started while we awaited, abort this stale one (prevents zero-flash)
+  if(myToken!==_invLoadToken)return;
+  // On a transient fetch error, retry once instead of blanking everything to zero
+  if(error){setTimeout(function(){if(myToken===_invLoadToken-0)loadInv(search,brand);},400);return;}
+  INV=data||[];body.innerHTML='';
   // Sold count from task_products — counts direct products AND bundle parts
   var soldMap={};
   if(!BUNDLES.length){await loadBundles();}
@@ -4451,6 +4460,7 @@ async function loadInv(search,brand){
       +'<td><button onclick="event.stopPropagation();go(\'np\',null);editProd(p)" style="font-size:11px;padding:2px 8px;border:1px solid #1D9E75;border-radius:4px;background:#EAF3DE;color:#1D9E75;cursor:pointer;margin-right:4px">Edit</button>'+delBtn+'</td>';
     body.appendChild(tr);
   });
+  if(myToken!==_invLoadToken)return;
   document.getElementById('iskus').textContent=data.length;
   document.getElementById('iunit').textContent=units;
   document.getElementById('ilow').textContent=low;
@@ -8239,7 +8249,8 @@ function printSalaryCalc(){
 }
 
 async function openAttendance(){
-  if(!CU||(CU.role!=='owner'&&CU.role!=='admin'&&CU.role!=='finance')){toast('غير مسموح',true);return;}
+  var _attUsers=['heba'];
+  if(!CU||(CU.role!=='owner'&&CU.role!=='admin'&&CU.role!=='finance'&&!_attUsers.includes(CU.username))){toast('غير مسموح',true);return;}
   go('att',document.getElementById('ni-att'));
   window._attTab='sheet';
   renderAttShell();
