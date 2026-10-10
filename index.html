@@ -237,7 +237,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
 <div class="mn">
 <div class="tb">
   <button class="hamburger" onclick="toggleSidebar()" style="display:none;background:none;border:none;font-size:22px;cursor:pointer;padding:4px 10px;color:#333">&#9776;</button>
-  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-10-08</span>
+  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-10-10</span>
   <div style="display:flex;align-items:center;gap:8px"><div class="lang-btns"><button class="lbtn on" onclick="setLang('en',this)">EN</button><button class="lbtn" onclick="setLang('ar',this)">عربي</button></div><div id="tact" style="display:flex;gap:7px"></div></div>
 </div>
 <div class="ct">
@@ -723,8 +723,10 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     <button id="inv-tab-sp1" onclick="showInvTab('sp1',this)" class="btn bs" style="font-size:12px">&#128295; مخزن رئيسي</button>
     <button id="inv-tab-sp2" onclick="showInvTab('sp2',this)" class="btn bs" style="font-size:12px">&#128295; مخزن تجمع</button>
     <button id="inv-tab-bundles" onclick="openBundles()" class="btn bs" style="font-size:12px">&#128230; الباقات المجمّعة</button>
+    <button id="inv-tab-used" onclick="openUsedAc()" class="btn bs" style="font-size:12px">&#128260; تكييفات مستعملة</button>
   </div>
   <div id="inv-bundles-section" style="display:none"></div>
+  <div id="inv-used-section" style="display:none"></div>
   <div id="inv-ac-section">
   <div class="r3" style="margin-bottom:14px">
     <div class="sc"><div class="sl" data-t="totalskus">Total SKUs</div><div class="sv" id="iskus">—</div></div>
@@ -4410,6 +4412,189 @@ async function deleteBundle(id){
 }
 // ── END BUNDLES ──────────────────────────────────────────────
 
+// ── USED AC INVENTORY (fully isolated — no link to tasks/finance/inventory) ──
+var USED=[],USED_CONTRACTS=[],_usedPickSel={};
+function usedCanAccess(){return CU&&['owner','admin','inventory_manager'].includes(CU.role);}
+function usedCondColor(c){return {'ممتازة':'background:#EAF3DE;color:#0F6E56','جيدة':'background:#FAEEDA;color:#854F0B','مقبولة':'background:#EEEDFE;color:#3C3489','تحتاج صيانة':'background:#FCEBEB;color:#A32D2D'}[c]||'background:#eee;color:#666';}
+async function openUsedAc(){
+  if(!usedCanAccess()){toast('غير مسموح',true);return;}
+  ['inv-ac-section','inv-sp-section','inv-bundles-section'].forEach(function(id){var e=document.getElementById(id);if(e)e.style.display='none';});
+  document.querySelectorAll('[id^="inv-tab-"]').forEach(function(b){b.className='btn bs';b.style.fontSize='12px';});
+  var tb=document.getElementById('inv-tab-used');if(tb){tb.className='btn bp';tb.style.fontSize='12px';}
+  var sec=document.getElementById('inv-used-section');if(!sec)return;sec.style.display='block';
+  window._usedView='list';
+  await loadUsed();
+  renderUsed();
+}
+async function loadUsed(){
+  try{var r=await db.from('used_inventory').select('*').order('created_at',{ascending:false});USED=r.data||[];}catch(e){USED=[];}
+  try{var c=await db.from('used_contracts').select('*').order('created_at',{ascending:false});USED_CONTRACTS=c.data||[];}catch(e){USED_CONTRACTS=[];}
+}
+function renderUsed(){
+  var sec=document.getElementById('inv-used-section');if(!sec)return;
+  var view=window._usedView||'list';
+  if(view==='add'){renderUsedForm();return;}
+  if(view==='contract'){renderUsedContract();return;}
+  var avail=USED.filter(function(u){return u.status==='available';});
+  var sold=USED.filter(function(u){return u.status==='sold';});
+  var availValue=avail.reduce(function(s,u){return s+(parseFloat(u.price)||0);},0);
+  var html='<div class="cd" style="padding:20px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">'
+      +'<div><div style="font-size:16px;font-weight:800">🔄 التكييفات المستعملة</div>'
+        +'<div style="font-size:12px;color:#888;margin-top:2px">كل قطعة (داخلية/خارجية) تُسجَّل مستقلة — منفصل تماماً عن المهام والمالية والمخزون الجديد</div></div>'
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap"><button onclick="window._usedView=\'contract\';renderUsed()" style="background:#185FA5;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer">📝 إنشاء عقد بيع</button>'
+      +'<button onclick="window._usedView=\'add\';renderUsed()" style="background:#0F6E56;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer">+ إضافة مستعمل</button></div>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:16px">'
+      +'<div style="background:#fff;border:1px solid #eee;border-radius:10px;padding:12px;text-align:center"><div style="font-size:22px;font-weight:800;color:#0F6E56">'+avail.length+'</div><div style="font-size:12px;color:#888">متاح</div></div>'
+      +'<div style="background:#fff;border:1px solid #eee;border-radius:10px;padding:12px;text-align:center"><div style="font-size:22px;font-weight:800;color:#888">'+sold.length+'</div><div style="font-size:12px;color:#888">تم بيعه</div></div>'
+      +'<div style="background:#fff;border:1px solid #eee;border-radius:10px;padding:12px;text-align:center"><div style="font-size:22px;font-weight:800;color:#185FA5">'+availValue.toLocaleString()+'</div><div style="font-size:12px;color:#888">قيمة المتاح (ج.م)</div></div>'
+      +'<div style="background:#fff;border:1px solid #eee;border-radius:10px;padding:12px;text-align:center"><div style="font-size:22px;font-weight:800;color:#854F0B">'+USED_CONTRACTS.length+'</div><div style="font-size:12px;color:#888">عقود البيع</div></div>'
+    +'</div>';
+  if(!USED.length){html+='<div style="text-align:center;padding:30px;color:#aaa">لا توجد تكييفات مستعملة بعد</div>';}
+  else{
+    html+='<div style="display:flex;flex-direction:column;gap:10px">';
+    USED.forEach(function(u){
+      var isSold=u.status==='sold';
+      var ct=isSold?USED_CONTRACTS.find(function(c){return c.id===u.contract_id;}):null;
+      html+='<div style="background:#fff;border:1px solid #e8e6e0;border-radius:12px;padding:14px'+(isSold?';opacity:.75':'')+'">'
+        +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">'
+          +'<div><div style="font-weight:800;font-size:15px">'+[u.brand,u.model].filter(Boolean).join(' ')+' — '+(u.piece||'')+'</div>'
+          +'<div style="font-size:12px;color:#666;margin-top:3px">'+(u.unit_type||'')+(u.serial?' · رقم: '+u.serial:'')+'</div>'
+          +'<span style="display:inline-block;border-radius:6px;padding:2px 9px;font-size:11px;font-weight:700;margin-top:6px;'+usedCondColor(u.condition)+'">حالة: '+(u.condition||'-')+'</span></div>'
+          +'<span style="color:#fff;border-radius:8px;padding:3px 10px;font-size:11px;font-weight:700;background:'+(isSold?'#888':'#0F6E56')+'">'+(isSold?'تم البيع'+(ct?' · '+ct.contract_num:''):'متاح')+'</span>'
+        +'</div>'
+        +(isSold
+          ?'<div style="margin-top:8px;background:#fdf2f2;border-radius:8px;padding:8px 10px;font-size:12px;color:#8a3a36">✅ '+(ct?('ضمن عقد '+ct.contract_num+' · '+(ct.buyer_name||'')+' · '+(ct.created_at||'').slice(0,10)):'مباع')+'</div>'
+          :'<div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;font-size:12px;color:#555"><span>💰 سعر البيع: '+(parseFloat(u.price)||0).toLocaleString()+' ج.م</span><span>التكلفة: '+(parseFloat(u.cost)||0).toLocaleString()+'</span></div>'
+            +'<div style="display:flex;gap:8px;margin-top:10px"><button onclick="usedEdit(\''+u.id+'\')" style="background:#F4EFE2;color:#854F0B;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer">تعديل</button><button onclick="usedDelete(\''+u.id+'\')" style="background:#FCEBEB;color:#A32D2D;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer">حذف</button></div>')
+      +'</div>';
+    });
+    html+='</div>';
+  }
+  html+='</div>';
+  sec.innerHTML=html;
+}
+function renderUsedForm(id){
+  var sec=document.getElementById('inv-used-section');if(!sec)return;
+  var u=id?USED.find(function(x){return x.id===id;}):null;
+  var condOpts=['ممتازة','جيدة','مقبولة','تحتاج صيانة'].map(function(c){return '<option'+(u&&u.condition===c?' selected':'')+'>'+c+'</option>';}).join('');
+  var pieceOpts=['داخلية','خارجية','وحدة كاملة'].map(function(p){return '<option'+(u&&u.piece===p?' selected':'')+'>'+p+'</option>';}).join('');
+  var coolOpts=['بارد','بارد/ساخن'].map(function(c){return '<option'+(u&&u.cooling===c?' selected':'')+'>'+c+'</option>';}).join('');
+  var typeOpts=['حائطي','كونسيلد','شباك','صحراوي'].map(function(c){return '<option'+(u&&u.unit_type===c?' selected':'')+'>'+c+'</option>';}).join('');
+  var g=function(f){return u&&u[f]!=null?(''+u[f]).replace(/"/g,'&quot;'):'';};
+  sec.innerHTML='<div class="cd" style="padding:20px;max-width:620px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><div style="font-size:16px;font-weight:800">'+(u?'تعديل تكييف مستعمل':'+ إضافة تكييف مستعمل')+'</div>'
+      +'<button onclick="window._usedView=\'list\';renderUsed()" style="background:#eee;border:none;border-radius:8px;padding:7px 14px;font-size:13px;cursor:pointer">رجوع</button></div>'
+    +'<div style="display:flex;gap:10px;flex-wrap:wrap"><div style="flex:1;min-width:150px"><label style="font-size:12px;font-weight:700;color:#666">الماركة *</label><input id="u-brand" value="'+g('brand')+'" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-top:4px"></div>'
+      +'<div style="flex:1;min-width:150px"><label style="font-size:12px;font-weight:700;color:#666">الموديل</label><input id="u-model" value="'+g('model')+'" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-top:4px"></div></div>'
+    +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px"><div style="flex:1;min-width:110px"><label style="font-size:12px;font-weight:700;color:#666">القدرة</label><input id="u-hp" value="'+g('hp')+'" placeholder="1.5" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-top:4px"></div>'
+      +'<div style="flex:1;min-width:110px"><label style="font-size:12px;font-weight:700;color:#666">القطعة *</label><select id="u-piece" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-top:4px">'+pieceOpts+'</select></div>'
+      +'<div style="flex:1;min-width:110px"><label style="font-size:12px;font-weight:700;color:#666">النوعية</label><select id="u-type" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-top:4px">'+typeOpts+'</select></div></div>'
+    +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px"><div style="flex:1;min-width:130px"><label style="font-size:12px;font-weight:700;color:#666">النوع</label><select id="u-cool" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-top:4px">'+coolOpts+'</select></div>'
+      +'<div style="flex:1;min-width:130px"><label style="font-size:12px;font-weight:700;color:#666">الحالة *</label><select id="u-cond" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-top:4px">'+condOpts+'</select></div>'
+      +'<div style="flex:1;min-width:130px"><label style="font-size:12px;font-weight:700;color:#666">رقم/سيريال</label><input id="u-serial" value="'+g('serial')+'" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-top:4px"></div></div>'
+    +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px"><div style="flex:1;min-width:130px"><label style="font-size:12px;font-weight:700;color:#666">التكلفة</label><input id="u-cost" type="number" value="'+(u?(u.cost||0):0)+'" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-top:4px"></div>'
+      +'<div style="flex:1;min-width:130px"><label style="font-size:12px;font-weight:700;color:#666">سعر البيع</label><input id="u-price" type="number" value="'+(u?(u.price||0):0)+'" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-top:4px"></div></div>'
+    +'<div style="margin-top:10px"><label style="font-size:12px;font-weight:700;color:#666">ملاحظات</label><textarea id="u-notes" rows="2" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-top:4px">'+(u?(u.notes||''):'')+'</textarea></div>'
+    +'<button onclick="usedSave('+(u?('\''+u.id+'\''):'null')+')" style="background:#0F6E56;color:#fff;border:none;border-radius:8px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;width:100%;margin-top:14px">حفظ</button>'
+    +'</div>';
+}
+function usedEdit(id){window._usedView='add';renderUsedForm(id);}
+async function usedSave(id){
+  if(!usedCanAccess()){toast('غير مسموح',true);return;}
+  var v=function(f){var e=document.getElementById('u-'+f);return e?e.value:'';};
+  var brand=v('brand').trim();if(!brand){toast('اكتب الماركة',true);return;}
+  var payload={brand:brand,model:v('model').trim(),hp:v('hp').trim(),unit_type:v('type'),cooling:v('cool'),
+    piece:v('piece'),condition:v('cond'),serial:v('serial').trim()||null,
+    cost:parseFloat(v('cost'))||0,price:parseFloat(v('price'))||0,notes:v('notes').trim()||null,created_by:CU.full_name||CU.username};
+  var res=id?await db.from('used_inventory').update(payload).eq('id',id):await db.from('used_inventory').insert(payload);
+  if(res.error){toast('خطأ: '+res.error.message,true);return;}
+  toast('تم الحفظ');window._usedView='list';await loadUsed();renderUsed();
+}
+async function usedDelete(id){
+  if(!CU||!['owner','admin'].includes(CU.role)){toast('فقط المالك أو المدير',true);return;}
+  if(!confirm('حذف هذه القطعة؟'))return;
+  await db.from('used_inventory').delete().eq('id',id);
+  toast('تم الحذف');await loadUsed();renderUsed();
+}
+function renderUsedContract(){
+  var sec=document.getElementById('inv-used-section');if(!sec)return;
+  _usedPickSel={};
+  var avail=USED.filter(function(u){return u.status==='available';});
+  var rows=avail.map(function(u){
+    return '<label style="display:flex;gap:10px;align-items:center;background:#fff;border:1px solid #e8e6e0;border-radius:8px;padding:10px;margin-bottom:8px;cursor:pointer">'
+      +'<input type="checkbox" data-uid="'+u.id+'" data-price="'+(u.price||0)+'" onchange="usedPickTotal()" style="width:auto;margin:0">'
+      +'<span style="font-size:13px;flex:1"><b>'+[u.brand,u.model].filter(Boolean).join(' ')+' — '+(u.piece||'')+'</b>'+(u.serial?' ('+u.serial+')':'')+' · '+(u.condition||'')+'</span>'
+      +'<span style="font-weight:700;color:#0F6E56">'+(parseFloat(u.price)||0).toLocaleString()+'</span></label>';
+  }).join('')||'<div style="color:#aaa;padding:20px;text-align:center">لا توجد قطع متاحة</div>';
+  var warOpts=['يُباع كما هو (بدون ضمان)','ضمان 3 شهور على الكمبروسر','ضمان شهر شامل'].map(function(w){return '<option>'+w+'</option>';}).join('');
+  sec.innerHTML='<div class="cd" style="padding:20px;max-width:640px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div style="font-size:16px;font-weight:800">📝 إنشاء عقد بيع</div>'
+      +'<button onclick="window._usedView=\'list\';renderUsed()" style="background:#eee;border:none;border-radius:8px;padding:7px 14px;font-size:13px;cursor:pointer">رجوع</button></div>'
+    +'<div style="font-size:13px;color:#888;margin-bottom:10px">اختر القطع التي سيشتريها العميل:</div>'+rows
+    +'<div id="u-pick-total" style="background:#e8f3ee;border-radius:8px;padding:10px 12px;font-weight:800;color:#0a4d3c;text-align:center;margin:12px 0">الإجمالي المختار: 0 ج.م</div>'
+    +'<div style="display:flex;gap:10px;flex-wrap:wrap"><div style="flex:1;min-width:150px"><label style="font-size:12px;font-weight:700;color:#666">اسم المشتري *</label><input id="uc-buyer" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-top:4px"></div>'
+      +'<div style="flex:1;min-width:150px"><label style="font-size:12px;font-weight:700;color:#666">رقم الهاتف</label><input id="uc-phone" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-top:4px"></div></div>'
+    +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px"><div style="flex:1;min-width:150px"><label style="font-size:12px;font-weight:700;color:#666">الرقم القومي</label><input id="uc-id" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-top:4px"></div>'
+      +'<div style="flex:1;min-width:150px"><label style="font-size:12px;font-weight:700;color:#666">طريقة الدفع</label><select id="uc-pay" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-top:4px"><option>كاش</option><option>تحويل</option><option>آجل</option></select></div></div>'
+    +'<div style="margin-top:10px"><label style="font-size:12px;font-weight:700;color:#666">السعر النهائي المتفق عليه</label><input id="uc-total" type="number" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-top:4px"></div>'
+    +'<div style="margin-top:10px"><label style="font-size:12px;font-weight:700;color:#666">بند الضمان</label><select id="uc-war" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-top:4px">'+warOpts+'</select></div>'
+    +'<button onclick="usedCreateContract()" style="background:#0F6E56;color:#fff;border:none;border-radius:8px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;width:100%;margin-top:14px">إنشاء العقد وطباعته</button>'
+    +'<div style="background:#e8f3ee;border-radius:8px;padding:10px 12px;font-size:12px;color:#0a4d3c;margin-top:12px">ℹ️ منفصل تماماً عن المهام والمالية والمخزون الجديد.</div>'
+    +'</div>';
+}
+function usedPickTotal(){
+  var t=0;document.querySelectorAll('#inv-used-section input[type=checkbox][data-uid]:checked').forEach(function(c){t+=parseFloat(c.dataset.price)||0;});
+  var el=document.getElementById('u-pick-total');if(el)el.textContent='الإجمالي المختار: '+t.toLocaleString()+' ج.م';
+  var tot=document.getElementById('uc-total');if(tot&&!tot.value)tot.value=t;
+}
+async function usedCreateContract(){
+  if(!usedCanAccess()){toast('غير مسموح',true);return;}
+  var ids=[];document.querySelectorAll('#inv-used-section input[type=checkbox][data-uid]:checked').forEach(function(c){ids.push(c.dataset.uid);});
+  if(!ids.length){toast('اختر قطعة واحدة على الأقل',true);return;}
+  var buyer=document.getElementById('uc-buyer').value.trim();if(!buyer){toast('اكتب اسم المشتري',true);return;}
+  var total=parseFloat(document.getElementById('uc-total').value)||0;
+  // contract number
+  var lastN=0;USED_CONTRACTS.forEach(function(c){var n=parseInt((c.contract_num||'0').replace(/[^0-9]/g,''))||0;if(n>lastN)lastN=n;});
+  var cnum='C-'+String(lastN+1).padStart(5,'0');
+  var ins=await db.from('used_contracts').insert({contract_num:cnum,buyer_name:buyer,
+    buyer_phone:document.getElementById('uc-phone').value.trim()||null,
+    buyer_id:document.getElementById('uc-id').value.trim()||null,
+    payment_method:document.getElementById('uc-pay').value,warranty:document.getElementById('uc-war').value,
+    total:total,item_ids:ids,created_by:CU.full_name||CU.username}).select().single();
+  if(ins.error){toast('خطأ: '+ins.error.message,true);return;}
+  // mark pieces sold + link to contract
+  for(var i=0;i<ids.length;i++){await db.from('used_inventory').update({status:'sold',contract_id:ins.data.id}).eq('id',ids[i]);}
+  // gather items for the printout
+  var items=USED.filter(function(u){return ids.includes(u.id);});
+  toast('تم إنشاء العقد '+cnum);
+  printUsedContract({num:cnum,date:new Date().toISOString().slice(0,10),buyer:buyer,
+    phone:document.getElementById('uc-phone').value.trim(),pay:document.getElementById('uc-pay').value,
+    warranty:document.getElementById('uc-war').value,total:total,items:items});
+  window._usedView='list';await loadUsed();renderUsed();
+}
+function printUsedContract(c){
+  var rows=(c.items||[]).map(function(u){return '<tr><td style="padding:8px;border:1px solid #ddd">'+[u.brand,u.model,u.hp].filter(Boolean).join(' ')+(u.serial?' ('+u.serial+')':'')+'</td><td style="padding:8px;border:1px solid #ddd;text-align:center">'+(u.piece||'')+'</td><td style="padding:8px;border:1px solid #ddd;text-align:center">'+(u.condition||'')+'</td><td style="padding:8px;border:1px solid #ddd;text-align:center">'+(parseFloat(u.price)||0).toLocaleString()+'</td></tr>';}).join('');
+  var html='<html dir="rtl"><head><meta charset="utf-8"><title>عقد بيع '+c.num+'</title>'
+    +'<style>body{font-family:Cairo,Tahoma,Arial,sans-serif;padding:30px;color:#15201c}table{border-collapse:collapse;width:100%}'
+    +'th{background:#f7f6f1;padding:8px;border:1px solid #ddd}</style></head><body>'
+    +'<div style="display:flex;justify-content:space-between;border-bottom:2px solid #0F6E56;padding-bottom:12px;margin-bottom:14px">'
+      +'<div><div style="font-size:19px;font-weight:800;color:#0F6E56">برازر كوند للتكييف</div><div style="font-size:12px;color:#888">عقد بيع تكييف مستعمل</div></div>'
+      +'<div style="text-align:left"><div style="font-size:18px;font-weight:800;color:#0F6E56">عقد بيع</div><div style="font-weight:700;margin-top:4px">'+c.num+'</div><div style="font-size:12px;color:#888">'+c.date+'</div></div></div>'
+    +'<div style="display:flex;gap:20px;flex-wrap:wrap;font-size:13px;margin-bottom:14px">'
+      +'<div style="flex:1;min-width:200px;border:1px solid #eee;border-radius:8px;padding:12px"><div style="font-weight:800;color:#0F6E56;margin-bottom:6px">البائع</div>برازر كوند للتكييف<br>01222211310</div>'
+      +'<div style="flex:1;min-width:200px;border:1px solid #eee;border-radius:8px;padding:12px"><div style="font-weight:800;color:#0F6E56;margin-bottom:6px">المشتري</div>'+(c.buyer||'-')+'<br>'+(c.phone||'')+'</div></div>'
+    +'<table style="font-size:13px;margin-bottom:14px"><thead><tr><th style="text-align:right">الصنف</th><th>القطعة</th><th>الحالة</th><th>السعر</th></tr></thead><tbody>'+rows+'</tbody></table>'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;background:#f0f9f4;border:1px solid #cfe9dd;border-radius:8px;padding:12px 14px;margin-bottom:14px"><span style="font-weight:800">الإجمالي · طريقة الدفع: '+(c.pay||'')+'</span><span style="font-size:20px;font-weight:800;color:#0F6E56">'+Math.round(c.total||0).toLocaleString()+' ج.م</span></div>'
+    +'<div style="border:1px solid #f3c4c2;background:#fdf2f2;border-radius:8px;padding:12px;font-size:12.5px;margin-bottom:18px"><b>بند الضمان:</b> '+(c.warranty||'يُباع كما هو')+'. عاين المشتري القطع وقبِل حالتها المستعملة الموضحة أعلاه.</div>'
+    +'<div style="display:flex;justify-content:space-between;font-size:13px;margin-top:24px"><div>توقيع البائع: ____________</div><div>توقيع المشتري: ____________</div></div>'
+    +'<div style="text-align:center;color:#888;font-size:11px;margin-top:20px">برازر كوند للتكييف · الخط الساخن 01222211310</div>'
+    +'<script>window.onload=function(){window.print();}<\/script></body></html>';
+  var w=window.open('','_blank');if(w){w.document.write(html);w.document.close();}else{toast('اسمح بالنوافذ المنبثقة للطباعة',true);}
+}
+// ── END USED AC ──────────────────────────────────────────────
+
 var _invLoadToken=0;
 async function loadInv(search,brand){
   var body=document.getElementById('invb');
@@ -6029,6 +6214,7 @@ function showInvTab(tab,btn){
   var acSec=document.getElementById('inv-ac-section');
   var spSec=document.getElementById('inv-sp-section');
   var bSec=document.getElementById('inv-bundles-section');if(bSec)bSec.style.display='none';
+  var uSec=document.getElementById('inv-used-section');if(uSec)uSec.style.display='none';
   if(acSec)acSec.style.display=tab==='ac'?'':'none';
   if(spSec)spSec.style.display=(tab==='sp1'||tab==='sp2')?'':'none';
   if(tab==='ac'){
