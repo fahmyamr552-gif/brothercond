@@ -1548,7 +1548,7 @@ function sendWhatsApp(){
   var taxAmt=subTotal-preTax;
   var taxLine=CT.use_tax!==false&&subTotal>0?'\nالسعر قبل الضريبة: '+preTax.toLocaleString()+' ج.م\nضريبة 14%: '+taxAmt.toLocaleString()+' ج.م':'';
   var branch=CT.branch?'\nالفرع: '+CT.branch:'';
-  var custAddr=(cu.address)||CT.address||null;
+  var custAddr=(CT.address)||(cu.address)||null; // prefer the address chosen on the task, then the customer default
   var addr=custAddr?'\nالعنوان: '+custAddr:'';
   var sep='────────────────────';
   var msg='مرحباً '+CT.customer_name+'\n'
@@ -7604,7 +7604,7 @@ async function printDispatchOrder(taskId){
         +'<div><b>التاريخ:</b> '+task.date+'</div>'
       +'</div>'
       +'<div style="margin-bottom:8px;font-size:14px"><b>اسم العميل:</b> '+task.customer_name+'</div>'
-      +'<div style="margin-bottom:8px;font-size:14px"><b>العنوان:</b> '+(cu.address||'-')+'</div>'
+      +'<div style="margin-bottom:8px;font-size:14px"><b>العنوان:</b> '+(task.address||cu.address||'-')+'</div>'
       +'<div style="margin-bottom:16px;font-size:14px"><b>البائع:</b> '+(task.salesperson||'-')+'</div>'
       +'<table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:14px">'
         +'<thead><tr style="background:#f0f0e8"><th style="border:1px solid #333;padding:8px;width:50px">#</th><th style="border:1px solid #333;padding:8px">الجهاز</th><th style="border:1px solid #333;padding:8px;width:80px">الكمية</th></tr></thead>'
@@ -7793,6 +7793,40 @@ async function loadDailyReport(dateStr){
       return '<tr><td style="color:#1D9E75;font-weight:700">'+(d.dispatch_num||'-')+'</td><td>'+(d.technician_name||d.customer_name||'-')+'</td><td style="font-size:11px">'+typeLbl+'</td><td style="font-size:11px;color:#666">'+parts+'</td></tr>';
     }).join('')||'<tr><td colspan="4" style="text-align:center;color:#aaa">لا يوجد صرف قطع غيار</td></tr>';
 
+    // ── Inventory movement IN (from purchase orders received today) ──
+    var invIn=[];
+    dayPOs.forEach(function(po){
+      (poItemsMap2[po.id]||[]).forEach(function(nm){
+        // nm already includes "(qty)" suffix; split it out
+        var m=nm.match(/^(.*)\s\((\d+)\)$/);
+        invIn.push({name:m?m[1]:nm,qty:m?m[2]:'',src:po.supplier_name||'مورد'});
+      });
+    });
+    var invInRows=invIn.map(function(x){
+      return '<tr><td>'+x.name+'</td><td style="font-size:11px;color:#666">'+x.src+'</td><td style="text-align:center;color:#0F6E56;font-weight:700">'+(x.qty||'-')+'</td></tr>';
+    }).join('')||'<tr><td colspan="3" style="text-align:center;color:#aaa">لا يوجد دخول</td></tr>';
+
+    // ── Inventory movement OUT (spare parts dispatched + AC units dispatched) ──
+    var invOut=[];
+    spDispatches.forEach(function(d){
+      (d.dispatch_items||[]).forEach(function(it){
+        var net=Math.max(0,(it.qty_out||0)-(it.qty_returned||0));
+        if(net>0)invOut.push({name:it.part_name||'-',to:(d.technician_name||d.customer_name||'-'),qty:net});
+      });
+    });
+    // AC units: products of tasks dispatched today
+    var acTaskIds=acDispatches.map(function(t){return t.id;});
+    if(acTaskIds.length){
+      var acProdR=await db.from('task_products').select('task_id,product_name,qty').in('task_id',acTaskIds);
+      (acProdR.data||[]).forEach(function(p){
+        var tk=_tkDR[p.task_id];
+        invOut.push({name:p.product_name||'جهاز',to:(tk?tk.customer_name:'-'),qty:p.qty||1});
+      });
+    }
+    var invOutRows=invOut.map(function(x){
+      return '<tr><td>'+x.name+'</td><td style="font-size:11px;color:#666">'+x.to+'</td><td style="text-align:center;color:#A32D2D;font-weight:700">'+x.qty+'</td></tr>';
+    }).join('')||'<tr><td colspan="3" style="text-align:center;color:#aaa">لا يوجد خروج</td></tr>';
+
     var html=''
       +'<div class="rep-report">'
         +'<div class="rep-head">'
@@ -7803,35 +7837,24 @@ async function loadDailyReport(dateStr){
               +'<div style="margin-top:8px;font-size:12px;opacity:.85">'+dayName+' '+dateStr+'</div>'
             +'</div>'
           +'</div>'
-          +'<div class="rep-summary">📌 <b>ملخص اليوم:</b> تم إنجاز <b>'+doneTasks.length+' مهمة</b> من <b>'+dayTasks.length+' مجدولة</b> ('+completionRate+'٪) — تحصيل <b>'+repArNum(totalCollected)+' ج.م</b> ومصروفات <b>'+repArNum(totalSpent)+' ج.م</b> — <b>صافي '+netSign+repArNum(netCash)+' ج.م</b>'+(doneTasks.length?' — متوسط المهمة <b>'+repArNum(avgTask)+' ج.م</b>':'')+'</div>'
+          +'<div class="rep-summary">📌 <b>ملخص اليوم:</b> تم إنجاز <b>'+doneTasks.length+' مهمة</b> — تحصيل <b>'+repArNum(totalCollected)+' ج.م</b> ومصروفات <b>'+repArNum(totalSpent)+' ج.م</b> — <b>صافي '+netSign+repArNum(netCash)+' ج.م</b></div>'
         +'</div>'
         +'<div class="rep-cont">'
-          +'<div class="rep-kpis">'
-            +'<div class="rep-kpi rk-green"><div class="rk-l">مهام منجزة</div><div class="rk-v">'+doneTasks.length+'</div><div class="rk-h">من '+dayTasks.length+' ('+completionRate+'٪)</div></div>'
-            +'<div class="rep-kpi rk-blue"><div class="rk-l">مهام جديدة</div><div class="rk-v">'+newTasks.length+'</div><div class="rk-h">بقيمة '+repArNum(newTasksValue)+'</div></div>'
-            +'<div class="rep-kpi rk-green"><div class="rk-l">تحصيل اليوم</div><div class="rk-v rep-money">'+repArNum(totalCollected)+'</div><div class="rk-h">'+dayPays.length+' دفعة</div></div>'
-            +'<div class="rep-kpi rk-red"><div class="rk-l">مصروفات موردين</div><div class="rk-v rep-money-out">'+repArNum(totalSpent)+'</div><div class="rk-h">'+dayPoPays.length+' دفعة</div></div>'
-            +'<div class="rep-kpi rk-amber"><div class="rk-l">معدل التحصيل</div><div class="rk-v">'+collectionRate+'٪</div><div class="rk-h">من قيمة اليوم</div></div>'
-            +'<div class="rep-kpi rk-red"><div class="rk-l">مهام ملغاة</div><div class="rk-v">'+cancelledTasks.length+'</div><div class="rk-h">بقيمة '+repArNum(cancelledValue)+'</div></div>'
-          +'</div>'
+          // ── 1) فلوس النهارده ──
           +'<div class="rep-fin">'
-            +'<div class="rep-net"><div class="rn-l">صافي التدفق النقدي</div><div class="rn-v" '+netColor+'>'+netSign+repArNum(netCash)+'</div><div class="rn-sub">ج.م — (داخل − خارج)</div></div>'
-            +'<div class="rep-in"><div class="ri-l">💰 داخل (تحصيل)</div><div class="ri-v">'+repArNum(totalCollected)+'</div><div class="ri-d">كاش '+repArNum(cashCollected)+' · تحويل '+repArNum(transferCollected)+'</div></div>'
-            +'<div class="rep-out"><div class="ro-l">🛒 خارج (موردين)</div><div class="ro-v">'+repArNum(totalSpent)+'</div><div class="ro-d">'+dayPoPays.length+' دفعة</div></div>'
+            +'<div class="rep-in"><div class="ri-l">💰 تحصيل اليوم</div><div class="ri-v">'+repArNum(totalCollected)+'</div><div class="ri-d">كاش '+repArNum(cashCollected)+' · تحويل '+repArNum(transferCollected)+'</div></div>'
+            +'<div class="rep-out"><div class="ro-l">🛒 مصروفات (موردين)</div><div class="ro-v">'+repArNum(totalSpent)+'</div><div class="ro-d">'+dayPoPays.length+' دفعة</div></div>'
+            +'<div class="rep-net"><div class="rn-l">صافي اليوم</div><div class="rn-v" '+netColor+'>'+netSign+repArNum(netCash)+'</div><div class="rn-sub">ج.م — (داخل − خارج)</div></div>'
           +'</div>'
-          +'<div class="rep-sec"><div class="rep-sh">📊 المهام حسب النوع</div><div class="rep-breakdown">'+typeChips+'</div></div>'
+          // ── 2) مين عمل إيه ──
+          +'<div class="rep-sec"><div class="rep-sh">👷 مين عمل إيه النهارده</div><table class="rep-tbl"><thead><tr><th>الموظف</th><th>عدد المهام</th><th>التحصيل</th></tr></thead><tbody>'+techRows+'</tbody></table></div>'
+          // ── 3) الشغل المنجز ──
+          +'<div class="rep-sec"><div class="rep-sh">✅ الشغل المنجز <span class="rep-count">'+doneTasks.length+'</span></div><table class="rep-tbl"><thead><tr><th>الطلب</th><th>العميل</th><th>النوع</th><th>الموظف</th><th>القيمة</th><th>الدفع</th></tr></thead><tbody>'+doneTasks.map(function(t){var ps=payStatus(t.id);return '<tr><td>'+t.task_num+'</td><td>'+t.customer_name+'</td><td><span class="rep-badge rb-type">'+(typeLabels[t.type]||t.type)+'</span></td><td>'+(t.salesperson||t.technician_name||'-')+'</td><td class="rep-money">'+repArNum(grand(t.id))+'</td><td><span class="rep-badge '+psBadge[ps]+'">'+psLabel[ps]+'</span></td></tr>';}).join('')+'</tbody></table></div>'
+          // ── 4) حركة المخزون (داخل/خارج) ──
           +'<div class="rep-twocol">'
-            +'<div><div class="rep-sh" style="font-size:14px">👷 حسب الفني</div><table class="rep-tbl rep-mini"><thead><tr><th>الفني</th><th>مهام</th><th>تحصيل</th></tr></thead><tbody>'+techRows+'</tbody></table></div>'
-            +'<div><div class="rep-sh" style="font-size:14px">🏢 حسب الفرع</div><table class="rep-tbl rep-mini"><thead><tr><th>الفرع</th><th>مهام</th><th>تحصيل</th></tr></thead><tbody>'+branchRows+'</tbody></table></div>'
+            +'<div><div class="rep-sh" style="font-size:14px;color:#0F6E56">📥 دخل المخزون النهارده</div><table class="rep-tbl rep-mini"><thead><tr><th>الصنف</th><th>المصدر</th><th>الكمية</th></tr></thead><tbody>'+invInRows+'</tbody></table></div>'
+            +'<div><div class="rep-sh" style="font-size:14px;color:#A32D2D">📤 خرج من المخزون النهارده</div><table class="rep-tbl rep-mini"><thead><tr><th>الصنف</th><th>الجهة</th><th>الكمية</th></tr></thead><tbody>'+invOutRows+'</tbody></table></div>'
           +'</div>'
-          +'<div class="rep-sec"><div class="rep-sh">✅ المهام المنجزة <span class="rep-count">'+doneTasks.length+'</span></div><table class="rep-tbl"><thead><tr><th>الطلب</th><th>العميل</th><th>النوع</th><th>الفني</th><th>الفرع</th><th>القيمة</th><th>الدفع</th></tr></thead><tbody>'+doneRows+'</tbody></table></div>'
-          +'<div class="rep-sec"><div class="rep-sh">🆕 المهام الجديدة <span class="rep-count">'+newTasks.length+'</span></div><table class="rep-tbl"><thead><tr><th>الطلب</th><th>العميل</th><th>النوع</th><th>الفرع</th><th>القيمة</th></tr></thead><tbody>'+newRows+'</tbody></table></div>'
-          +'<div class="rep-sec"><div class="rep-sh">❌ المهام الملغاة <span class="rep-count" style="background:#FCEBEB;color:#A32D2D">'+cancelledTasks.length+'</span></div><table class="rep-tbl"><thead><tr><th>الطلب</th><th>العميل</th><th>النوع</th><th>الفرع</th><th>القيمة</th></tr></thead><tbody>'+cancelRows+'</tbody></table></div>'
-          +'<div class="rep-sec"><div class="rep-sh">💰 المدفوعات المستلمة <span class="rep-count">'+dayPays.length+'</span></div><table class="rep-tbl"><thead><tr><th>العميل</th><th>الطلب</th><th>المبلغ</th><th>الطريقة</th></tr></thead><tbody>'+payRows+'</tbody></table></div>'
-          +'<div class="rep-sec"><div class="rep-sh">🛒 المشتريات والموردين</div><table class="rep-tbl"><thead><tr><th>المورد</th><th>المنتجات</th><th>الحالة</th><th>المبلغ</th></tr></thead><tbody>'+purchaseRows+'</tbody></table></div>'
-          +'<div class="rep-sec"><div class="rep-sh">📦 صرف الأجهزة (أوامر الصرف) <span class="rep-count">'+acDispatches.length+'</span></div><table class="rep-tbl"><thead><tr><th>الطلب</th><th>العميل</th><th>البائع</th><th>اعتمده</th></tr></thead><tbody>'+acDispRows+'</tbody></table></div>'
-          +'<div class="rep-sec"><div class="rep-sh">🔧 صرف قطع الغيار <span class="rep-count">'+spDispatches.length+'</span></div><table class="rep-tbl"><thead><tr><th>رقم الأمر</th><th>الفني/العميل</th><th>النوع</th><th>القطع</th></tr></thead><tbody>'+spDispRows+'</tbody></table></div>'
-          +'<div class="rep-sec"><div class="rep-sh">📌 لقطة المستحقات (إجمالي كلي)</div><div class="rep-breakdown"><div class="rep-chip"><span class="rc-l">مستحق على العملاء</span><b class="rep-money">'+repArNum(custOutstanding)+'</b></div><div class="rep-chip"><span class="rc-l">عملاء مدينين</span><b>'+custDebtors+'</b></div></div></div>'
           +'<div style="text-align:center;margin-top:20px"><button onclick="printDailyReport()" style="background:#185FA5;color:#fff;border:none;border-radius:10px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer">🖨️ طباعة التقرير</button></div>'
         +'</div>'
       +'</div>';
