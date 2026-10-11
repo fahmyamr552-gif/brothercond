@@ -2541,7 +2541,7 @@ function doPrint(){
   html+='<b>Date:</b> '+(CT.date||'-');
   html+='</div>';
   html+='<div style="margin-bottom:5px;font-size:12px"><b>To:</b> <span style="font-size:13px;font-weight:700">'+(cu.full_name||CT.customer_name||'-')+'</span></div>';
-  if(cu.address)html+='<div style="margin-bottom:3px;font-size:11px"><b>Address:</b> '+cu.address+'</div>';
+  var printAddr=CT.address||cu.address;if(printAddr)html+='<div style="margin-bottom:3px;font-size:11px"><b>Address:</b> '+printAddr+'</div>';
   html+='<div style="margin-bottom:3px;font-size:11px"><b>Subject:</b> '+(isSales?'Offer Price Quotation':'Service Order - '+CT.type.charAt(0).toUpperCase()+CT.type.slice(1))+'</div>';
   html+='<div style="margin-bottom:3px;font-size:11px"><b>Date:</b> '+(CT.date||'-')+'</div>';
   if(CT.due_date)html+='<div style="margin-bottom:3px;font-size:11px"><b>Valid until:</b> '+CT.due_date+'</div>';
