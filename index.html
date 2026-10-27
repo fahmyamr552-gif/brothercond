@@ -5772,42 +5772,63 @@ async function loadPriceList(){
   renderPriceList();
 }
 function plMoney(n){return Number(n||0).toLocaleString('en-US');}
+var _plSearch='';
+function plEsc(s){return (''+(s||'')).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function plRow(it,owner,seen){
+  var isNew=plChangedSince(it,seen);
+  var note=it.note?'<div style="font-size:12px;color:#0c6b47;margin-top:3px;display:flex;gap:5px;align-items:flex-start"><span>✅</span><span style="flex:1;min-width:0"><b>شامل:</b> '+plEsc(it.note)+(owner?' <button onclick="plEditNote(\''+it.id+'\')" style="border:none;background:none;color:#1E6FB8;font-weight:700;cursor:pointer;padding:0;font-size:11px">تعديل</button>':'')+'</span></div>':(owner?'<button onclick="plEditNote(\''+it.id+'\')" style="border:none;background:none;color:#9aa6a0;font-weight:700;cursor:pointer;padding:0;font-size:11px;margin-top:3px">+ ملاحظة شامل</button>':'');
+  return '<div style="display:flex;align-items:center;gap:14px;padding:13px 16px;border-bottom:1px solid #eef1ee;background:'+(isNew?'#fff7f5':'#fff')+'">'
+    +'<div style="width:5px;align-self:stretch;border-radius:4px;background:'+(isNew?'#D64531':'#dfe8e3')+';margin:-13px 0;flex-shrink:0"></div>'
+    +'<div style="flex:1;min-width:0">'
+      +'<div style="display:flex;align-items:center;gap:8px"><span style="font-weight:700;font-size:14px;color:#16241d">'+plEsc(it.name)+'</span>'+(isNew?'<span style="font-size:10px;font-weight:800;color:#fff;background:#D64531;border-radius:999px;padding:2px 8px">جديد</span>':'')+'</div>'
+      +note
+    +'</div>'
+    +'<div style="text-align:center;flex-shrink:0;min-width:95px"><div style="font-size:21px;font-weight:800;color:#0c6b47;line-height:1.1">'+plMoney(it.price)+' <span style="font-size:12px;font-weight:700">ج.م</span></div><div style="font-size:11px;color:#8a978f;font-weight:600;margin-top:2px">'+plEsc(it.unit||'')+'</div></div>'
+    +(owner?'<div style="display:flex;gap:6px;flex-shrink:0"><button onclick="plEditPrice(\''+it.id+'\')" title="تعديل السعر" style="border:none;background:#e7f0f9;color:#1E6FB8;border-radius:8px;width:34px;height:34px;cursor:pointer;font-size:14px">✎</button><button onclick="plDelete(\''+it.id+'\')" title="حذف" style="border:none;background:#fdecea;color:#D64531;border-radius:8px;width:34px;height:34px;cursor:pointer;font-size:14px">🗑</button></div>':'')
+    +'</div>';
+}
 function renderPriceList(){
   var body=document.getElementById('pl-body');if(!body)return;
   var seen=plGetSeen();
   var owner=plIsOwner();
   var anyNew=['parts','copper','ac'].some(function(s){return plSectionHasNew(s,seen);});
-  var g=PL_DATA[_plCur]||[];
-  var cards=g.map(function(it){
-    var isNew=plChangedSince(it,seen);
-    var incLine;
-    if(it.note){incLine='<div style="display:flex;align-items:flex-start;gap:7px;font-size:12px;color:#0c6b47;background:#e6f4ec;border-radius:10px;padding:9px 11px;line-height:1.65"><span>✅</span><div style="flex:1;min-width:0"><b>شامل:</b> '+it.note+(owner?' · <button onclick="plEditNote(\''+it.id+'\')" style="border:none;background:none;color:#1E6FB8;font-weight:800;cursor:pointer;padding:0;font-size:11.5px">تعديل</button>':'')+'</div></div>';}
-    else if(owner){incLine='<button onclick="plEditNote(\''+it.id+'\')" style="border:none;background:none;color:#1E6FB8;font-weight:800;cursor:pointer;padding:0;font-size:11.5px;text-align:start">+ إضافة ملاحظة «شامل…»</button>';}
-    else incLine='';
-    return '<div style="position:relative;background:#fff;border:1px solid '+(isNew?'#f3b4ab':'#e2e8e2')+';border-radius:16px;padding:16px 17px;display:flex;flex-direction:column;gap:11px;box-shadow:0 2px 10px rgba(18,60,42,.06);overflow:hidden">'
-      +'<span style="position:absolute;inset-inline-start:0;top:0;bottom:0;width:4px;background:'+(isNew?'#D64531':'#128C5E')+'"></span>'
-      +'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px"><div style="font-weight:700;font-size:14.5px;line-height:1.45;flex:1;min-width:0">'+it.name+'</div>'+(isNew?'<span style="flex-shrink:0;font-size:10px;font-weight:800;color:#fff;background:#D64531;border-radius:999px;padding:3px 10px">سعر جديد</span>':'')+'</div>'
-      +'<div style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap"><span style="font-size:28px;font-weight:800;color:#0c6b47;line-height:1">'+plMoney(it.price)+'</span><span style="font-size:14px;font-weight:700;color:#0c6b47">ج.م</span><span style="font-size:12px;color:#6a7b72;font-weight:700;margin-inline-start:auto;background:#f3f6f2;border-radius:999px;padding:4px 11px;white-space:nowrap">'+(it.unit||'')+'</span></div>'
-      +incLine
-      +(owner?'<div style="display:flex;gap:8px"><button onclick="plEditPrice(\''+it.id+'\')" style="border:1px solid #e7f0f9;background:#e7f0f9;color:#1E6FB8;border-radius:10px;padding:7px 16px;font-weight:800;cursor:pointer;font-size:12.5px">✎ السعر</button><button onclick="plDelete(\''+it.id+'\')" style="border:1px solid #fdecea;background:#fdecea;color:#D64531;border-radius:10px;padding:7px 14px;font-weight:800;cursor:pointer;font-size:12.5px">حذف</button></div>':'')
-      +'</div>';
-  }).join('')||'<div style="text-align:center;padding:30px;color:#aaa;grid-column:1/-1">لا توجد أصناف في هذا القسم بعد'+(owner?' — أضف أو ارفع من Excel':'')+'</div>';
-  var tdot=function(s){return plSectionHasNew(s,seen)?'<span style="position:absolute;top:-2px;inset-inline-start:-2px;width:11px;height:11px;border-radius:50%;background:#D64531;border:2.5px solid #eef2ee"></span>':'';};
-  var tab=function(s,lbl){return '<button onclick="plTab(\''+s+'\')" style="position:relative;border:1px solid #e2e8e2;background:'+(_plCur===s?'#128C5E':'#fff')+';color:'+(_plCur===s?'#fff':'#6a7b72')+';border-radius:999px;padding:9px 18px;font-weight:700;cursor:pointer;font-size:13px">'+lbl+tdot(s)+'</button>';};
-  var ownerBtns=owner?'<div style="display:flex;gap:8px;flex-wrap:wrap"><button onclick="plAddItem()" style="background:#fff;color:#0c6b47;border:none;border-radius:10px;padding:10px 16px;font-weight:800;cursor:pointer;font-size:13px">+ صنف</button><button onclick="plOpenUpload()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:10px;padding:10px 16px;font-weight:800;cursor:pointer;font-size:13px">⬆ رفع Excel</button></div>':'';
-  var banner=anyNew?'<div style="display:flex;align-items:center;gap:11px;background:#fdecea;border:1.5px solid #D64531;border-radius:10px;padding:11px 15px;margin-bottom:14px;font-size:13px;color:#7a241a">🔔 <b style="color:#D64531">تم تحديث بعض الأسعار</b> — راجعها قبل حساب أي عرض.<button onclick="plMarkSeen()" style="margin-inline-start:auto;background:#D64531;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-weight:800;cursor:pointer;font-size:12px">تمام، شُفتها</button></div>':'';
+  var all=PL_DATA[_plCur]||[];
+  var q=(_plSearch||'').trim().toLowerCase();
+  var g=q?all.filter(function(it){return ((it.name||'')+' '+(it.note||'')+' '+(it.unit||'')).toLowerCase().indexOf(q)>=0;}):all;
+  var rows=g.map(function(it){return plRow(it,owner,seen);}).join('')
+    ||'<div style="text-align:center;padding:36px;color:#aaa">'+(q?'لا يوجد صنف باسم «'+plEsc(_plSearch)+'»':'لا توجد أصناف في هذا القسم بعد'+(owner?' — أضف أو ارفع من Excel':''))+'</div>';
+  var tdot=function(s){return plSectionHasNew(s,seen)?'<span style="position:absolute;top:-2px;inset-inline-start:-2px;width:10px;height:10px;border-radius:50%;background:#D64531;border:2.5px solid #eef2ee"></span>':'';};
+  var tab=function(s,lbl){return '<button onclick="plTab(\''+s+'\')" style="position:relative;border:1px solid '+(_plCur===s?'#128C5E':'#dde5e0')+';background:'+(_plCur===s?'#128C5E':'#fff')+';color:'+(_plCur===s?'#fff':'#5f6f67')+';border-radius:999px;padding:9px 20px;font-weight:700;cursor:pointer;font-size:13px">'+lbl+tdot(s)+'</button>';};
+  var ownerBtns=owner?'<div style="display:flex;gap:8px;flex-wrap:wrap"><button onclick="plAddItem()" style="background:#fff;color:#0c6b47;border:none;border-radius:10px;padding:9px 15px;font-weight:800;cursor:pointer;font-size:13px">+ صنف</button><button onclick="plOpenUpload()" style="background:rgba(255,255,255,.22);color:#fff;border:none;border-radius:10px;padding:9px 15px;font-weight:800;cursor:pointer;font-size:13px">⬆ رفع Excel</button></div>':'';
+  var banner=anyNew?'<div style="display:flex;align-items:center;gap:11px;background:#fdecea;border:1px solid #f2b6ac;border-radius:12px;padding:11px 15px;margin-bottom:14px;font-size:13px;color:#7a241a">🔔 <b style="color:#D64531">تم تحديث بعض الأسعار</b> — راجعها قبل حساب أي عرض.<button onclick="plMarkSeen()" style="margin-inline-start:auto;background:#D64531;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-weight:800;cursor:pointer;font-size:12px">تمام، شُفتها</button></div>':'';
+  var search='<div style="position:relative;margin-bottom:14px">'
+    +'<span style="position:absolute;inset-inline-start:14px;top:50%;transform:translateY(-50%);font-size:15px;color:#9aa6a0">🔍</span>'
+    +'<input id="pl-search" value="'+plEsc(_plSearch)+'" oninput="plOnSearch(this.value)" placeholder="ابحث عن اسم القطعة..." autocomplete="off" style="width:100%;box-sizing:border-box;padding:12px 42px;border:1px solid #dde5e0;border-radius:12px;font-size:14px;font-family:inherit;background:#fff">'
+    +(_plSearch?'<button onclick="plClearSearch()" style="position:absolute;inset-inline-end:10px;top:50%;transform:translateY(-50%);border:none;background:#eef1ee;border-radius:50%;width:24px;height:24px;cursor:pointer;color:#777;font-size:13px">✕</button>':'')
+    +'</div>';
   body.innerHTML=''
     +'<div style="background:linear-gradient(135deg,#128C5E,#0c6b47);border-radius:16px;padding:18px 20px;color:#fff;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:14px">'
       +'<div><div style="font-size:21px;font-weight:800">قائمة الأسعار</div><div style="font-size:12px;opacity:.9;margin-top:3px;font-weight:600">مشتركة بين كل المستخدمين · للعرض والاسترشاد فقط</div></div>'+ownerBtns
     +'</div>'
     +banner
-    +'<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">'+tab('parts','قطع الغيار')+tab('copper','النحاس')+tab('ac','كتالوج التكييفات')+'</div>'
-    +'<div style="font-size:15px;font-weight:800;margin-bottom:12px">'+PL_SECTIONS[_plCur]+' <span style="font-size:12px;font-weight:600;color:#6a7b72">'+g.length+' صنف</span></div>'
-    +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px">'+cards+'</div>'
-    +'<div style="font-size:12px;color:#888;text-align:center;margin-top:18px">🔴 = سعر اتغيّر من آخر مرة فتحت القائمة · الأسعار بتتحدّث لكل المستخدمين فوراً</div>';
+    +'<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">'+tab('parts','قطع الغيار')+tab('copper','النحاس')+tab('ac','كتالوج التكييفات')+'</div>'
+    +search
+    +'<div style="font-size:13px;font-weight:700;color:#5f6f67;margin-bottom:8px">'+PL_SECTIONS[_plCur]+' · '+g.length+(q?' نتيجة':' صنف')+'</div>'
+    +'<div style="background:#fff;border:1px solid #e6ebe8;border-radius:14px;overflow:hidden;box-shadow:0 1px 6px rgba(18,60,42,.05)">'+rows+'</div>'
+    +'<div style="font-size:12px;color:#99a39d;text-align:center;margin-top:16px">🔴 = سعر اتغيّر من آخر مرة فتحت القائمة · الأسعار بتتحدّث لكل المستخدمين فوراً</div>';
   plUpdateBadge();
 }
-function plTab(s){_plCur=s;renderPriceList();}
+var _plSearchT=null;
+function plOnSearch(v){
+  _plSearch=v;
+  if(_plSearchT)clearTimeout(_plSearchT);
+  _plSearchT=setTimeout(function(){
+    renderPriceList();
+    var el=document.getElementById('pl-search');if(el){el.focus();var n=el.value.length;try{el.setSelectionRange(n,n);}catch(e){}}
+  },160);
+}
+function plClearSearch(){_plSearch='';renderPriceList();var el=document.getElementById('pl-search');if(el)el.focus();}
+function plTab(s){_plCur=s;_plSearch='';renderPriceList();}
 function plMarkSeen(){plSetSeen(new Date().toISOString());renderPriceList();toast('اتمسحت علامات التحديث');}
 function plUpdateBadge(){
   var seen=plGetSeen();
@@ -5868,10 +5889,26 @@ function plAddItem(){
       toast('تم إضافة الصنف');plClose();loadPriceList();
     });
 }
+function plParseSheet(wb,section){
+  var kw={parts:['قطع','غيار','part'],copper:['نحاس','copper'],ac:['تكييف','كتالوج','ac']};
+  var sheetName=null;
+  wb.SheetNames.forEach(function(sn){var low=(''+sn).toLowerCase();if(kw[section].some(function(k){return sn.indexOf(k)>=0||low.indexOf(k)>=0;}))sheetName=sn;});
+  if(!sheetName)return null; // no matching sheet for this section
+  var arr=XLSX.utils.sheet_to_json(wb.Sheets[sheetName],{header:1,defval:''});
+  var out=[];
+  arr.forEach(function(row){
+    var cells=(row||[]).map(function(c){return (''+c).trim();});
+    if(cells.every(function(c){return !c;}))return;
+    var name=cells[0];var price=parseFloat((''+cells[1]).replace(/[^0-9.]/g,''));
+    if(!name||isNaN(price))return;
+    out.push({section:section,name:name,price:price,unit:(cells[2]||'').trim()||null,note:(cells[3]||'').trim()||null,changed_at:new Date().toISOString(),sort_order:out.length});
+  });
+  return out;
+}
 function plOpenUpload(){
   if(!plIsOwner())return;
-  plOverlay('⬆ رفع أسعار «'+PL_SECTIONS[_plCur]+'» من Excel',
-    '<div style="font-size:12px;color:#6a7b72;margin-bottom:10px">سيتم <b>استبدال</b> كل أصناف «'+PL_SECTIONS[_plCur]+'» بالموجود في شيت الملف المطابق للقسم. الأعمدة: الاسم · السعر · الوحدة · ملاحظة (اختياري).</div>'
+  plOverlay('⬆ رفع الأسعار من Excel',
+    '<div style="font-size:12px;color:#6a7b72;margin-bottom:10px;line-height:1.7">الملف ممكن يحتوي على <b>الأقسام الثلاثة</b> (قطع الغيار · النحاس · كتالوج التكييفات) — كل قسم في شيت باسمه. هيتم <b>استبدال</b> كل قسم موجود شيته في الملف. الأعمدة: الاسم · السعر · الوحدة · ملاحظة (اختياري).</div>'
     +'<input type="file" id="pl-file" accept=".xlsx" style="width:100%;padding:10px;border:2px dashed #1E6FB8;border-radius:10px;background:#e7f0f9;font-size:13px">',
     async function(){
       var f=document.getElementById('pl-file').files[0];
@@ -5879,27 +5916,20 @@ function plOpenUpload(){
       if(typeof XLSX==='undefined'){toast('مكتبة Excel لم تُحمّل، حدّث الصفحة',true);return;}
       var buf=await f.arrayBuffer();
       var wb=XLSX.read(buf,{type:'array'});
-      var kw={parts:['قطع','غيار','part'],copper:['نحاس','copper'],ac:['تكييف','كتالوج','ac']};
-      var sheetName=null;
-      wb.SheetNames.forEach(function(sn){var low=(''+sn).toLowerCase();if(kw[_plCur].some(function(k){return sn.indexOf(k)>=0||low.indexOf(k)>=0;}))sheetName=sn;});
-      if(!sheetName)sheetName=wb.SheetNames[0];
-      var ws=wb.Sheets[sheetName];
-      var arr=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
-      var rowsOut=[];
-      arr.forEach(function(row){
-        var cells=(row||[]).map(function(c){return (''+c).trim();});
-        if(cells.every(function(c){return !c;}))return;
-        var name=cells[0];var price=parseFloat((''+cells[1]).replace(/[^0-9.]/g,''));
-        if(!name||isNaN(price))return;
-        rowsOut.push({section:_plCur,name:name,price:price,unit:(cells[2]||'').trim()||null,note:(cells[3]||'').trim()||null,changed_at:new Date().toISOString(),sort_order:rowsOut.length});
-      });
-      if(!rowsOut.length){toast('لم أجد أصناف في الشيت — تأكد من القالب',true);return;}
-      var del=await db.from('price_list').delete().eq('section',_plCur);
-      if(del.error){toast('خطأ في المسح: '+del.error.message,true);return;}
-      var ins=await db.from('price_list').insert(rowsOut);
-      if(ins.error){toast('خطأ: '+ins.error.message,true);return;}
+      var secs=['parts','copper','ac'];
+      var found={},total=0,done=[];
+      secs.forEach(function(s){var r=plParseSheet(wb,s);if(r&&r.length){found[s]=r;total+=r.length;}});
+      if(!total){toast('لم أجد أصناف — تأكد من أسماء الشيتات والقالب',true);return;}
+      for(var i=0;i<secs.length;i++){
+        var s=secs[i];if(!found[s])continue;
+        var del=await db.from('price_list').delete().eq('section',s);
+        if(del.error){toast('خطأ في المسح ('+PL_SECTIONS[s]+'): '+del.error.message,true);return;}
+        var ins=await db.from('price_list').insert(found[s]);
+        if(ins.error){toast('خطأ ('+PL_SECTIONS[s]+'): '+ins.error.message,true);return;}
+        done.push(PL_SECTIONS[s]+' ('+found[s].length+')');
+      }
       try{await db.from('price_list_meta').update({last_update:new Date().toISOString()}).eq('id',1);}catch(e){}
-      toast('تم رفع '+rowsOut.length+' صنف في «'+PL_SECTIONS[_plCur]+'»');
+      toast('تم رفع: '+done.join(' · '));
       plClose();loadPriceList();
     },'رفع واستبدال');
 }
