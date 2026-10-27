@@ -207,6 +207,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
   <div class="nv">
     <div class="ni on" id="ni-dash" onclick="go('dash',this)">&#9632; <span data-t="dashboard">Dashboard</span></div>
     <div class="ni" id="ni-tasks" onclick="go('tasks',this)">&#9632; <span data-t="tasks">Tasks</span></div>
+    <div class="ni" id="ni-pl" onclick="go('pl',this)">&#9632; <span>قائمة الأسعار</span> <span id="pl-badge" style="display:none;background:#c0392b;color:#fff;border-radius:10px;padding:0 7px;font-size:10px;font-weight:700;margin-right:4px"></span></div>
     <div class="ni" id="ni-plan" onclick="openPlan()">&#9632; <span data-t="navplan">خطة يومية</span></div>
     <div class="ni" id="ni-fb" onclick="openFeedback()">&#9632; <span data-t="navfeedback">آراء العملاء</span></div>
     <div class="ni" id="ni-fu" onclick="openFollowup()">&#9632; <span data-t="navfollowup">الاستكمالات</span></div>
@@ -237,7 +238,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
 <div class="mn">
 <div class="tb">
   <button class="hamburger" onclick="toggleSidebar()" style="display:none;background:none;border:none;font-size:22px;cursor:pointer;padding:4px 10px;color:#333">&#9776;</button>
-  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-10-10</span>
+  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-10-27</span>
   <div style="display:flex;align-items:center;gap:8px"><div class="lang-btns"><button class="lbtn on" onclick="setLang('en',this)">EN</button><button class="lbtn" onclick="setLang('ar',this)">عربي</button></div><div id="tact" style="display:flex;gap:7px"></div></div>
 </div>
 <div class="ct">
@@ -260,6 +261,10 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
 <!-- TASKS LIST -->
 <div class="pg" id="pg-mydash">
   <div id="mydash-body" style="max-width:100%"></div>
+</div>
+
+<div class="pg" id="pg-pl">
+  <div id="pl-body"><div style="padding:20px;text-align:center;color:#888">جاري التحميل...</div></div>
 </div>
 
 <div class="pg" id="pg-tasks">
@@ -1160,6 +1165,7 @@ async function doSignIn(){
     document.getElementById('srole').textContent=ROLES[CU.role]?.l||CU.role;
     document.getElementById('sbranch').textContent=CU.branch;
     applyRole();
+    try{plCheckUpdates();}catch(e){}
     if(CU.role==='owner')go('dash',document.getElementById('ni-dash'));
     else if(CU.role==='salesperson'||CU.role==='technician')go('mydash',document.getElementById('ni-dash'));
     else go('tasks',document.getElementById('ni-tasks'));
@@ -1259,7 +1265,7 @@ function go(pg,el){
   const pge=document.getElementById('pg-'+pg);
   if(pge)pge.classList.add('on');
   if(el)el.classList.add('on');
-  const titlesMap={dash:'dashboard',tasks:'tasks',inv:'inventory','np':'addproduct',pur:'purchases','npo':'newpo',fin:'finance',cust:'customers','cd':'customer',sup:'suppliers','sd':'supplier',usr:'users',disp:'dispatches','nt':'newtask','td':'tasks',plan:'خطة يومية',fb:'آراء العملاء',fu:'الاستكمالات',ds:'أوامر الصرف',rep:'التقرير اليومي',ded:'الخصومات',mydash:'لوحتي',pay:'الرواتب',att:'الحضور',ct:'عقود الصيانة',bk:'طلبات الحجز'};
+  const titlesMap={dash:'dashboard',tasks:'tasks',inv:'inventory','np':'addproduct',pur:'purchases','npo':'newpo',fin:'finance',cust:'customers','cd':'customer',sup:'suppliers','sd':'supplier',usr:'users',disp:'dispatches','nt':'newtask','td':'tasks',plan:'خطة يومية',fb:'آراء العملاء',fu:'الاستكمالات',ds:'أوامر الصرف',rep:'التقرير اليومي',ded:'الخصومات',mydash:'لوحتي',pay:'الرواتب',att:'الحضور',ct:'عقود الصيانة',bk:'طلبات الحجز',pl:'قائمة الأسعار'};
   const titles={}; Object.entries(titlesMap).forEach(([k,v])=>titles[k]=t(v));
   document.getElementById('ptitle').textContent=titles[pg]||pg;
   const ta=document.getElementById('tact');ta.innerHTML='';
@@ -1269,6 +1275,7 @@ function go(pg,el){
   if(pg==='dash'){if(CU&&CU.role==='owner'){loadDash();}else{go('mydash',document.getElementById('ni-dash'));}}
   if(pg==='mydash')loadRoleDashboard();
   if(pg==='tasks')loadTasks();
+  if(pg==='pl')loadPriceList();
   if(pg==='inv')loadInv();
   if(pg==='pur')loadPur();
   if(pg==='fin'){loadFinStats();finTab('all',document.querySelector('.tab.on')||document.querySelector('.tab'));}
@@ -5742,6 +5749,174 @@ var BACKUP_TABLES=['tasks','task_products','payments','customers','inventory','s
   'dispatch_assignments','employees','payroll','payroll_items','deductions','attendance',
   'leave_usage','feedback','feedback_attempts','booking_requests','maintenance_contracts',
   'contract_visits','install_templates','users'];
+// ══════════ PRICE LIST (قائمة الأسعار) — isolated, reference-only ══════════
+var PL_DATA={parts:[],copper:[],ac:[]};
+var PL_SECTIONS={parts:'قطع الغيار',copper:'النحاس',ac:'كتالوج التكييفات'};
+var _plCur='parts';
+function plIsOwner(){return CU&&CU.role==='owner';}
+function plSeenKey(){return 'pl_seen_'+((CU&&CU.username)||'x');}
+function plGetSeen(){try{return localStorage.getItem(plSeenKey())||'';}catch(e){return '';}}
+function plSetSeen(ts){try{localStorage.setItem(plSeenKey(),ts);}catch(e){}}
+function plChangedSince(it,seen){return it.changed_at&&(!seen||it.changed_at>seen);}
+function plSectionHasNew(sec,seen){return (PL_DATA[sec]||[]).some(function(it){return plChangedSince(it,seen);});}
+
+async function loadPriceList(){
+  var body=document.getElementById('pl-body');if(!body)return;
+  body.innerHTML='<div style="padding:20px;text-align:center;color:#888">جاري التحميل...</div>';
+  try{
+    var r=await db.from('price_list').select('*').order('sort_order').order('created_at').limit(5000);
+    var rows=r.data||[];
+    PL_DATA={parts:[],copper:[],ac:[]};
+    rows.forEach(function(x){if(PL_DATA[x.section])PL_DATA[x.section].push(x);});
+  }catch(e){PL_DATA={parts:[],copper:[],ac:[]};}
+  renderPriceList();
+}
+function plMoney(n){return Number(n||0).toLocaleString('en-US');}
+function renderPriceList(){
+  var body=document.getElementById('pl-body');if(!body)return;
+  var seen=plGetSeen();
+  var owner=plIsOwner();
+  var anyNew=['parts','copper','ac'].some(function(s){return plSectionHasNew(s,seen);});
+  var g=PL_DATA[_plCur]||[];
+  var cards=g.map(function(it){
+    var isNew=plChangedSince(it,seen);
+    var incLine;
+    if(it.note){incLine='<div style="display:flex;align-items:flex-start;gap:7px;font-size:12px;color:#0c6b47;background:#e6f4ec;border-radius:10px;padding:9px 11px;line-height:1.65"><span>✅</span><div style="flex:1;min-width:0"><b>شامل:</b> '+it.note+(owner?' · <button onclick="plEditNote(\''+it.id+'\')" style="border:none;background:none;color:#1E6FB8;font-weight:800;cursor:pointer;padding:0;font-size:11.5px">تعديل</button>':'')+'</div></div>';}
+    else if(owner){incLine='<button onclick="plEditNote(\''+it.id+'\')" style="border:none;background:none;color:#1E6FB8;font-weight:800;cursor:pointer;padding:0;font-size:11.5px;text-align:start">+ إضافة ملاحظة «شامل…»</button>';}
+    else incLine='';
+    return '<div style="position:relative;background:#fff;border:1px solid '+(isNew?'#f3b4ab':'#e2e8e2')+';border-radius:16px;padding:16px 17px;display:flex;flex-direction:column;gap:11px;box-shadow:0 2px 10px rgba(18,60,42,.06);overflow:hidden">'
+      +'<span style="position:absolute;inset-inline-start:0;top:0;bottom:0;width:4px;background:'+(isNew?'#D64531':'#128C5E')+'"></span>'
+      +'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px"><div style="font-weight:700;font-size:14.5px;line-height:1.45;flex:1;min-width:0">'+it.name+'</div>'+(isNew?'<span style="flex-shrink:0;font-size:10px;font-weight:800;color:#fff;background:#D64531;border-radius:999px;padding:3px 10px">سعر جديد</span>':'')+'</div>'
+      +'<div style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap"><span style="font-size:28px;font-weight:800;color:#0c6b47;line-height:1">'+plMoney(it.price)+'</span><span style="font-size:14px;font-weight:700;color:#0c6b47">ج.م</span><span style="font-size:12px;color:#6a7b72;font-weight:700;margin-inline-start:auto;background:#f3f6f2;border-radius:999px;padding:4px 11px;white-space:nowrap">'+(it.unit||'')+'</span></div>'
+      +incLine
+      +(owner?'<div style="display:flex;gap:8px"><button onclick="plEditPrice(\''+it.id+'\')" style="border:1px solid #e7f0f9;background:#e7f0f9;color:#1E6FB8;border-radius:10px;padding:7px 16px;font-weight:800;cursor:pointer;font-size:12.5px">✎ السعر</button><button onclick="plDelete(\''+it.id+'\')" style="border:1px solid #fdecea;background:#fdecea;color:#D64531;border-radius:10px;padding:7px 14px;font-weight:800;cursor:pointer;font-size:12.5px">حذف</button></div>':'')
+      +'</div>';
+  }).join('')||'<div style="text-align:center;padding:30px;color:#aaa;grid-column:1/-1">لا توجد أصناف في هذا القسم بعد'+(owner?' — أضف أو ارفع من Excel':'')+'</div>';
+  var tdot=function(s){return plSectionHasNew(s,seen)?'<span style="position:absolute;top:-2px;inset-inline-start:-2px;width:11px;height:11px;border-radius:50%;background:#D64531;border:2.5px solid #eef2ee"></span>':'';};
+  var tab=function(s,lbl){return '<button onclick="plTab(\''+s+'\')" style="position:relative;border:1px solid #e2e8e2;background:'+(_plCur===s?'#128C5E':'#fff')+';color:'+(_plCur===s?'#fff':'#6a7b72')+';border-radius:999px;padding:9px 18px;font-weight:700;cursor:pointer;font-size:13px">'+lbl+tdot(s)+'</button>';};
+  var ownerBtns=owner?'<div style="display:flex;gap:8px;flex-wrap:wrap"><button onclick="plAddItem()" style="background:#fff;color:#0c6b47;border:none;border-radius:10px;padding:10px 16px;font-weight:800;cursor:pointer;font-size:13px">+ صنف</button><button onclick="plOpenUpload()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:10px;padding:10px 16px;font-weight:800;cursor:pointer;font-size:13px">⬆ رفع Excel</button></div>':'';
+  var banner=anyNew?'<div style="display:flex;align-items:center;gap:11px;background:#fdecea;border:1.5px solid #D64531;border-radius:10px;padding:11px 15px;margin-bottom:14px;font-size:13px;color:#7a241a">🔔 <b style="color:#D64531">تم تحديث بعض الأسعار</b> — راجعها قبل حساب أي عرض.<button onclick="plMarkSeen()" style="margin-inline-start:auto;background:#D64531;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-weight:800;cursor:pointer;font-size:12px">تمام، شُفتها</button></div>':'';
+  body.innerHTML=''
+    +'<div style="background:linear-gradient(135deg,#128C5E,#0c6b47);border-radius:16px;padding:18px 20px;color:#fff;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:14px">'
+      +'<div><div style="font-size:21px;font-weight:800">قائمة الأسعار</div><div style="font-size:12px;opacity:.9;margin-top:3px;font-weight:600">مشتركة بين كل المستخدمين · للعرض والاسترشاد فقط</div></div>'+ownerBtns
+    +'</div>'
+    +banner
+    +'<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">'+tab('parts','قطع الغيار')+tab('copper','النحاس')+tab('ac','كتالوج التكييفات')+'</div>'
+    +'<div style="font-size:15px;font-weight:800;margin-bottom:12px">'+PL_SECTIONS[_plCur]+' <span style="font-size:12px;font-weight:600;color:#6a7b72">'+g.length+' صنف</span></div>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px">'+cards+'</div>'
+    +'<div style="font-size:12px;color:#888;text-align:center;margin-top:18px">🔴 = سعر اتغيّر من آخر مرة فتحت القائمة · الأسعار بتتحدّث لكل المستخدمين فوراً</div>';
+  plUpdateBadge();
+}
+function plTab(s){_plCur=s;renderPriceList();}
+function plMarkSeen(){plSetSeen(new Date().toISOString());renderPriceList();toast('اتمسحت علامات التحديث');}
+function plUpdateBadge(){
+  var seen=plGetSeen();
+  var anyNew=['parts','copper','ac'].some(function(s){return plSectionHasNew(s,seen);});
+  var b=document.getElementById('pl-badge');if(b){b.style.display=anyNew?'':'none';b.textContent='جديد';}
+}
+async function plCheckUpdates(){
+  try{
+    var r=await db.from('price_list').select('section,changed_at').limit(5000);
+    var rows=r.data||[];
+    PL_DATA={parts:[],copper:[],ac:[]};
+    rows.forEach(function(x){if(PL_DATA[x.section])PL_DATA[x.section].push(x);});
+    plUpdateBadge();
+  }catch(e){}
+}
+async function plSave(id,fields){
+  var up=await db.from('price_list').update(fields).eq('id',id);
+  if(up.error){toast('خطأ: '+up.error.message,true);return false;}
+  try{await db.from('price_list_meta').update({last_update:new Date().toISOString()}).eq('id',1);}catch(e){}
+  return true;
+}
+function plFind(id){var it=null;Object.keys(PL_DATA).forEach(function(s){PL_DATA[s].forEach(function(x){if(x.id===id)it=x;});});return it;}
+function plEditPrice(id){
+  if(!plIsOwner())return;var it=plFind(id);if(!it)return;
+  plOverlay('تعديل سعر — '+it.name,
+    '<input id="pl-inp" type="number" value="'+it.price+'" style="width:100%;padding:11px;border:2px solid #1E6FB8;border-radius:10px;font-size:18px;font-weight:800;text-align:center">',
+    async function(){
+      var v=parseFloat(document.getElementById('pl-inp').value);if(isNaN(v)){toast('اكتب سعر صحيح',true);return;}
+      if(await plSave(id,{price:v,changed_at:new Date().toISOString()})){toast('تم تحديث السعر — الكل هيشوفه');plClose();loadPriceList();}
+    });
+}
+function plEditNote(id){
+  if(!plIsOwner())return;var it=plFind(id);if(!it)return;
+  plOverlay('ملاحظة «شامل…» — '+it.name,
+    '<input id="pl-inp" value="'+(it.note||'').replace(/"/g,'&quot;')+'" placeholder="مثال: شامل كابل كهرباء + كابل إلكتروني + دكت أبيض + عازل" style="width:100%;padding:11px;border:2px solid #1E6FB8;border-radius:10px;font-size:14px">',
+    async function(){
+      if(await plSave(id,{note:document.getElementById('pl-inp').value.trim()||null})){toast('تم حفظ الملاحظة');plClose();loadPriceList();}
+    });
+}
+async function plDelete(id){
+  if(!plIsOwner())return;if(!confirm('حذف هذا الصنف؟'))return;
+  var d=await db.from('price_list').delete().eq('id',id);
+  if(d.error){toast('خطأ: '+d.error.message,true);return;}
+  try{await db.from('price_list_meta').update({last_update:new Date().toISOString()}).eq('id',1);}catch(e){}
+  toast('تم الحذف');loadPriceList();
+}
+function plAddItem(){
+  if(!plIsOwner())return;
+  plOverlay('إضافة صنف جديد — '+PL_SECTIONS[_plCur],
+    '<input id="pl-nm" placeholder="اسم الصنف" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:9px;font-size:14px;margin-bottom:8px">'
+    +'<div style="display:flex;gap:8px"><input id="pl-pr" type="number" placeholder="السعر" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:9px;font-size:14px"><input id="pl-un" placeholder="الوحدة (للقطعة/للمتر)" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:9px;font-size:14px"></div>'
+    +'<input id="pl-nt" placeholder="ملاحظة شامل (اختياري)" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:9px;font-size:14px;margin-top:8px">',
+    async function(){
+      var nm=document.getElementById('pl-nm').value.trim();if(!nm){toast('اكتب اسم الصنف',true);return;}
+      var ins=await db.from('price_list').insert({section:_plCur,name:nm,price:parseFloat(document.getElementById('pl-pr').value)||0,unit:document.getElementById('pl-un').value.trim()||null,note:document.getElementById('pl-nt').value.trim()||null,changed_at:new Date().toISOString()});
+      if(ins.error){toast('خطأ: '+ins.error.message,true);return;}
+      try{await db.from('price_list_meta').update({last_update:new Date().toISOString()}).eq('id',1);}catch(e){}
+      toast('تم إضافة الصنف');plClose();loadPriceList();
+    });
+}
+function plOpenUpload(){
+  if(!plIsOwner())return;
+  plOverlay('⬆ رفع أسعار «'+PL_SECTIONS[_plCur]+'» من Excel',
+    '<div style="font-size:12px;color:#6a7b72;margin-bottom:10px">سيتم <b>استبدال</b> كل أصناف «'+PL_SECTIONS[_plCur]+'» بالموجود في شيت الملف المطابق للقسم. الأعمدة: الاسم · السعر · الوحدة · ملاحظة (اختياري).</div>'
+    +'<input type="file" id="pl-file" accept=".xlsx" style="width:100%;padding:10px;border:2px dashed #1E6FB8;border-radius:10px;background:#e7f0f9;font-size:13px">',
+    async function(){
+      var f=document.getElementById('pl-file').files[0];
+      if(!f){toast('اختر ملف Excel',true);return;}
+      if(typeof XLSX==='undefined'){toast('مكتبة Excel لم تُحمّل، حدّث الصفحة',true);return;}
+      var buf=await f.arrayBuffer();
+      var wb=XLSX.read(buf,{type:'array'});
+      var kw={parts:['قطع','غيار','part'],copper:['نحاس','copper'],ac:['تكييف','كتالوج','ac']};
+      var sheetName=null;
+      wb.SheetNames.forEach(function(sn){var low=(''+sn).toLowerCase();if(kw[_plCur].some(function(k){return sn.indexOf(k)>=0||low.indexOf(k)>=0;}))sheetName=sn;});
+      if(!sheetName)sheetName=wb.SheetNames[0];
+      var ws=wb.Sheets[sheetName];
+      var arr=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      var rowsOut=[];
+      arr.forEach(function(row){
+        var cells=(row||[]).map(function(c){return (''+c).trim();});
+        if(cells.every(function(c){return !c;}))return;
+        var name=cells[0];var price=parseFloat((''+cells[1]).replace(/[^0-9.]/g,''));
+        if(!name||isNaN(price))return;
+        rowsOut.push({section:_plCur,name:name,price:price,unit:(cells[2]||'').trim()||null,note:(cells[3]||'').trim()||null,changed_at:new Date().toISOString(),sort_order:rowsOut.length});
+      });
+      if(!rowsOut.length){toast('لم أجد أصناف في الشيت — تأكد من القالب',true);return;}
+      var del=await db.from('price_list').delete().eq('section',_plCur);
+      if(del.error){toast('خطأ في المسح: '+del.error.message,true);return;}
+      var ins=await db.from('price_list').insert(rowsOut);
+      if(ins.error){toast('خطأ: '+ins.error.message,true);return;}
+      try{await db.from('price_list_meta').update({last_update:new Date().toISOString()}).eq('id',1);}catch(e){}
+      toast('تم رفع '+rowsOut.length+' صنف في «'+PL_SECTIONS[_plCur]+'»');
+      plClose();loadPriceList();
+    },'رفع واستبدال');
+}
+function plOverlay(title,inner,onSave,saveLabel){
+  plClose();
+  var h='<div id="pl-ov" onclick="if(event.target===this)plClose()" style="position:fixed;inset:0;background:rgba(14,40,28,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px">'
+    +'<div style="background:#fff;border-radius:16px;max-width:480px;width:100%;padding:22px;box-shadow:0 10px 40px rgba(0,0,0,.25)">'
+      +'<div style="font-size:16px;font-weight:800;margin-bottom:14px">'+title+'</div>'+inner
+      +'<div style="display:flex;gap:8px;margin-top:16px"><button id="pl-ov-save" style="background:#128C5E;color:#fff;border:none;border-radius:10px;padding:10px 22px;font-weight:800;cursor:pointer;font-size:13px">'+(saveLabel||'حفظ')+'</button><button onclick="plClose()" style="background:#f3f6f2;color:#16241d;border:1px solid #e2e8e2;border-radius:10px;padding:10px 22px;font-weight:700;cursor:pointer;font-size:13px">إلغاء</button></div>'
+    +'</div></div>';
+  document.body.insertAdjacentHTML('beforeend',h);
+  document.getElementById('pl-ov-save').onclick=onSave;
+  setTimeout(function(){var el=document.querySelector('#pl-ov input');if(el)el.focus();},40);
+}
+function plClose(){var o=document.getElementById('pl-ov');if(o)o.remove();}
+// ══════════ END PRICE LIST ══════════
+
 async function runFullBackup(fmt){
   if(!CU||CU.role!=='owner'){toast('فقط المالك',true);return;}
   fmt=fmt||'json';
@@ -9067,6 +9242,7 @@ function applyTranslations(){
     document.getElementById('srole').textContent=(window.ROLES||{})[CU.role]?.l||CU.role;
     document.getElementById('sbranch').textContent=CU.branch;
     applyRole();
+    try{plCheckUpdates();}catch(e){}
     if(CU.role==='owner')go('dash',document.getElementById('ni-dash'));
     else go('tasks',document.getElementById('ni-tasks'));
   }catch(e){
