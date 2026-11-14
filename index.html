@@ -238,7 +238,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
 <div class="mn">
 <div class="tb">
   <button class="hamburger" onclick="toggleSidebar()" style="display:none;background:none;border:none;font-size:22px;cursor:pointer;padding:4px 10px;color:#333">&#9776;</button>
-  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-10-27</span>
+  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-11-14</span>
   <div style="display:flex;align-items:center;gap:8px"><div class="lang-btns"><button class="lbtn on" onclick="setLang('en',this)">EN</button><button class="lbtn" onclick="setLang('ar',this)">عربي</button></div><div id="tact" style="display:flex;gap:7px"></div></div>
 </div>
 <div class="ct">
@@ -924,6 +924,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     <input placeholder="Search customers..." data-t-ph="search" style="flex:1" oninput="loadCust(this.value)">
     <button class="btn bs bp" id="expbtn" style="display:none" onclick="expCust()">Export Excel</button>
     <button class="btn bs" id="mergebtn" style="display:none;background:#EF9F27;color:#fff" onclick="openMergeTool()">دمج المكررين</button>
+    <button class="btn bs" id="callogbtn" style="display:none" onclick="openCustLog()">🔒 سجل الدخول</button>
   </div>
   <div class="cd" style="padding:0;overflow:hidden"><div id="custl"><div style="padding:20px;text-align:center;color:#888">Loading...</div></div></div>
 </div>
@@ -1044,7 +1045,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     </div>
     <div class="r2">
       <div class="fg"><label data-t="fullname">Full name</label><input id="nunm" placeholder="Full name"></div>
-      <div class="fg"><label data-t="role">Role</label><select id="nurol"><option value="finance">Finance</option><option value="inventory_manager">Inventory Manager</option><option value="admin" data-t="admin">Office admin</option><option value="salesperson" data-t="salesrole">Salesperson</option><option value="technician" data-t="technician">Technician</option><option value="sales_feedback">Sales + Feedback</option></select></div>
+      <div class="fg"><label data-t="role">Role</label><select id="nurol"><option value="sales">مبيعات</option><option value="cs_maintenance">خدمة عملاء - صيانة</option><option value="cs_installation">خدمة عملاء - تركيبات</option><option value="cs_sales_manager">مدير خدمة العملاء والمبيعات</option><option value="parts_manager">مدير قطع الغيار</option><option value="finance">الحسابات</option><option value="finance_manager">مدير عام / مالي</option></select></div>
     </div>
     <div class="fg" style="margin-bottom:10px"><label data-t="branch">Branch</label><select id="nubr"><option>Nasr City</option><option>Madinaty</option><option>Rehab</option><option>Head Office</option></select></div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
@@ -1114,7 +1115,22 @@ The following items and services are not covered by this offer:
 We hope our offer meets your requirements. Thank you for choosing BrotherCond - where quality and service meet your comfort needs.
 Thanks & Best Regards,`
 const MDL={Carrier:['Xcool Inverter','X-Power Gold','Optimax Edge','Flair Plus'],Midea:['Blanc Inverter','Aurora','Xtreme Save Plus','Mission'],Sharp:['J-Tech Inverter','X-Inverter','AH-AP Series','UV Protect'],Trane:['XR15','4MXW8','TWE Series','XR14'],Haier:['Pearl Plus','Arctic Super Match','Titan Inverter','FLEXIS Plus'],Fresh:['Siwa Inverter','Smart Inverter','Cool Series','Marvel']};
-const ROLES=window.ROLES={owner:{l:'Owner',c:'pu',can:['dash','tasks','inv','pur','fin','cust','sup','usr','print','export','delete']},finance:{l:'Finance',c:'g',can:['dash','tasks','inv','pur','fin','cust','sup','print','export','delete_payment']},inventory_manager:{l:'Inventory Manager',c:'b',can:['dash','inv','pur']},admin:{l:'Office admin',c:'b',can:['dash','tasks','inv','pur','fin','cust','sup','print','delete']},salesperson:{l:'Salesperson',c:'te',can:['dash','tasks','cust']},technician:{l:'Technician',c:'gr',can:['tasks']},sales_feedback:{l:'Sales + Feedback',c:'te',can:['dash','tasks','cust','feedback']}};
+const ROLES=window.ROLES={
+  owner:{l:'المالك',c:'pu',can:['dash','tasks','inv','pur','fin','cust','cust_attach','sup','usr','print','export','delete','delete_payment','cases','cases_manage','access_log']},
+  finance_manager:{l:'مدير عام / مالي',c:'pu',can:['dash','tasks','inv','pur','fin','cust_attach','sup','print','cases','cases_manage']},
+  cs_sales_manager:{l:'مدير خدمة العملاء والمبيعات',c:'b',can:['dash','tasks','cust_attach','feedback','cases','cases_manage']},
+  finance:{l:'الحسابات',c:'g',can:['dash','tasks','inv','pur','fin','sup','print','export','delete_payment']},
+  parts_manager:{l:'مدير قطع الغيار',c:'b',can:['dash','inv','pur','cases']},
+  cs_maintenance:{l:'خدمة عملاء - صيانة',c:'te',can:['tasks','cust_attach','cases']},
+  cs_installation:{l:'خدمة عملاء - تركيبات',c:'te',can:['tasks','cust_attach','cases']},
+  sales:{l:'مبيعات',c:'te',can:['dash','tasks','cust_attach','feedback','cases']},
+  // old role names (kept so nobody is locked out while users are being switched). No customer section.
+  admin:{l:'Office admin',c:'b',can:['dash','tasks','inv','pur','fin','cust_attach','sup','print']},
+  inventory_manager:{l:'Inventory Manager',c:'b',can:['dash','inv','pur']},
+  salesperson:{l:'Salesperson',c:'te',can:['dash','tasks','cust_attach']},
+  technician:{l:'Technician',c:'gr',can:['tasks']},
+  sales_feedback:{l:'Sales + Feedback',c:'te',can:['dash','tasks','cust_attach','feedback']}
+};
 
 
 // Simple page cache to avoid redundant DB calls
@@ -1141,6 +1157,40 @@ const f=n=>'EGP '+Math.round(n||0).toLocaleString();
 const ini=n=>(n||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
 function toast(m,e){const t=document.getElementById('tst');t.textContent=m;t.style.background=e?'#A32D2D':'#111';t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2800);}
 function can(p){return CU&&ROLES[CU.role]?.can.includes(p);}
+// ── Legacy role compatibility ──────────────────────────────
+// New roles inherit the old role(s) they replaced, so every existing
+// hardcoded check (role==='admin', .includes(CU.role), etc.) keeps working.
+var ROLE_LEGACY={
+  owner:['owner'],
+  finance_manager:['admin','finance'],              // ghoniem: office-admin powers (but NO delete — handled separately)
+  cs_sales_manager:['salesperson','sales_feedback'], // sees what her sales/CS team sees (no finance/payroll)
+  finance:['finance'],
+  parts_manager:['inventory_manager'],
+  cs_maintenance:['salesperson'],         // does order/task work salespeople did
+  cs_installation:['salesperson'],
+  sales:['salesperson','sales_feedback']  // sales + feedback work
+};
+// legacyRole(): returns the primary old-role string for CU, so a direct
+// comparison CU.role==='admin' can be rewritten as roleEq('admin').
+function _legacy(){return (CU&&ROLE_LEGACY[CU.role])||[];}
+// roleEq(x): true if the current user's new role inherits old role x (or IS new role x)
+function roleEq(x){return !!CU&&(CU.role===x||_legacy().indexOf(x)>=0);}
+// roleIn(list): true if any entry in list matches via roleEq
+function roleIn(list){if(!CU)return false;for(var i=0;i<list.length;i++){if(roleEq(list[i]))return true;}return false;}
+// finance_manager must never delete, even though it inherits 'admin'
+function canDeleteHard(){return !!CU&&CU.role!=='finance_manager'&&roleIn(['owner','admin']);}
+// finance_manager audits everything but must never delete
+function noDel(){if(CU&&CU.role==='finance_manager'){toast('غير مسموح بالحذف',true);return true;}return false;}
+// ── Customer privacy: every lookup is written to customer_access_log ──
+var _calLast='';
+function logCust(action,c,detail){
+  try{
+    if(!CU)return;
+    var key=action+'|'+((c&&c.id)||'')+'|'+(detail||'');
+    if(key===_calLast)return;_calLast=key;
+    db.from('customer_access_log').insert({username:CU.username,full_name:CU.full_name,role:CU.role,action:action,customer_id:(c&&c.id)||null,customer_name:(c&&c.full_name)||null,detail:detail||null}).then(function(){},function(){});
+  }catch(e){}
+}
 
 async function doSignIn(){
   const u=document.getElementById('lu').value.trim();
@@ -1167,7 +1217,7 @@ async function doSignIn(){
     applyRole();
     try{plCheckUpdates();}catch(e){}
     if(CU.role==='owner')go('dash',document.getElementById('ni-dash'));
-    else if(CU.role==='salesperson'||CU.role==='technician')go('mydash',document.getElementById('ni-dash'));
+    else if(roleEq('salesperson')||roleEq('technician'))go('mydash',document.getElementById('ni-dash'));
     else go('tasks',document.getElementById('ni-tasks'));
   }catch(err){
     console.error('Login error:',err);
@@ -1186,45 +1236,46 @@ function applyRole(){
     const el=document.getElementById('ni-'+k);if(!el)return;
     const pg={dash:'dash',tasks:'tasks',inv:'inv',pur:'pur',fin:'fin',cust:'cust',sup:'sup',usr:'usr'}[k];
     // Dashboard is owner-only
-    if(k==='dash'){(CU&&(CU.role==='owner'||CU.role==='salesperson'||CU.role==='technician'))?el.classList.remove('off'):el.classList.add('off');return;}
+    if(k==='dash'){(CU&&(CU.role==='owner'||roleEq('salesperson')||roleEq('technician')))?el.classList.remove('off'):el.classList.add('off');return;}
     perms.includes(pg)?el.classList.remove('off'):el.classList.add('off');
   });
   var usrNav=document.getElementById('ni-usr');if(usrNav)usrNav.style.display=can('usr')?'':'none';
   var expBtn=document.getElementById('expbtn');if(expBtn)expBtn.style.display=(CU&&CU.role==='owner')?'':'none';
   var mergeBtn=document.getElementById('mergebtn');if(mergeBtn)mergeBtn.style.display=(CU&&CU.role==='owner')?'':'none';
+  var calBtn=document.getElementById('callogbtn');if(calBtn)calBtn.style.display=(CU&&CU.role==='owner')?'':'none';
   // Dispatches nav - visible to inventory_manager, owner, finance
   var dispNav=document.getElementById('ni-disp');
   if(dispNav){
-    var canDisp=CU&&(CU.role==='inventory_manager'||CU.role==='owner'||CU.role==='finance');
+    var canDisp=CU&&(roleEq('inventory_manager')||CU.role==='owner'||roleEq('finance'));
     dispNav.style.display=canDisp?'':'none';
   }
   // Employees nav - owner and admin only
   var empNav=document.getElementById('ni-emp');
   if(empNav){
-    var canEmp=CU&&(CU.role==='owner'||CU.role==='admin');
+    var canEmp=CU&&(CU.role==='owner'||roleEq('admin'));
     empNav.style.display=canEmp?'':'none';
   }
 
   var fbNav=document.getElementById('ni-fb');
-  if(fbNav)fbNav.style.display=(CU&&(CU.role==='owner'||CU.role==='sales_feedback'))?'':'none';
+  if(fbNav)fbNav.style.display=(CU&&(CU.role==='owner'||roleEq('sales_feedback')))?'':'none';
   var fuNav=document.getElementById('ni-fu');
-  if(fuNav)fuNav.style.display=(CU&&(CU.role==='owner'||CU.role==='admin'||CU.role==='salesperson'||CU.role==='sales_feedback'||CU.role==='inventory_manager'))?'':'none';
+  if(fuNav)fuNav.style.display=(CU&&(CU.role==='owner'||roleEq('admin')||roleEq('salesperson')||roleEq('sales_feedback')||roleEq('inventory_manager')))?'':'none';
   var dsNav=document.getElementById('ni-ds');
-  if(dsNav)dsNav.style.display=(CU&&(CU.role==='owner'||CU.role==='admin'||CU.role==='inventory_manager'))?'':'none';
+  if(dsNav)dsNav.style.display=(CU&&(CU.role==='owner'||roleEq('admin')||roleEq('inventory_manager')))?'':'none';
   var repNav=document.getElementById('ni-rep');
   if(repNav)repNav.style.display=(CU&&CU.role==='owner')?'':'none';
   var dedNav=document.getElementById('ni-ded');
-  if(dedNav)dedNav.style.display=(CU&&(CU.role==='owner'||CU.role==='finance'||CU.role==='admin'))?'':'none';
+  if(dedNav)dedNav.style.display=(CU&&(CU.role==='owner'||roleEq('finance')||roleEq('admin')))?'':'none';
   var payNav=document.getElementById('ni-pay');
-  if(payNav)payNav.style.display=(CU&&(CU.role==='owner'||CU.role==='admin'||CU.role==='finance'))?'':'none';
+  if(payNav)payNav.style.display=(CU&&(CU.role==='owner'||roleEq('admin')||roleEq('finance')))?'':'none';
   var attNav=document.getElementById('ni-att');
   // Attendance: owner/admin/finance, plus specific users granted access by username
   var ATT_USERS=['heba'];
-  if(attNav)attNav.style.display=(CU&&(CU.role==='owner'||CU.role==='admin'||CU.role==='finance'||ATT_USERS.includes(CU.username)))?'':'none';
+  if(attNav)attNav.style.display=(CU&&(CU.role==='owner'||roleEq('admin')||roleEq('finance')||ATT_USERS.includes(CU.username)))?'':'none';
   var bkNav=document.getElementById('ni-bk');
-  if(bkNav)bkNav.style.display=(CU&&['owner','admin','salesperson','sales_feedback','inventory_manager'].includes(CU.role))?'':'none';
+  if(bkNav)bkNav.style.display=(CU&&roleIn(['owner','admin','salesperson','sales_feedback','inventory_manager']))?'':'none';
   var ctNav=document.getElementById('ni-ct');
-  if(ctNav)ctNav.style.display=(CU&&['owner','admin','salesperson','finance'].includes(CU.role))?'':'none';
+  if(ctNav)ctNav.style.display=(CU&&roleIn(['owner','admin','salesperson','finance']))?'':'none';
   if(CU)updateBkBadge();
   if(CU)updateCtBadge();
   if(CU)checkBackupReminder();
@@ -1237,7 +1288,7 @@ var _bkPollTimer=null;
 function startBkPoll(){
   if(_bkPollTimer)return;
   _bkPollTimer=setInterval(function(){
-    if(!CU||!['owner','admin','salesperson','sales_feedback','inventory_manager'].includes(CU.role))return;
+    if(!CU||!roleIn(['owner','admin','salesperson','sales_feedback','inventory_manager']))return;
     updateBkBadge();
     var pg=document.getElementById('pg-bk');
     if(pg&&pg.classList.contains('on')&&(window._bkTab||'new')==='new')loadBookings();
@@ -1284,7 +1335,7 @@ function go(pg,el){
   if(pg==='disp'){
     loadDispatches();
     // Add New Dispatch button to top right for inventory_manager and owner
-    if(CU&&(CU.role==='inventory_manager'||CU.role==='owner')){
+    if(CU&&(roleEq('inventory_manager')||CU.role==='owner')){
       var dispBtn=document.createElement('button');
       dispBtn.className='btn bs bp';
       dispBtn.textContent=td('+ New Dispatch');
@@ -1347,7 +1398,7 @@ function selectEoiAddr(btn){
 }
 function openEditOrderInfo(){
   if(!CT)return;
-  var isOwnerOrAdmin=CU&&(CU.role==='owner'||CU.role==='admin');
+  var isOwnerOrAdmin=CU&&(CU.role==='owner'||roleEq('admin'));
   document.querySelectorAll('.edit-order-modal').forEach(function(e){e.remove();});
   var overlay=document.createElement('div');
   overlay.className='edit-order-modal';
@@ -1593,7 +1644,7 @@ async function openTask(id){
     CT.spUsed=spUsedData||[];
     go('td',null);
     const S=(id)=>document.getElementById(id);
-    const isLocked2=CT.pay_status==='paid'&&!['owner','admin','finance'].includes(CU?.role);
+    const isLocked2=CT.pay_status==='paid'&&!roleIn(['owner','admin','finance']);
     const recBtn=document.getElementById('rec-pay-btn');
     if(recBtn)recBtn.style.display=isLocked2?'none':'';
     const set=(id,val)=>{const e=S(id);if(e)e.textContent=val;};
@@ -1606,7 +1657,7 @@ async function openTask(id){
     const ss=S('sbtns');
     // Task lock: if paid and user is not owner/admin, lock editing
     // Lock order info editing after payment confirmed (not completion report)
-    const isLocked=CT.pay_status==='paid'&&!['owner','admin','finance','salesperson'].includes(CU?.role);
+    const isLocked=CT.pay_status==='paid'&&!roleIn(['owner','admin','finance','salesperson']);
     if(isLocked){
       // Show lock banner
       const lockBanner=document.createElement('div');
@@ -2658,7 +2709,7 @@ function openNT(){
       var sales=res.data||[];
       spSel.innerHTML='<option value="">-- اختر مندوب --</option>'+sales.map(function(e){return '<option value="'+e.full_name+'">'+e.full_name+'</option>';}).join('');
       // Auto-select current user if they are a salesperson
-      if(CU&&CU.role==='salesperson'){
+      if(CU&&roleEq('salesperson')){
         var userFN=CU.full_name||'';
         var matched=Array.from(spSel.options).find(function(o){return o.value===userFN;});
         if(matched)spSel.value=matched.value;
@@ -3236,7 +3287,7 @@ async function cancelDispatch(dispId){
 // ── REFUND / RETURN of a direct sale (keeps record, returns parts + money) ──
 async function refundDirectSale(dispId){
   try{
-    if(!CU||!['owner','inventory_manager','finance'].includes(CU.role)){toast('غير مسموح',true);return;}
+    if(!CU||!roleIn(['owner','inventory_manager','finance'])){toast('غير مسموح',true);return;}
     var{data:disp}=await db.from('dispatches').select('*').eq('id',dispId).single();
     if(!disp){toast('غير موجود',true);return;}
     if(disp.return_num){toast('تم استرجاعه بالفعل — '+disp.return_num,true);return;}
@@ -3733,7 +3784,7 @@ async function filterDispBySearch(query){
 async function loadDispatches(){
   var body=document.getElementById('disp-content');
   if(!body)return;
-  var isHussein=CU&&(CU.role==='inventory_manager'||CU.role==='owner'||CU.role==='finance');
+  var isHussein=CU&&(roleEq('inventory_manager')||CU.role==='owner'||roleEq('finance'));
   if(!isHussein){body.innerHTML='<div style="padding:40px;text-align:center;color:#888">Access restricted to Inventory Manager, Finance and Owner.</div>';return;}
   body.innerHTML='<div style="padding:20px;text-align:center;color:#888">Loading...</div>';
   var{data:disps}=await db.from('dispatches').select('*').order('created_at',{ascending:false}).limit(10000);
@@ -3743,7 +3794,7 @@ async function loadDispatches(){
   if(_ft)disps=disps.filter(function(d){return (d.dispatch_type||'عادي')===_ft;});
   var statusColor={open:'#854F0B',pending_confirm:'#185FA5',confirmed:'#3B6D11'};
   var statusLabel={open:td('Open'),pending_confirm:td('Pending Approval'),confirmed:'مؤكد',partial:'مُستردة جزئياً',returned:'مُستردة كاملاً'};
-  var isApprover=CU&&(CU.role==='owner'||CU.role==='finance');
+  var isApprover=CU&&(CU.role==='owner'||roleEq('finance'));
   var pendingDisps=disps.filter(function(d){return d.status==='pending_confirm';});
   var otherDisps=disps.filter(function(d){return d.status!=='pending_confirm';});
   function dispCard(d){
@@ -3768,7 +3819,7 @@ async function loadDispatches(){
       +'</div>';
   }
   var rows=(pendingSection+otherDisps.map(dispCard).join(''));
-  var newBtn=(CU.role==='inventory_manager'||CU.role==='owner')
+  var newBtn=(roleEq('inventory_manager')||CU.role==='owner')
     ?('<button onclick="openNewDispatch()" style="padding:8px 18px;font-size:13px;border:none;border-radius:8px;background:#1D9E75;color:#fff;cursor:pointer;font-weight:700">+ New Dispatch</button>'):'';
   var typeFilterOpts=[['','كل الأنواع'],['عادي','عادي'],['بيع مباشر','بيع مباشر'],['مرتجع','مرتجع'],['مستهلك','مستهلك'],['عهدة','عهدة']]
     .map(function(o){return '<option value="'+o[0]+'"'+((window._dsTypeFilter||'')===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('');
@@ -4132,8 +4183,8 @@ async function openDispatch(id){
   var{data:assignments}=await db.from('dispatch_assignments').select('*').eq('dispatch_id',id);
   if(!disp)return;
   items=items||[];assignments=assignments||[];
-  var isManager=CU&&(CU.role==='inventory_manager'||CU.role==='owner');
-  var isApprover=CU&&(CU.role==='owner'||CU.role==='finance');
+  var isManager=CU&&(roleEq('inventory_manager')||CU.role==='owner');
+  var isApprover=CU&&(CU.role==='owner'||roleEq('finance'));
   var statusColor={open:'#854F0B',pending_confirm:'#185FA5',confirmed:'#3B6D11'};
   var statusLabel={open:td('Open'),pending_confirm:td('Pending Approval'),confirmed:'مؤكد',partial:'مُستردة جزئياً',returned:'مُستردة كاملاً'};
   document.querySelectorAll('.disp-overlay').forEach(function(e){e.remove();});
@@ -4237,7 +4288,7 @@ async function openDispatch(id){
   printDispBtn.onclick=function(){printSparePartsDispatch(id);};
   ftr.appendChild(printDispBtn);
   // Refund/return for direct sales — returns parts to stock + cancels sale (keeps record)
-  if(disp.dispatch_type==='بيع مباشر'&&!disp.return_num&&CU&&(CU.role==='owner'||CU.role==='inventory_manager'||CU.role==='finance')){
+  if(disp.dispatch_type==='بيع مباشر'&&!disp.return_num&&CU&&(CU.role==='owner'||roleEq('inventory_manager')||roleEq('finance'))){
     var refundBtn=document.createElement('button');
     refundBtn.innerHTML='&#8617; استرجاع ومرتجع';refundBtn.className='btn bs';
     refundBtn.style.cssText='border-color:#854F0B;color:#854F0B;background:#FFF8E1;margin-right:auto';
@@ -4336,7 +4387,7 @@ async function showProductSales(invId,prodName){
 }
 // ── PRODUCT BUNDLES (combined outdoor+indoor AC) ──────────────
 async function openBundles(){
-  if(!CU||!['owner','admin','inventory_manager'].includes(CU.role)){toast('غير مسموح',true);return;}
+  if(!CU||!roleIn(['owner','admin','inventory_manager'])){toast('غير مسموح',true);return;}
   // hide other inv sections, show bundles
   ['inv-ac-section','inv-sp-section'].forEach(function(id){var e=document.getElementById(id);if(e)e.style.display='none';});
   document.querySelectorAll('[id^="inv-tab-"]').forEach(function(b){b.className='btn bs';b.style.fontSize='12px';});
@@ -4348,7 +4399,7 @@ async function openBundles(){
 }
 function renderBundles(){
   var sec=document.getElementById('inv-bundles-section');if(!sec)return;
-  var canEdit=['owner','admin','inventory_manager'].includes(CU.role);
+  var canEdit=roleIn(['owner','admin','inventory_manager']);
   var html='<div class="cd" style="padding:20px">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">'
       +'<div><div style="font-size:16px;font-weight:800">📦 الباقات المجمّعة</div>'
@@ -4396,7 +4447,7 @@ function bundleForm(id){
   if(p2)document.getElementById('b-part2').value=p2;
 }
 async function saveBundle(id){
-  if(!CU||!['owner','admin','inventory_manager'].includes(CU.role)){toast('غير مسموح',true);return;}
+  if(!CU||!roleIn(['owner','admin','inventory_manager'])){toast('غير مسموح',true);return;}
   var name=document.getElementById('b-name').value.trim();
   var p1=document.getElementById('b-part1').value;
   var p2=document.getElementById('b-part2').value;
@@ -4412,7 +4463,8 @@ async function saveBundle(id){
   await loadBundles();renderBundles();
 }
 async function deleteBundle(id){
-  if(!CU||!['owner','admin'].includes(CU.role)){toast('فقط المالك أو المدير',true);return;}
+  if(noDel())return;
+  if(!CU||!roleIn(['owner','admin'])){toast('فقط المالك أو المدير',true);return;}
   if(!confirm('حذف هذه الباقة؟'))return;
   await db.from('product_bundles').update({active:false}).eq('id',id);
   toast('تم الحذف');await loadBundles();renderBundles();
@@ -4421,7 +4473,7 @@ async function deleteBundle(id){
 
 // ── USED AC INVENTORY (fully isolated — no link to tasks/finance/inventory) ──
 var USED=[],USED_CONTRACTS=[],_usedPickSel={};
-function usedCanAccess(){return CU&&['owner','admin','inventory_manager'].includes(CU.role);}
+function usedCanAccess(){return CU&&roleIn(['owner','admin','inventory_manager']);}
 function usedCondColor(c){return {'ممتازة':'background:#EAF3DE;color:#0F6E56','جيدة':'background:#FAEEDA;color:#854F0B','مقبولة':'background:#EEEDFE;color:#3C3489','تحتاج صيانة':'background:#FCEBEB;color:#A32D2D'}[c]||'background:#eee;color:#666';}
 async function openUsedAc(){
   if(!usedCanAccess()){toast('غير مسموح',true);return;}
@@ -4520,7 +4572,8 @@ async function usedSave(id){
   toast('تم الحفظ');window._usedView='list';await loadUsed();renderUsed();
 }
 async function usedDelete(id){
-  if(!CU||!['owner','admin'].includes(CU.role)){toast('فقط المالك أو المدير',true);return;}
+  if(noDel())return;
+  if(!CU||!roleIn(['owner','admin'])){toast('فقط المالك أو المدير',true);return;}
   if(!confirm('حذف هذه القطعة؟'))return;
   await db.from('used_inventory').delete().eq('id',id);
   toast('تم الحذف');await loadUsed();renderUsed();
@@ -4862,7 +4915,7 @@ async function loadPur(){
     var sc={'draft':'#854F0B','received':'#3B6D11','pending':'#3B6D11','partial':'#185FA5','partial_return':'#854F0B','returned':'#A32D2D','cancelled':'#A32D2D'}[po.status]||'#888';
     var sl={'draft':'مسودة','received':'Received','pending':'Confirmed','partial':'Partial','partial_return':'Part. returned','returned':'Returned','cancelled':'Cancelled'}[po.status]||po.status;
     var canReceive=(po.status==='pending'||po.status==='partial')&&po.status!=='returned'&&po.status!=='partial_return';
-    var canConfirm=po.status==='draft'&&(CU&&(CU.role==='finance'||CU.role==='owner'));
+    var canConfirm=po.status==='draft'&&(CU&&(roleEq('finance')||CU.role==='owner'));
     var canReturn=po.status==='received'||po.status==='partial'||po.status==='partial_return';
     var retBtn=canReturn?('<button onclick="returnProducts(\''+po.id+'\')" style="font-size:10px;padding:2px 7px;border:1px solid #E24B4A;border-radius:4px;background:#FCEBEB;color:#A32D2D;cursor:pointer;margin-right:3px">Return</button>'):'';
     var delBtn=(CU&&CU.role==='owner')?('<button onclick="deletePO(\''+po.id+'\')" style="font-size:10px;padding:2px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;margin-right:3px">Del</button>'):'';
@@ -5005,7 +5058,7 @@ function addPOR(){
   var td2=document.createElement('td');var st=document.createElement('div');st.className='po-stock';st.style.cssText='font-size:11px;color:#888;text-align:center';td2.appendChild(st);
   var td3=document.createElement('td');var qi=document.createElement('input');qi.type='number';qi.value='1';qi.min='1';qi.style.cssText='width:60px;text-align:center';qi.oninput=calcPOT;td3.appendChild(qi);
   var td4=document.createElement('td');var ci=document.createElement('input');ci.type='number';ci.className='po-cost';ci.min='0';ci.value='0';ci.style.width='100%';ci.oninput=calcPOT;
-  if(CU&&CU.role==='inventory_manager'){ci.readOnly=true;ci.style.background='#f5f5f0';ci.style.color='#aaa';ci.placeholder='Finance only';}
+  if(CU&&roleEq('inventory_manager')){ci.readOnly=true;ci.style.background='#f5f5f0';ci.style.color='#aaa';ci.placeholder='Finance only';}
   td4.appendChild(ci);
   var td5=document.createElement('td');var rb=document.createElement('button');rb.className='ib';rb.textContent='X';rb.style.fontSize='12px';rb.onclick=function(){tr.remove();calcPOT();};td5.appendChild(rb);
   tr.appendChild(td1);tr.appendChild(td2);tr.appendChild(td3);tr.appendChild(td4);tr.appendChild(td5);
@@ -5124,7 +5177,7 @@ async function openPODetail(poId){
   var owed=Math.max(0,po.total-paidSoFar);
   var isDraft=po.status==='draft';
     var isOwner=CU&&CU.role==='owner';
-    var canEditCost=(isDraft&&CU&&(CU.role==='finance'||CU.role==='owner'))||isOwner;
+    var canEditCost=(isDraft&&CU&&(roleEq('finance')||CU.role==='owner'))||isOwner;
     var slabel={'draft':'مسودة','pending':'Confirmed','received':'Received','partial':'Partial','cancelled':'Cancelled','returned':'Returned'}[po.status]||po.status;
     var scolor={'draft':'#854F0B','pending':'#3B6D11','received':'#3B6D11','partial':'#185FA5','cancelled':'#A32D2D','returned':'#A32D2D'}[po.status]||'#888';
     var iRows=items.map(function(it){
@@ -5361,6 +5414,8 @@ async function finTab(type,btn){
 
 
 async function expCust(){
+  if(!CU||CU.role!=='owner'){toast('فقط المالك',true);return;}
+  logCust('export',null,'all customers');
   if(!CU||CU.role!=='owner'){toast(LANG==='ar'?'فقط المالك يمكنه التصدير':'Only owner can export',true);return;}
   toast(LANG==='ar'?'جاري التصدير...':'Exporting...');
   try{
@@ -5396,6 +5451,7 @@ async function expCust(){
 
 // ── CUSTOMER DEDUPLICATION TOOL (owner only) ──────────────────
 async function openMergeTool(){
+  if(!CU||CU.role!=='owner'){toast('فقط المالك',true);return;}
   if(!CU||CU.role!=='owner'){toast('غير مسموح',true);return;}
   var ov=document.createElement('div');
   ov.id='merge-overlay';
@@ -5425,7 +5481,8 @@ function normalizePhone(ph){
 async function checkPhoneDuplicate(phone){
   var norm=normalizePhone(phone);
   if(!norm||norm.length<6)return null; // too short to check
-  var{data:allC}=await db.from('customers').select('id,full_name,phone').limit(20000);
+  var tail=norm.slice(-8);
+  var{data:allC}=await db.from('customers').select('id,full_name,phone').ilike('phone','%'+tail+'%').limit(20);
   allC=allC||[];
   for(var i=0;i<allC.length;i++){
     if(normalizePhone(allC[i].phone)===norm)return allC[i];
@@ -5515,8 +5572,24 @@ async function doMerge(gi,phone){
   }
 }
 // ── END DEDUP TOOL ────────────────────────────────────────────
+async function openCustLog(){
+  if(!CU||CU.role!=='owner'){toast('فقط المالك',true);return;}
+  var r=await db.from('customer_access_log').select('*').order('created_at',{ascending:false}).limit(300);
+  var rows=(r.data||[]).map(function(x){
+    var d=new Date(x.created_at);
+    var act={view:'فتح ملف عميل',search:'بحث',attach:'ربط بطلب/عقد',export:'تصدير'}[x.action]||x.action;
+    return '<tr><td style="padding:6px 8px;white-space:nowrap">'+d.toLocaleDateString('en-GB')+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})+'</td><td style="padding:6px 8px;font-weight:700">'+plEsc(x.full_name||x.username)+'</td><td style="padding:6px 8px">'+act+'</td><td style="padding:6px 8px">'+plEsc(x.customer_name||x.detail||'')+'</td></tr>';
+  }).join('')||'<tr><td colspan="4" style="padding:20px;text-align:center;color:#888">لا يوجد سجل بعد</td></tr>';
+  var ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick=function(e){if(e.target===ov)ov.remove();};
+  ov.innerHTML='<div style="background:#fff;border-radius:14px;max-width:720px;width:100%;max-height:85vh;overflow:auto;padding:20px"><div style="font-size:16px;font-weight:800;margin-bottom:12px">🔒 سجل الدخول على بيانات العملاء (آخر 300)</div><table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr style="background:#f5f5f0;text-align:start"><th style="padding:6px 8px;text-align:start">الوقت</th><th style="padding:6px 8px;text-align:start">الموظف</th><th style="padding:6px 8px;text-align:start">الإجراء</th><th style="padding:6px 8px;text-align:start">العميل / البحث</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+  document.body.appendChild(ov);
+}
 async function loadCust(search){
   var body=document.getElementById('custl');if(!body)return;
+  if(!can('cust')){body.innerHTML='<div style="padding:30px;text-align:center;color:#A32D2D;font-weight:700">🔒 قسم العملاء متاح للمالك فقط</div>';return;}
+  if(search)logCust('search',null,search);
   body.innerHTML='<div style="padding:20px;text-align:center;color:#888">'+t('loadin')+'</div>';
   var q=db.from('customers').select('*').order('full_name');
   if(search)q=q.or(('full_name.ilike.%'+search+'%,phone.ilike.%'+search+'%'));
@@ -5533,6 +5606,7 @@ async function loadCust(search){
 }
 
 async function openAC(){
+  if(!can('cust')){toast('🔒 قسم العملاء متاح للمالك فقط',true);return;}
   go('cd',null);
   document.getElementById('ptitle').textContent=t('newcustomer');
   document.getElementById('cdname').textContent=t('newcustomer');
@@ -6323,7 +6397,7 @@ function ntRec(){
 
 async function cSearch(v){
   var box=document.getElementById('csg');
-  if(v.length<2){box.style.display='none';return;}
+  if(v.trim().length<3){box.style.display='none';return;}
   var{data}=await db.from('customers').select('id,full_name,phone,address,addresses').or(('full_name.ilike.%'+(v)+'%,phone.ilike.%'+(v)+'%')).limit(6);
   if(!data?.length){box.style.display='none';return;}
   box.style.display='block';box.innerHTML='';
@@ -6333,6 +6407,7 @@ async function cSearch(v){
     d.onmouseover=function(){d.style.background='#f5f5f0';};d.onmouseout=function(){d.style.background='';};
     d.innerHTML='<div style="font-weight:700">'+c.full_name+'</div><div style="font-size:11px;color:#888">'+(c.phone||'')+'</div>';
     d.onclick=async function(){
+      logCust('attach',c,'order');
       scid=c.id;
       document.getElementById('ncav').textContent=ini(c.full_name);
       document.getElementById('ncnm').textContent=c.full_name;
@@ -6435,6 +6510,8 @@ function showInvTab(tab,btn){
 
 async function openCD(c){
   if(!c)return;
+  if(!can('cust')){toast('🔒 قسم العملاء متاح للمالك فقط',true);return;}
+  logCust('view',c);
   go('cd',null);
   document.getElementById('ptitle').textContent=c.full_name;
   document.getElementById('cdname').textContent=c.full_name;
@@ -6800,7 +6877,7 @@ var _fbTab='pending';
 var GOOGLE_REVIEW_LINK='https://g.page/r/CYA3thiLGvwBEAE/review';
 
 function openFeedback(){
-  if(!CU||(CU.role!=='owner'&&CU.role!=='sales_feedback')){toast('غير مسموح',true);return;}
+  if(!CU||(CU.role!=='owner'&&!roleEq('sales_feedback'))){toast('غير مسموح',true);return;}
   go('fb',document.getElementById('ni-fb'));
   switchFbTab('pending');
 }
@@ -7078,7 +7155,7 @@ function waLink(raw){
   return 'https://wa.me/'+p;
 }
 async function openBookings(){
-  if(!CU||!['owner','admin','salesperson','sales_feedback','inventory_manager'].includes(CU.role)){toast('غير مسموح',true);return;}
+  if(!CU||!roleIn(['owner','admin','salesperson','sales_feedback','inventory_manager'])){toast('غير مسموح',true);return;}
   go('bk',document.getElementById('ni-bk'));
   loadBookings();
 }
@@ -7342,7 +7419,7 @@ function ctToday(){return new Date().toISOString().slice(0,10);}
 function ctDaysBetween(a,b){return Math.round((new Date(b)-new Date(a))/86400000);}
 
 async function openContracts(){
-  if(!CU||!['owner','admin','salesperson','finance'].includes(CU.role)){toast('غير مسموح',true);return;}
+  if(!CU||!roleIn(['owner','admin','salesperson','finance'])){toast('غير مسموح',true);return;}
   go('ct',document.getElementById('ni-ct'));
   window._ctView='list';
   loadContracts();
@@ -7350,7 +7427,7 @@ async function openContracts(){
 
 async function updateCtBadge(){
   try{
-    if(!CU||!['owner','admin','salesperson','finance'].includes(CU.role))return;
+    if(!CU||!roleIn(['owner','admin','salesperson','finance']))return;
     var today=ctToday();
     // count active contracts with a visit due within 14 days, or expiring within 30 days
     var vr=await db.from('contract_visits').select('scheduled_date,status').eq('status','scheduled').limit(10000);
@@ -7382,7 +7459,7 @@ async function loadContracts(){
   });
   var active=rows.filter(function(c){return c.status==='active';});
   var totalValue=active.reduce(function(s,c){return s+(parseFloat(c.annual_value)||0);},0);
-  var canEdit=['owner','admin','salesperson'].includes(CU.role);
+  var canEdit=roleIn(['owner','admin','salesperson']);
   var html='<div class="cd" style="padding:20px">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px">'
       +'<div><div style="font-size:16px;font-weight:800">📋 عقود الصيانة</div>'
@@ -7424,9 +7501,7 @@ async function loadContracts(){
 async function renderContractForm(){
   var body=document.getElementById('ct-body');if(!body)return;
   // customers datalist for linking
-  var cr=await db.from('customers').select('id,full_name,phone').order('full_name').limit(20000);
-  var custs=cr.data||[];
-  var opts=custs.map(function(c){return '<option data-id="'+c.id+'" data-phone="'+(c.phone||'')+'" value="'+(c.full_name||'').replace(/"/g,'')+'">';}).join('');
+  var opts=''; // filled by ctSearchCust() as the user types (max 6 matches)
   var today=ctToday();
   var yearLater=new Date();yearLater.setFullYear(yearLater.getFullYear()+1);var endDef=yearLater.toISOString().slice(0,10);
   var html='<div class="cd" style="padding:20px;max-width:640px">'
@@ -7436,7 +7511,7 @@ async function renderContractForm(){
     +'</div>'
     +'<div style="display:flex;flex-direction:column;gap:12px">'
       +'<div><label style="font-size:12px;font-weight:700;color:#666">اسم العميل / الشركة *</label>'
-        +'<input id="ct-cust" list="ct-cust-list" oninput="ctPickCust()" placeholder="اكتب اسم العميل أو الشركة" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-top:4px">'
+        +'<input id="ct-cust" list="ct-cust-list" oninput="ctSearchCust(this.value)" placeholder="اكتب 3 حروف من اسم العميل أو رقمه" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-top:4px">'
         +'<datalist id="ct-cust-list">'+opts+'</datalist></div>'
       +'<div style="display:flex;gap:10px;flex-wrap:wrap">'
         +'<div style="flex:1;min-width:140px"><label style="font-size:12px;font-weight:700;color:#666">رقم الهاتف</label><input id="ct-phone" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-top:4px"></div>'
@@ -7459,11 +7534,24 @@ async function renderContractForm(){
     +'</div></div>';
   body.innerHTML=html;
 }
+var _ctST=null;
+function ctSearchCust(v){
+  ctPickCust();
+  if(_ctST)clearTimeout(_ctST);
+  v=(v||'').trim();
+  if(v.length<3)return;
+  _ctST=setTimeout(async function(){
+    var dl=document.getElementById('ct-cust-list');if(!dl)return;
+    var r=await db.from('customers').select('id,full_name,phone').or('full_name.ilike.%'+v+'%,phone.ilike.%'+v+'%').limit(6);
+    dl.innerHTML=(r.data||[]).map(function(c){return '<option data-id="'+c.id+'" data-phone="'+(c.phone||'')+'" value="'+(c.full_name||'').replace(/"/g,'')+'">';}).join('');
+    ctPickCust();
+  },250);
+}
 function ctPickCust(){
   var inp=document.getElementById('ct-cust');var dl=document.getElementById('ct-cust-list');
   if(!inp||!dl)return;
   for(var i=0;i<dl.options.length;i++){
-    if(dl.options[i].value===inp.value){document.getElementById('ct-phone').value=dl.options[i].dataset.phone||'';inp.dataset.custId=dl.options[i].dataset.id||'';break;}
+    if(dl.options[i].value===inp.value){document.getElementById('ct-phone').value=dl.options[i].dataset.phone||'';inp.dataset.custId=dl.options[i].dataset.id||'';logCust('attach',{id:dl.options[i].dataset.id,full_name:inp.value},'contract');break;}
   }
 }
 function ctTierChange(){
@@ -7471,7 +7559,7 @@ function ctTierChange(){
   // no auto price; just informational
 }
 async function saveContract(){
-  if(!CU||!['owner','admin','salesperson'].includes(CU.role)){toast('غير مسموح',true);return;}
+  if(!CU||!roleIn(['owner','admin','salesperson'])){toast('غير مسموح',true);return;}
   var name=document.getElementById('ct-cust').value.trim();
   if(!name){toast('اكتب اسم العميل',true);return;}
   var tier=document.getElementById('ct-tier').value;
@@ -7514,7 +7602,7 @@ async function renderContractDetail(id){
   var vr=await db.from('contract_visits').select('*').eq('contract_id',id).order('scheduled_date');
   var visits=vr.data||[];
   var today=ctToday();
-  var canEdit=['owner','admin','salesperson'].includes(CU.role);
+  var canEdit=roleIn(['owner','admin','salesperson']);
   var doneCount=visits.filter(function(v){return v.status==='done';}).length;
   var html='<div class="cd" style="padding:20px;max-width:720px">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">'
@@ -7561,7 +7649,7 @@ function ctStat(l,v){return '<div style="background:#fff;border:1px solid #eee;b
 
 // Contract → Task: turn a scheduled visit into a real maintenance task
 async function createTaskFromVisit(vid,cid){
-  if(!CU||!['owner','admin','salesperson'].includes(CU.role)){toast('غير مسموح',true);return;}
+  if(!CU||!roleIn(['owner','admin','salesperson'])){toast('غير مسموح',true);return;}
   var vr=await db.from('contract_visits').select('*').eq('id',vid).single();
   var v=vr.data;if(!v){toast('غير موجود',true);return;}
   if(v.task_id){toast('المهمة موجودة بالفعل',true);return;}
@@ -7588,13 +7676,13 @@ async function createTaskFromVisit(vid,cid){
   renderContractDetail(cid);
 }
 async function markContractVisitDone(vid,cid){
-  if(!CU||!['owner','admin','salesperson'].includes(CU.role)){toast('غير مسموح',true);return;}
+  if(!CU||!roleIn(['owner','admin','salesperson'])){toast('غير مسموح',true);return;}
   await db.from('contract_visits').update({status:'done',done_date:ctToday()}).eq('id',vid);
   toast('تم تسجيل الزيارة');
   renderContractDetail(cid);updateCtBadge();
 }
 async function renewContract(id){
-  if(!CU||!['owner','admin','salesperson'].includes(CU.role)){toast('غير مسموح',true);return;}
+  if(!CU||!roleIn(['owner','admin','salesperson'])){toast('غير مسموح',true);return;}
   if(!confirm('تجديد العقد لمدة سنة إضافية وإنشاء زيارات جديدة؟'))return;
   var cr=await db.from('maintenance_contracts').select('*').eq('id',id).single();
   var c=cr.data;if(!c)return;
@@ -7610,7 +7698,7 @@ async function renewContract(id){
   toast('تم التجديد');renderContractDetail(id);updateCtBadge();
 }
 async function cancelContract(id){
-  if(!CU||!['owner','admin'].includes(CU.role)){toast('فقط المالك أو المدير',true);return;}
+  if(!CU||!roleIn(['owner','admin'])){toast('فقط المالك أو المدير',true);return;}
   if(!confirm('إلغاء هذا العقد؟'))return;
   await db.from('maintenance_contracts').update({status:'cancelled'}).eq('id',id);
   toast('تم الإلغاء');window._ctView='list';loadContracts();updateCtBadge();
@@ -7632,7 +7720,7 @@ async function syncContractVisitFromTask(taskId,newStatus){
 var _fuTab='pending';
 
 function openFollowup(){
-  if(!CU||(CU.role!=='owner'&&CU.role!=='admin'&&CU.role!=='salesperson'&&CU.role!=='sales_feedback'&&CU.role!=='inventory_manager')){toast('غير مسموح',true);return;}
+  if(!CU||(CU.role!=='owner'&&!roleEq('admin')&&!roleEq('salesperson')&&!roleEq('sales_feedback')&&!roleEq('inventory_manager'))){toast('غير مسموح',true);return;}
   go('fu',document.getElementById('ni-fu'));
   switchFuTab('pending');
 }
@@ -7699,7 +7787,7 @@ async function markFollowupDone(taskId){
 var _dsTab='pending';
 
 function openDispatchOrders(){
-  if(!CU||(CU.role!=='owner'&&CU.role!=='admin'&&CU.role!=='inventory_manager')){toast('غير مسموح',true);return;}
+  if(!CU||(CU.role!=='owner'&&!roleEq('admin')&&!roleEq('inventory_manager'))){toast('غير مسموح',true);return;}
   go('ds',document.getElementById('ni-ds'));
   switchDsTab('pending');
 }
@@ -7740,7 +7828,7 @@ async function loadDispatchOrders(){
     });
   }
 
-  var canApprove=CU&&(CU.role==='owner'||CU.role==='admin');
+  var canApprove=CU&&(CU.role==='owner'||roleEq('admin'));
   var html='<div style="display:flex;flex-direction:column;gap:10px">';
   tasks.forEach(function(t){
     var cu=t.customers||{};
@@ -8099,7 +8187,7 @@ function printDailyReport(){
 
 // DEDUCTIONS
 async function openDeductions(){
-  if(!CU||(CU.role!=='owner'&&CU.role!=='finance'&&CU.role!=='admin')){toast('غير مسموح',true);return;}
+  if(!CU||(CU.role!=='owner'&&!roleEq('finance')&&!roleEq('admin'))){toast('غير مسموح',true);return;}
   go('ded',document.getElementById('ni-ded'));
   loadDeductions();
 }
@@ -8107,7 +8195,7 @@ async function loadDeductions(){
   var body=document.getElementById('ded-body');
   if(!body)return;
   // owner + admin can add/edit/delete deductions; finance views only
-  var isOwner=CU&&(CU.role==='owner'||CU.role==='admin');
+  var isOwner=CU&&(CU.role==='owner'||roleEq('admin'));
   body.innerHTML='<div style="text-align:center;padding:30px;color:#888">جاري التحميل...</div>';
   var empOptions='';
   if(isOwner){
@@ -8172,7 +8260,7 @@ async function loadDeductions(){
   body.innerHTML=html;
 }
 async function saveDeduction(){
-  if(!CU||(CU.role!=='owner'&&CU.role!=='admin')){toast('غير مسموح',true);return;}
+  if(!CU||(CU.role!=='owner'&&!roleEq('admin'))){toast('غير مسموح',true);return;}
   var emp=document.getElementById('ded-emp')?.value;
   var type=document.getElementById('ded-type')?.value;
   var value=document.getElementById('ded-value')?.value.trim();
@@ -8186,7 +8274,8 @@ async function saveDeduction(){
   loadDeductions();
 }
 async function deleteDeduction(id){
-  if(!CU||(CU.role!=='owner'&&CU.role!=='admin')){toast('غير مسموح',true);return;}
+  if(noDel())return;
+  if(!CU||(CU.role!=='owner'&&!roleEq('admin'))){toast('غير مسموح',true);return;}
   if(!confirm('حذف هذا الخصم؟'))return;
   var{error}=await db.from('deductions').delete().eq('id',id);
   if(error){toast('خطأ: '+error.message,true);return;}
@@ -8200,8 +8289,8 @@ async function loadRoleDashboard(){
   if(!body)return;
   body.innerHTML='<div style="text-align:center;padding:30px;color:#888">جاري التحميل...</div>';
   var role=CU?CU.role:'';
-  if(role==='salesperson'){return loadSalesDashboard(body);}
-  if(role==='technician'){return loadTechDashboard(body);}
+  if(roleEq('salesperson')){return loadSalesDashboard(body);}
+  if(roleEq('technician')){return loadTechDashboard(body);}
   // fallback
   body.innerHTML='<div style="padding:30px;text-align:center;color:#888">لا توجد لوحة مخصصة</div>';
 }
@@ -8388,7 +8477,7 @@ async function loadTechDashboard(body){
 
 async function openPayroll(){
   // owner: full. admin: view-only (all). finance: only add سلف/مكافآت (no salary numbers).
-  if(!CU||(CU.role!=='owner'&&CU.role!=='admin'&&CU.role!=='finance')){toast('غير مسموح',true);return;}
+  if(!CU||(CU.role!=='owner'&&!roleEq('admin')&&!roleEq('finance'))){toast('غير مسموح',true);return;}
   go('pay',document.getElementById('ni-pay'));
   window._payTab='data';
   renderPayShell();
@@ -8398,7 +8487,7 @@ function renderPayShell(){
   if(!body)return;
   var tab=window._payTab||'data';
   // Finance can NOT see the salary-calc tab (net salaries). Only owner and admin can.
-  var canSeeCalc=CU&&(CU.role==='owner'||CU.role==='admin');
+  var canSeeCalc=CU&&(CU.role==='owner'||roleEq('admin'));
   if(tab==='calc'&&!canSeeCalc)tab='data';
   var html='<div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:2px solid #e0ddd8">'
     +'<div onclick="switchPayTab(\'data\')" style="padding:10px 20px;cursor:pointer;font-size:14px;font-weight:600;'+(tab==='data'?'color:#0F6E56;border-bottom:2px solid #0F6E56':'color:#888;border-bottom:2px solid transparent')+';margin-bottom:-2px">بيانات الموظف</div>'
@@ -8459,8 +8548,8 @@ async function loadEmpPayroll(){
   // Roles: owner edits everything; admin views salary (read-only); finance cannot see salary at all, only adds سلف/مكافآت.
   var role=CU?CU.role:'';
   var canEditFixed=(role==='owner');
-  var canSeeSalary=(role==='owner'||role==='admin');
-  var canAddItems=(role==='owner'||role==='finance'); // finance & owner can add سلف/مكافآت
+  var canSeeSalary=(role==='owner'||roleEq('admin'));
+  var canAddItems=(role==='owner'||roleEq('finance')); // finance & owner can add سلف/مكافآت
   var canDeleteItems=(role==='owner');
   var dis=canEditFixed?'':' disabled';
   var bg=canEditFixed?'':'background:#f5f5f0;';
@@ -8522,7 +8611,7 @@ async function saveEmpPayroll(){
   loadEmpPayroll();
 }
 async function addPayItem(type){
-  if(!CU||(CU.role!=='owner'&&CU.role!=='finance')){toast('غير مسموح',true);return;}
+  if(!CU||(CU.role!=='owner'&&!roleEq('finance'))){toast('غير مسموح',true);return;}
   var empId=window._payCurEmpId;var empName=window._payCurEmpName;var month=window._payMonth;
   var amtEl=document.getElementById(type==='bonus'?'new-bon-amt':'new-adv-amt');
   var noteEl=document.getElementById(type==='bonus'?'new-bon-note':'new-adv-note');
@@ -8664,7 +8753,7 @@ function printSalaryCalc(){
 
 async function openAttendance(){
   var _attUsers=['heba'];
-  if(!CU||(CU.role!=='owner'&&CU.role!=='admin'&&CU.role!=='finance'&&!_attUsers.includes(CU.username))){toast('غير مسموح',true);return;}
+  if(!CU||(CU.role!=='owner'&&!roleEq('admin')&&!roleEq('finance')&&!_attUsers.includes(CU.username))){toast('غير مسموح',true);return;}
   go('att',document.getElementById('ni-att'));
   window._attTab='sheet';
   renderAttShell();
@@ -8673,7 +8762,7 @@ function renderAttShell(){
   var body=document.getElementById('att-body');
   if(!body)return;
   var _attDailyUsers=['heba'];
-  var canEdit=CU&&(CU.role==='owner'||CU.role==='admin'||_attDailyUsers.includes(CU.username));
+  var canEdit=CU&&(CU.role==='owner'||roleEq('admin')||_attDailyUsers.includes(CU.username));
   var tab=window._attTab||'sheet';
   var html='<div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:2px solid #e0ddd8">'
     +(canEdit?'<div onclick="switchAttTab(\'sheet\')" style="padding:10px 20px;cursor:pointer;font-size:14px;font-weight:600;'+(tab==='sheet'?'color:#0F6E56;border-bottom:2px solid #0F6E56':'color:#888;border-bottom:2px solid transparent')+';margin-bottom:-2px">📅 كشف اليوم</div>':'')
@@ -8734,7 +8823,7 @@ function setAllAtt(status){
 
 async function saveAttSheet(){
   var _attDailyUsers=['heba'];
-  if(!CU||(CU.role!=='owner'&&CU.role!=='admin'&&!_attDailyUsers.includes(CU.username))){toast('غير مسموح',true);return;}
+  if(!CU||(CU.role!=='owner'&&!roleEq('admin')&&!_attDailyUsers.includes(CU.username))){toast('غير مسموح',true);return;}
   var date=window._attDate;
   var rows=document.querySelectorAll('#att-sheet-body tr');
   toast('جاري الحفظ...');
@@ -8821,7 +8910,7 @@ async function loadAttReport(){
   var c=document.getElementById('att-content');
   if(!c)return;
   // Finance can only view the monthly report during days 3–10 (payroll is on the 5th)
-  if(CU&&CU.role==='finance'){
+  if(CU&&roleEq('finance')){
     var today=new Date().getDate();
     if(today<3||today>10){
       c.innerHTML='<div class="cd" style="padding:40px;text-align:center">'
