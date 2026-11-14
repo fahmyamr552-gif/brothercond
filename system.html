@@ -462,7 +462,7 @@ td{padding:10px 12px;border-color:#edf1ee;overflow-wrap:anywhere}
 <div class="mn">
 <div class="tb">
   <button class="hamburger" onclick="toggleSidebar()" style="display:none;background:none;border:none;font-size:22px;cursor:pointer;padding:4px 10px;color:#333">&#9776;</button>
-  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-11-20</span>
+  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-11-21</span>
   <div style="display:flex;align-items:center;gap:8px"><div class="lang-btns"><button class="lbtn on" onclick="setLang('en',this)">EN</button><button class="lbtn" onclick="setLang('ar',this)">عربي</button></div><div id="tact" style="display:flex;gap:7px"></div></div>
 </div>
 <div class="ct">
@@ -545,6 +545,7 @@ td{padding:10px 12px;border-color:#edf1ee;overflow-wrap:anywhere}
     <div id="sbtns" style="display:flex;gap:5px;flex-wrap:wrap;margin-left:auto"></div>
     <button class="btn bs" onclick="doPrint()">&#128438; <span data-t="print">Print</span></button>
     <button class="btn bs" onclick="sendWhatsApp()" style="background:#25D366;color:#fff;border-color:#25D366">&#128241; واتساب</button>
+    <button class="btn bs" onclick="sendReviewOffer()" title="إرسال عرض الصيانة مقابل تقييم جوجل (فرع الرحاب)" style="background:#fff;color:#0f2347;border-color:#c8a96a">&#11088; عرض التقييم</button>
     <button class="btn bs bk" id="delbtn" style="display:none" onclick="deleteTask()">&#128465; Delete task</button>
   </div>
   <!-- PAYMENT SECTION -->
@@ -1858,6 +1859,37 @@ async function loadTasks(resetPage){
 }
 
 
+
+// Review offer: maintenance at a reduced price for customers who review the Rehab branch on Google
+var REVIEW_OFFER={price:400,oldPrice:800,branch:'فرع الرحاب',link:'https://search.google.com/local/writereview?placeid=ChIJyfqweIcYWBQRVVjn30KyXb8'};
+function reviewOfferMsg(name){
+  var sep='━━━━━━━━━━━━━━━';
+  return 'مرحبًا '+(name||'عميلنا العزيز')+' \u{1F339}\n'
+    +'شكرًا لاختياركم برازر كوند للتكييف.\n\n'
+    +sep+'\n'
+    +'\u{1F381} عرض خاص على الصيانة\n'
+    +'صيانة التكييف بـ '+REVIEW_OFFER.price+' جنيه بدلًا من '+REVIEW_OFFER.oldPrice+' جنيه للجهاز.\n'
+    +sep+'\n\n'
+    +'للاستفادة من العرض:\n'
+    +'1) اكتب تقييمك ل'+REVIEW_OFFER.branch+' على جوجل من هذا الرابط:\n'
+    +REVIEW_OFFER.link+'\n\n'
+    +'2) أرسل لنا صورة (سكرين شوت) من التقييم على هذا الرقم.\n\n'
+    +'3) يُطبَّق الخصم على زيارة الصيانة فور استلام الصورة.\n\n'
+    +'رأيكم يهمنا ويساعدنا على تقديم خدمة أفضل \u{1F64F}\n'
+    +'برازر كوند للتكييف\n'
+    +'الخط الساخن: 01222211310';
+}
+async function sendReviewOffer(){
+  if(!CT)return;
+  var cu=CT.cust||CT.customers||{};
+  var phone=(cu.phone||CT.phone||'').replace(/[^0-9]/g,'');
+  if(!phone){toast('لا يوجد رقم هاتف',true);return;}
+  if(phone.startsWith('0'))phone='2'+phone;
+  else if(!phone.startsWith('20'))phone='20'+phone;
+  var name=CT.customer_name||cu.name||'';
+  try{await db.from('feedback_attempts').insert({customer_name:name,attempt_type:'whatsapp',outcome:'عرض الصيانة '+REVIEW_OFFER.price+' مقابل تقييم جوجل ('+REVIEW_OFFER.branch+')',attempted_by:CU.full_name||CU.username});}catch(e){}
+  window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(reviewOfferMsg(name)),'_blank');
+}
 
 function sendWhatsApp(){
   if(!CT)return;
