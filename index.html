@@ -239,7 +239,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
 <div class="mn">
 <div class="tb">
   <button class="hamburger" onclick="toggleSidebar()" style="display:none;background:none;border:none;font-size:22px;cursor:pointer;padding:4px 10px;color:#333">&#9776;</button>
-  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-11-17</span>
+  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-11-18</span>
   <div style="display:flex;align-items:center;gap:8px"><div class="lang-btns"><button class="lbtn on" onclick="setLang('en',this)">EN</button><button class="lbtn" onclick="setLang('ar',this)">عربي</button></div><div id="tact" style="display:flex;gap:7px"></div></div>
 </div>
 <div class="ct">
@@ -1128,7 +1128,7 @@ const MDL={Carrier:['Xcool Inverter','X-Power Gold','Optimax Edge','Flair Plus']
 const ROLES=window.ROLES={
   owner:{l:'المالك',c:'pu',can:['dash','tasks','inv','pur','fin','cust','cust_attach','sup','usr','print','export','delete','delete_payment','cases','cases_manage','access_log']},
   finance_manager:{l:'مدير عام / مالي',c:'pu',can:['dash','tasks','inv','pur','fin','cust_attach','sup','print','cases','cases_manage']},
-  cs_sales_manager:{l:'مدير خدمة العملاء والمبيعات',c:'b',can:['dash','tasks','cust_attach','feedback','cases','cases_manage']},
+  cs_sales_manager:{l:'مدير خدمة العملاء والمبيعات',c:'b',can:['dash','tasks','cust_attach','feedback','cases','cases_manage','inv_view']},
   finance:{l:'الحسابات',c:'g',can:['dash','tasks','inv','pur','fin','sup','print','export','delete_payment','cases']},
   parts_manager:{l:'مدير قطع الغيار',c:'b',can:['dash','inv','pur','cases']},
   cs_maintenance:{l:'خدمة عملاء - صيانة',c:'te',can:['tasks','cust_attach','cases']},
@@ -1267,6 +1267,16 @@ async function sessionCheck(){
 setInterval(function(){sessionCheck();},5*60*1000);
 function doSignOut(){CS_LIST=[];try{csUpdateBadge();}catch(e){}try{var tk0=bcToken();if(tk0)fetch(SU+'/rest/v1/rpc/app_logout',{method:'POST',headers:{'apikey':SK,'Authorization':'Bearer '+SK,'Content-Type':'application/json','x-app-session':tk0},body:'{}'}).then(function(){},function(){});}catch(e){}CU=null;try{localStorage.removeItem('bc_user');localStorage.removeItem('bc_login_at');localStorage.removeItem('bc_token');}catch(e){}document.getElementById('app').classList.add('h');document.getElementById('ls').style.display='flex';document.getElementById('lp').value='';}
 
+// AC inventory as a read-only preview (no add / edit / delete, AC units tab only)
+function invViewOnly(){return !!CU&&!can('inv')&&!!can('inv_view');}
+function invApplyViewOnly(){
+  var vo=invViewOnly();
+  ['inv-tab-sp1','inv-tab-sp2','inv-tab-bundles','inv-tab-used'].forEach(function(id){var b=document.getElementById(id);if(b)b.style.display=vo?'none':'';});
+  if(vo){
+    ['inv-sp-section','inv-bundles-section','inv-used-section'].forEach(function(id){var x=document.getElementById(id);if(x)x.style.display='none';});
+    var ac=document.getElementById('inv-ac-section');if(ac)ac.style.display='';
+  }
+}
 function applyRole(){
   const perms=ROLES[CU.role]?.can||[];
   ['dash','tasks','inv','pur','fin','cust','sup','usr'].forEach(k=>{
@@ -1276,6 +1286,7 @@ function applyRole(){
     if(k==='dash'){(CU&&(CU.role==='owner'||roleEq('salesperson')||roleEq('technician')))?el.classList.remove('off'):el.classList.add('off');return;}
     perms.includes(pg)?el.classList.remove('off'):el.classList.add('off');
   });
+  if(invViewOnly()){var invNav=document.getElementById('ni-inv');if(invNav)invNav.classList.remove('off');}
   var usrNav=document.getElementById('ni-usr');if(usrNav)usrNav.style.display=can('usr')?'':'none';
   var expBtn=document.getElementById('expbtn');if(expBtn)expBtn.style.display=(CU&&CU.role==='owner')?'':'none';
   var mergeBtn=document.getElementById('mergebtn');if(mergeBtn)mergeBtn.style.display=(CU&&CU.role==='owner')?'':'none';
@@ -1361,13 +1372,13 @@ function go(pg,el){
   const ta=document.getElementById('tact');ta.innerHTML='';
   const btnKeys={tasks:'newtask',inv:'addproduct',pur:'newpo',cust:'addcustomer',sup:'addsupplier'};
   const btnFns={tasks:function(){openNT();},inv:function(){openAddInvModal()},pur:function(){openNewPO();},cust:function(){openAC();},sup:function(){openAS();}};
-  if(btnKeys[pg]){const b=document.createElement('button');b.className='btn bs bp';b.textContent='+ '+t(btnKeys[pg]);b._tkey=btnKeys[pg];b.onclick=btnFns[pg];ta.appendChild(b);}
+  if(btnKeys[pg]&&!(pg==='inv'&&invViewOnly())){const b=document.createElement('button');b.className='btn bs bp';b.textContent='+ '+t(btnKeys[pg]);b._tkey=btnKeys[pg];b.onclick=btnFns[pg];ta.appendChild(b);}
   if(pg==='dash'){if(CU&&CU.role==='owner'){loadDash();}else{go('mydash',document.getElementById('ni-dash'));}}
   if(pg==='mydash')loadRoleDashboard();
   if(pg==='tasks')loadTasks();
   if(pg==='pl')loadPriceList();
   if(pg==='cases')loadCases();
-  if(pg==='inv')loadInv();
+  if(pg==='inv'){invApplyViewOnly();loadInv();}
   if(pg==='pur')loadPur();
   if(pg==='fin'){loadFinStats();finTab('all',document.querySelector('.tab.on')||document.querySelector('.tab'));}
   if(pg==='cust')loadCust();
@@ -4734,7 +4745,7 @@ async function loadInv(search,brand){
     var delBtn=can('delete')?'<button onclick="delProd(\''+p.id+'\')" style="font-size:10px;padding:2px 7px;border:1px solid #E24B4A;border-radius:4px;background:#FCEBEB;color:#A32D2D;cursor:pointer">Del</button>':'';
     var incomingBadge='';
     var tr=document.createElement('tr');tr.style.cssText='border-bottom:1px solid #f0f0e8;cursor:pointer';
-    tr.onclick=function(){go('np',null);editProd(p);};
+    if(!invViewOnly())tr.onclick=function(){go('np',null);editProd(p);};
     tr.innerHTML='<td style="padding:8px 10px;font-weight:700">'+p.brand+' '+p.model+'</td>'
       +'<td><span class="bx gr">'+p.brand+'</span></td>'
       +'<td>'+p.hp+'</td>'
@@ -4745,6 +4756,11 @@ async function loadInv(search,brand){
       +'<td>'+f(p.price)+'</td>'
       +'<td>'+sb+'</td>'
       +'<td><button onclick="event.stopPropagation();go(\'np\',null);editProd(p)" style="font-size:11px;padding:2px 8px;border:1px solid #1D9E75;border-radius:4px;background:#EAF3DE;color:#1D9E75;cursor:pointer;margin-right:4px">Edit</button>'+delBtn+'</td>';
+    if(invViewOnly()){
+      tr.style.cursor='default';
+      tr.querySelectorAll('[onclick]').forEach(function(e){e.removeAttribute('onclick');e.style.textDecoration='none';e.style.cursor='default';e.style.color='#888';});
+      if(tr.lastElementChild)tr.lastElementChild.innerHTML='';
+    }
     body.appendChild(tr);
   });
   if(myToken!==_invLoadToken)return;
@@ -4767,6 +4783,7 @@ function updMdl(){
 function bldN(){updMdl();}
 
 function editProd(p){
+  if(invViewOnly()){toast('عرض فقط',true);go('inv',document.getElementById('ni-inv'));return;}
   if(!p)return;
   var set=function(id,v){var e=document.getElementById(id);if(e)e.value=v||'';};
   set('nbr',p.brand);set('nmd',p.model);set('nhp',p.hp);set('nut',p.unit_type);
@@ -5017,6 +5034,7 @@ function clrS(){
   var ssg=document.getElementById('ssg');if(ssg)ssg.style.display='none';
 }
 function openAddInvModal(){
+  if(invViewOnly()){toast('عرض فقط',true);return;}
   document.querySelectorAll('.add-inv-modal').forEach(function(e){e.remove();});
   var ov=document.createElement('div');
   ov.className='add-inv-modal';
@@ -7098,6 +7116,7 @@ function onPS2(sel){
 }
 
 async function saveProd(){
+  if(invViewOnly()){toast('عرض فقط',true);return;}
   var br=document.getElementById('npbr')?.value?.trim();
   var md=document.getElementById('npmd')?.value?.trim();
   var hp=document.getElementById('nphp')?.value?.trim();
@@ -7126,6 +7145,7 @@ function openAddSP(){
 }
 
 function showInvTab(tab,btn){
+  if(invViewOnly()&&tab!=='ac')return;
   document.querySelectorAll('[id^="inv-tab-"]').forEach(function(b){b.className='btn bs';b.style.fontSize='12px';});
   if(btn){btn.className='btn bp';btn.style.fontSize='12px';}
   var acSec=document.getElementById('inv-ac-section');
