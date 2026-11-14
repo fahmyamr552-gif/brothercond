@@ -208,6 +208,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
     <div class="ni on" id="ni-dash" onclick="go('dash',this)">&#9632; <span data-t="dashboard">Dashboard</span></div>
     <div class="ni" id="ni-tasks" onclick="go('tasks',this)">&#9632; <span data-t="tasks">Tasks</span></div>
     <div class="ni" id="ni-pl" onclick="go('pl',this)">&#9632; <span>قائمة الأسعار</span> <span id="pl-badge" style="display:none;background:#c0392b;color:#fff;border-radius:10px;padding:0 7px;font-size:10px;font-weight:700;margin-right:4px"></span></div>
+    <div class="ni" id="ni-cases" onclick="go('cases',this)" style="display:none">&#9632; <span>الشكاوى</span> <span id="cs-badge" style="display:none;background:#c0392b;color:#fff;border-radius:10px;padding:0 7px;font-size:10px;font-weight:700;margin-right:4px"></span></div>
     <div class="ni" id="ni-plan" onclick="openPlan()">&#9632; <span data-t="navplan">خطة يومية</span></div>
     <div class="ni" id="ni-fb" onclick="openFeedback()">&#9632; <span data-t="navfeedback">آراء العملاء</span></div>
     <div class="ni" id="ni-fu" onclick="openFollowup()">&#9632; <span data-t="navfollowup">الاستكمالات</span></div>
@@ -238,7 +239,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
 <div class="mn">
 <div class="tb">
   <button class="hamburger" onclick="toggleSidebar()" style="display:none;background:none;border:none;font-size:22px;cursor:pointer;padding:4px 10px;color:#333">&#9776;</button>
-  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-11-15</span>
+  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-11-16</span>
   <div style="display:flex;align-items:center;gap:8px"><div class="lang-btns"><button class="lbtn on" onclick="setLang('en',this)">EN</button><button class="lbtn" onclick="setLang('ar',this)">عربي</button></div><div id="tact" style="display:flex;gap:7px"></div></div>
 </div>
 <div class="ct">
@@ -263,6 +264,9 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
   <div id="mydash-body" style="max-width:100%"></div>
 </div>
 
+<div class="pg" id="pg-cases">
+  <div id="cs-body" dir="rtl"><div style="padding:20px;text-align:center;color:#888">جاري التحميل...</div></div>
+</div>
 <div class="pg" id="pg-pl">
   <div id="pl-body"><div style="padding:20px;text-align:center;color:#888">جاري التحميل...</div></div>
 </div>
@@ -1125,7 +1129,7 @@ const ROLES=window.ROLES={
   owner:{l:'المالك',c:'pu',can:['dash','tasks','inv','pur','fin','cust','cust_attach','sup','usr','print','export','delete','delete_payment','cases','cases_manage','access_log']},
   finance_manager:{l:'مدير عام / مالي',c:'pu',can:['dash','tasks','inv','pur','fin','cust_attach','sup','print','cases','cases_manage']},
   cs_sales_manager:{l:'مدير خدمة العملاء والمبيعات',c:'b',can:['dash','tasks','cust_attach','feedback','cases','cases_manage']},
-  finance:{l:'الحسابات',c:'g',can:['dash','tasks','inv','pur','fin','sup','print','export','delete_payment']},
+  finance:{l:'الحسابات',c:'g',can:['dash','tasks','inv','pur','fin','sup','print','export','delete_payment','cases']},
   parts_manager:{l:'مدير قطع الغيار',c:'b',can:['dash','inv','pur','cases']},
   cs_maintenance:{l:'خدمة عملاء - صيانة',c:'te',can:['tasks','cust_attach','cases']},
   cs_installation:{l:'خدمة عملاء - تركيبات',c:'te',can:['tasks','cust_attach','cases']},
@@ -1261,7 +1265,7 @@ async function sessionCheck(){
   }catch(e){}
 }
 setInterval(function(){sessionCheck();},5*60*1000);
-function doSignOut(){try{var tk0=bcToken();if(tk0)fetch(SU+'/rest/v1/rpc/app_logout',{method:'POST',headers:{'apikey':SK,'Authorization':'Bearer '+SK,'Content-Type':'application/json','x-app-session':tk0},body:'{}'}).then(function(){},function(){});}catch(e){}CU=null;try{localStorage.removeItem('bc_user');localStorage.removeItem('bc_login_at');localStorage.removeItem('bc_token');}catch(e){}document.getElementById('app').classList.add('h');document.getElementById('ls').style.display='flex';document.getElementById('lp').value='';}
+function doSignOut(){CS_LIST=[];try{csUpdateBadge();}catch(e){}try{var tk0=bcToken();if(tk0)fetch(SU+'/rest/v1/rpc/app_logout',{method:'POST',headers:{'apikey':SK,'Authorization':'Bearer '+SK,'Content-Type':'application/json','x-app-session':tk0},body:'{}'}).then(function(){},function(){});}catch(e){}CU=null;try{localStorage.removeItem('bc_user');localStorage.removeItem('bc_login_at');localStorage.removeItem('bc_token');}catch(e){}document.getElementById('app').classList.add('h');document.getElementById('ls').style.display='flex';document.getElementById('lp').value='';}
 
 function applyRole(){
   const perms=ROLES[CU.role]?.can||[];
@@ -1309,6 +1313,8 @@ function applyRole(){
   if(bkNav)bkNav.style.display=(CU&&roleIn(['owner','admin','salesperson','sales_feedback','inventory_manager']))?'':'none';
   var ctNav=document.getElementById('ni-ct');
   if(ctNav)ctNav.style.display=(CU&&roleIn(['owner','admin','salesperson','finance']))?'':'none';
+  var csNav=document.getElementById('ni-cases');if(csNav)csNav.style.display=(CU&&can('cases'))?'':'none';
+  if(CU&&can('cases'))csStartPoll();
   if(CU)updateBkBadge();
   if(CU)updateCtBadge();
   if(CU)checkBackupReminder();
@@ -1349,7 +1355,7 @@ function go(pg,el){
   const pge=document.getElementById('pg-'+pg);
   if(pge)pge.classList.add('on');
   if(el)el.classList.add('on');
-  const titlesMap={dash:'dashboard',tasks:'tasks',inv:'inventory','np':'addproduct',pur:'purchases','npo':'newpo',fin:'finance',cust:'customers','cd':'customer',sup:'suppliers','sd':'supplier',usr:'users',disp:'dispatches','nt':'newtask','td':'tasks',plan:'خطة يومية',fb:'آراء العملاء',fu:'الاستكمالات',ds:'أوامر الصرف',rep:'التقرير اليومي',ded:'الخصومات',mydash:'لوحتي',pay:'الرواتب',att:'الحضور',ct:'عقود الصيانة',bk:'طلبات الحجز',pl:'قائمة الأسعار'};
+  const titlesMap={dash:'dashboard',tasks:'tasks',inv:'inventory','np':'addproduct',pur:'purchases','npo':'newpo',fin:'finance',cust:'customers','cd':'customer',sup:'suppliers','sd':'supplier',usr:'users',disp:'dispatches','nt':'newtask','td':'tasks',plan:'خطة يومية',fb:'آراء العملاء',fu:'الاستكمالات',ds:'أوامر الصرف',rep:'التقرير اليومي',ded:'الخصومات',mydash:'لوحتي',pay:'الرواتب',att:'الحضور',ct:'عقود الصيانة',bk:'طلبات الحجز',pl:'قائمة الأسعار',cases:'الشكاوى'};
   const titles={}; Object.entries(titlesMap).forEach(([k,v])=>titles[k]=t(v));
   document.getElementById('ptitle').textContent=titles[pg]||pg;
   const ta=document.getElementById('tact');ta.innerHTML='';
@@ -1360,6 +1366,7 @@ function go(pg,el){
   if(pg==='mydash')loadRoleDashboard();
   if(pg==='tasks')loadTasks();
   if(pg==='pl')loadPriceList();
+  if(pg==='cases')loadCases();
   if(pg==='inv')loadInv();
   if(pg==='pur')loadPur();
   if(pg==='fin'){loadFinStats();finTab('all',document.querySelector('.tab.on')||document.querySelector('.tab'));}
@@ -5856,6 +5863,369 @@ var BACKUP_TABLES=['tasks','task_products','payments','customers','inventory','s
   'dispatch_assignments','employees','payroll','payroll_items','deductions','attendance',
   'leave_usage','feedback','feedback_attempts','booking_requests','maintenance_contracts',
   'contract_visits','install_templates','users'];
+// ══════════ CASES (الشكاوى) — case management, SLA and escalation ══════════
+var CS_LIST=[],CS_TYPES=[],CS_USERS=[];
+var CS_SET={response_hours:2,resolve_hours:8,work_start:10,work_end:20,off_days:[5]};
+var _csTab='',_csFilter='open',_csSearch='',_csPollT=null,_csSearchT=null;
+var CS_STATUS={new:'جديدة',assigned:'مُسندة',in_progress:'جاري العمل',waiting_customer:'في انتظار العميل',waiting_internal:'في انتظار قسم داخلي',resolved:'تم الحل',closed:'مغلقة',reopened:'أعيد فتحها'};
+var CS_STATUS_C={new:'#1E6FB8',assigned:'#1E6FB8',in_progress:'#0c6b47',waiting_customer:'#B26A00',waiting_internal:'#B26A00',resolved:'#3B6D11',closed:'#777',reopened:'#D64531'};
+var CS_EV={created:'فتح الشكوى',start:'بدء العمل',wait_customer:'في انتظار العميل',wait_internal:'في انتظار قسم داخلي',resume:'استكمال العمل',resolved:'تم الحل',closed:'إغلاق',reopened:'إعادة فتح',reassigned:'تحويل',tag_parts:'قطع الغيار',priority:'الأولوية',note:'ملاحظة',escalate1:'تنبيه المدير',escalate2:'تصعيد للمالك'};
+function csIsMgr(){return !!can('cases_manage');}
+function csOpenSt(c){return c.status!=='resolved'&&c.status!=='closed';}
+function csNotStarted(c){return c.status==='new'||c.status==='assigned'||c.status==='reopened';}
+function csTypeLabel(k){for(var i=0;i<CS_TYPES.length;i++){if(CS_TYPES[i].key===k)return CS_TYPES[i].label;}return k;}
+function csFind(id){for(var i=0;i<CS_LIST.length;i++){if(CS_LIST[i].id===id)return CS_LIST[i];}return null;}
+function csCairo(d){return new Date(new Date(d).toLocaleString('en-US',{timeZone:'Africa/Cairo'}));}
+// working minutes between two moments (working hours only, days off skipped)
+function csBM(a,b){
+  if(!a||!b)return 0;
+  var la=csCairo(a),lb=csCairo(b);if(lb<=la)return 0;
+  var total=0,d=new Date(la.getFullYear(),la.getMonth(),la.getDate()),guard=0;
+  while(d<=lb&&guard<800){
+    if((CS_SET.off_days||[]).indexOf(d.getDay())<0){
+      var s=new Date(d);s.setHours(CS_SET.work_start,0,0,0);
+      var e=new Date(d);e.setHours(CS_SET.work_end,0,0,0);
+      if(la>s)s=la;if(lb<e)e=lb;
+      if(e>s)total+=(e-s)/60000;
+    }
+    d.setDate(d.getDate()+1);guard++;
+  }
+  return Math.floor(total);
+}
+function csDur(m){m=Math.max(0,Math.round(m));var h=Math.floor(m/60),mm=m%60;return (h?h+' س ':'')+mm+' د';}
+function csSla(c){
+  if(!csOpenSt(c))return {k:'done',t:(c.res_minutes!=null?'حُلّت في '+csDur(c.res_minutes):'')};
+  if(c.status==='waiting_customer')return {k:'paused',t:'⏸ الوقت متوقف'};
+  var now=new Date(),ns=csNotStarted(c);
+  var lim=(ns?CS_SET.response_hours:CS_SET.resolve_hours)*60;
+  var used=ns?csBM(c.sla_start,now):(csBM(c.sla_start,now)-(c.paused_minutes||0));
+  var left=lim-used,lbl=ns?'لبدء العمل':'للحل';
+  if(left<0)return {k:'late',t:'⚠ متأخرة '+csDur(-left)};
+  if(left<=lim*0.25)return {k:'warn',t:'⏳ باقي '+csDur(left)+' '+lbl};
+  return {k:'ok',t:'باقي '+csDur(left)+' '+lbl};
+}
+function csMine(c){return !!CU&&(c.assigned_to===CU.id||(c.parts_tagged&&CU.role==='parts_manager'));}
+function csNeedsMe(c){
+  if(!CU||!csOpenSt(c))return false;
+  if(c.assigned_to===CU.id&&csNotStarted(c))return true;
+  if(CU.role==='owner')return c.escalation_level>=2||c.priority==='urgent'||!c.assigned_to;
+  if(csIsMgr())return c.escalation_level>=1||c.priority==='urgent'||!c.assigned_to;
+  return false;
+}
+function csUpdateBadge(){
+  var n=CS_LIST.filter(csNeedsMe).length;
+  var b=document.getElementById('cs-badge');if(b){b.style.display=n?'':'none';b.textContent=n;}
+}
+async function csLoadMeta(){
+  var a=await Promise.all([db.from('case_types').select('*').order('sort'),db.from('case_settings').select('*').eq('id',1).limit(1)]);
+  CS_TYPES=a[0].data||[];
+  if(a[1].data&&a[1].data[0])CS_SET=a[1].data[0];
+}
+async function csFetch(){
+  try{await db.rpc('cases_escalate');}catch(e){}
+  var r=await db.from('cases').select('*').order('created_at',{ascending:false}).limit(1000);
+  if(!r.error)CS_LIST=r.data||[];
+  csUpdateBadge();
+}
+// background check so the menu badge stays current
+async function csCheck(){
+  if(!CU||!can('cases'))return;
+  try{
+    if(!CS_TYPES.length)await csLoadMeta();
+    await csFetch();
+    var pg=document.getElementById('pg-cases');
+    if(pg&&pg.classList.contains('on')&&!document.getElementById('cs-ov')&&_csTab!=='set'&&document.activeElement&&document.activeElement.id!=='cs-search')renderCases();
+  }catch(e){}
+}
+function csStartPoll(){if(_csPollT)return;csCheck();_csPollT=setInterval(csCheck,90000);}
+
+async function loadCases(){
+  var body=document.getElementById('cs-body');if(!body)return;
+  if(!can('cases')){body.innerHTML='<div style="padding:30px;text-align:center;color:#A32D2D;font-weight:700">غير مسموح</div>';return;}
+  body.innerHTML='<div style="padding:20px;text-align:center;color:#888">جاري التحميل...</div>';
+  try{
+    await csLoadMeta();
+    if(csIsMgr()&&!CS_USERS.length){
+      var u=await db.from('users').select('id,full_name,role,active').order('full_name');
+      CS_USERS=(u.data||[]).filter(function(x){return x.active!==false;});
+    }
+    await csFetch();
+  }catch(e){}
+  if(!_csTab)_csTab=csIsMgr()?'attn':'mine';
+  renderCases();
+}
+function csPill(txt,color,solid){
+  return '<span style="font-size:10.5px;font-weight:800;border-radius:999px;padding:2px 9px;white-space:nowrap;'+(solid?('background:'+color+';color:#fff'):('background:'+color+'1a;color:'+color))+'">'+txt+'</span>';
+}
+function csRow(c){
+  var sla=csSla(c),need=csNeedsMe(c);
+  var rail=(sla.k==='late'||c.escalation_level>=1)?'#D64531':(sla.k==='warn'?'#E08A00':(csOpenSt(c)?'#128C5E':'#dfe8e3'));
+  var slaColor={late:'#D64531',warn:'#B26A00',ok:'#0c6b47',paused:'#777',done:'#777'}[sla.k];
+  var pills=csPill(CS_STATUS[c.status]||c.status,CS_STATUS_C[c.status]||'#777')
+    +(c.priority==='urgent'?' '+csPill('عاجلة','#D64531',true):'')
+    +(csOpenSt(c)&&c.escalation_level>=2?' '+csPill('مُصعّدة للمالك','#D64531',true):(csOpenSt(c)&&c.escalation_level===1?' '+csPill('تنبيه المدير','#E08A00',true):''))
+    +(c.source==='customer'?' '+csPill('من العميل','#1E6FB8'):'')
+    +(c.reopen_count>0?' '+csPill('أعيد فتحها ×'+c.reopen_count,'#D64531'):'')
+    +(c.parts_tagged?' '+csPill('قطع غيار','#6a4bb5'):'');
+  var d=new Date(c.created_at);
+  return '<div onclick="csOpen(\''+c.id+'\')" style="display:flex;align-items:center;gap:14px;padding:13px 16px;border-bottom:1px solid #eef1ee;cursor:pointer;background:'+(need?'#fff7f5':'#fff')+'">'
+    +'<div style="width:5px;align-self:stretch;border-radius:4px;background:'+rail+';margin:-13px 0;flex-shrink:0"></div>'
+    +'<div style="flex:1;min-width:0">'
+      +'<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap"><span style="font-weight:800;font-size:13.5px;color:#16241d">'+plEsc(c.case_num)+'</span><span style="font-size:13px;font-weight:700;color:#33443b">'+plEsc(csTypeLabel(c.type))+'</span>'+pills+'</div>'
+      +'<div style="font-size:12px;color:#7b8a82;margin-top:4px">'+plEsc(c.customer_name)+' · المسؤول: '+plEsc(c.assigned_name||'غير محدد')+' · '+d.toLocaleDateString('en-GB')+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})+'</div>'
+    +'</div>'
+    +'<div style="flex-shrink:0;font-size:12px;font-weight:800;color:'+slaColor+';text-align:end;max-width:150px">'+sla.t+'</div>'
+    +'</div>';
+}
+function renderCases(){
+  var body=document.getElementById('cs-body');if(!body)return;
+  var mgr=csIsMgr();
+  var attn=CS_LIST.filter(csNeedsMe);
+  var tab=function(k,lbl,n){return '<button onclick="csTab(\''+k+'\')" style="border:1px solid '+(_csTab===k?'#128C5E':'#dde5e0')+';background:'+(_csTab===k?'#128C5E':'#fff')+';color:'+(_csTab===k?'#fff':'#5f6f67')+';border-radius:999px;padding:9px 18px;font-weight:700;cursor:pointer;font-size:13px">'+lbl+(n?' <span style="background:#D64531;color:#fff;border-radius:999px;padding:0 7px;font-size:11px">'+n+'</span>':'')+'</button>';};
+  var tabs=mgr
+    ?tab('attn','تحتاج متابعة',attn.length)+tab('all','كل الشكاوى',0)+tab('dash','لوحة المتابعة',0)+(CU.role==='owner'?tab('set','الإعدادات',0):'')
+    :tab('mine','شكاواي',attn.length)+tab('created','فتحتها أنا',0);
+  var head='<div style="background:linear-gradient(135deg,#128C5E,#0c6b47);border-radius:16px;padding:18px 20px;color:#fff;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:14px">'
+    +'<div><div style="font-size:21px;font-weight:800">الشكاوى وخدمة العملاء</div><div style="font-size:12px;opacity:.9;margin-top:3px;font-weight:600">بدء العمل خلال '+CS_SET.response_hours+' س · الحل خلال '+CS_SET.resolve_hours+' س · ساعات العمل '+CS_SET.work_start+'–'+CS_SET.work_end+'</div></div>'
+    +'<button onclick="csNew()" style="background:#fff;color:#0c6b47;border:none;border-radius:10px;padding:10px 16px;font-weight:800;cursor:pointer;font-size:13px">+ شكوى جديدة</button></div>';
+  var banner=attn.length?'<div style="display:flex;align-items:center;gap:10px;background:#fdecea;border:1px solid #f2b6ac;border-radius:12px;padding:11px 15px;margin-bottom:14px;font-size:13px;color:#7a241a">🔔 <b style="color:#D64531">'+attn.length+' شكوى تحتاج تصرفك الآن</b></div>':'';
+  var main='';
+  if(_csTab==='dash')main=csDashHtml();
+  else if(_csTab==='set')main=csSettingsHtml();
+  else{
+    var list=CS_LIST;
+    if(_csTab==='attn')list=attn;
+    else if(_csTab==='mine')list=list.filter(csMine);
+    else if(_csTab==='created')list=list.filter(function(c){return c.created_by===CU.id;});
+    if(_csTab!=='attn'){
+      if(_csFilter==='open')list=list.filter(csOpenSt);
+      else if(_csFilter==='done')list=list.filter(function(c){return !csOpenSt(c);});
+    }
+    var q=(_csSearch||'').trim().toLowerCase();
+    if(q)list=list.filter(function(c){return ((c.case_num||'')+' '+(c.customer_name||'')+' '+(c.phone||'')+' '+(c.assigned_name||'')+' '+csTypeLabel(c.type)).toLowerCase().indexOf(q)>=0;});
+    var chip=function(k,lbl){return '<button onclick="csFilter(\''+k+'\')" style="border:none;background:'+(_csFilter===k?'#16241d':'#eef1ee')+';color:'+(_csFilter===k?'#fff':'#5f6f67')+';border-radius:8px;padding:6px 13px;font-weight:700;cursor:pointer;font-size:12px">'+lbl+'</button>';};
+    main='<div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">'
+      +(_csTab!=='attn'?chip('open','المفتوحة')+chip('done','المحلولة والمغلقة')+chip('all','الكل'):'')
+      +'<input id="cs-search" value="'+plEsc(_csSearch)+'" oninput="csOnSearch(this.value)" placeholder="ابحث برقم الشكوى أو اسم العميل..." autocomplete="off" style="flex:1;min-width:180px;box-sizing:border-box;padding:9px 12px;border:1px solid #dde5e0;border-radius:10px;font-size:13px;font-family:inherit;background:#fff"></div>'
+      +'<div style="background:#fff;border:1px solid #e6ebe8;border-radius:14px;overflow:hidden;box-shadow:0 1px 6px rgba(18,60,42,.05)">'
+      +(list.map(csRow).join('')||'<div style="text-align:center;padding:36px;color:#aaa">لا توجد شكاوى هنا</div>')+'</div>';
+  }
+  body.innerHTML=head+banner+'<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">'+tabs+'</div>'+main;
+  csUpdateBadge();
+}
+function csTab(k){_csTab=k;_csSearch='';renderCases();}
+function csFilter(k){_csFilter=k;renderCases();}
+function csOnSearch(v){
+  _csSearch=v;if(_csSearchT)clearTimeout(_csSearchT);
+  _csSearchT=setTimeout(function(){renderCases();var el=document.getElementById('cs-search');if(el){el.focus();var n=el.value.length;try{el.setSelectionRange(n,n);}catch(e){}}},180);
+}
+// ---- overlay helper ----
+function csOverlay(inner,wide){
+  csClose();
+  var h='<div id="cs-ov" onclick="if(event.target===this)csClose()" style="position:fixed;inset:0;background:rgba(14,40,28,.5);z-index:9998;display:flex;align-items:flex-start;justify-content:center;padding:24px 14px;overflow:auto">'
+    +'<div dir="rtl" style="background:#fff;border-radius:16px;max-width:'+(wide?'720':'520')+'px;width:100%;padding:22px;box-shadow:0 10px 40px rgba(0,0,0,.25)">'+inner+'</div></div>';
+  document.body.insertAdjacentHTML('beforeend',h);
+}
+function csClose(){var o=document.getElementById('cs-ov');if(o)o.remove();}
+var CS_INP='width:100%;box-sizing:border-box;padding:10px;border:1px solid #ddd;border-radius:9px;font-size:14px;font-family:inherit';
+function csBtn(lbl,onclick,bg,fg){return '<button onclick="'+onclick+'" style="background:'+(bg||'#128C5E')+';color:'+(fg||'#fff')+';border:none;border-radius:10px;padding:9px 16px;font-weight:800;cursor:pointer;font-size:13px">'+lbl+'</button>';}
+// ---- new case ----
+function csNew(){
+  var opts=CS_TYPES.filter(function(t){return t.active!==false;}).map(function(t){return '<option value="'+t.key+'">'+plEsc(t.label)+'</option>';}).join('');
+  var search=can('cust_attach')?'<input id="csn-q" oninput="csCustSearch(this.value)" placeholder="🔍 ابحث عن عميل مسجل (3 حروف أو أرقام)" autocomplete="off" style="'+CS_INP+';background:#f3f8ff;margin-bottom:6px"><div id="csn-res" style="display:none;border:1px solid #dde5e0;border-radius:9px;margin-bottom:8px;overflow:hidden"></div>':'';
+  csOverlay('<div style="font-size:17px;font-weight:800;margin-bottom:14px">شكوى جديدة</div>'
+    +'<label style="font-size:12px;font-weight:700;color:#555">نوع الشكوى</label><select id="csn-type" style="'+CS_INP+';margin:4px 0 12px">'+opts+'</select>'
+    +'<label style="font-size:12px;font-weight:700;color:#555">العميل</label><div style="margin-top:4px">'+search+'</div>'
+    +'<input type="hidden" id="csn-cid">'
+    +'<div style="display:flex;gap:8px;margin-bottom:8px"><input id="csn-name" placeholder="اسم العميل *" style="'+CS_INP+'"><input id="csn-phone" placeholder="رقم الهاتف" style="'+CS_INP+'"></div>'
+    +'<input id="csn-addr" placeholder="العنوان" style="'+CS_INP+';margin-bottom:8px">'
+    +'<input id="csn-task" placeholder="رقم الطلب المرتبط (اختياري)" style="'+CS_INP+';margin-bottom:12px">'
+    +'<label style="font-size:12px;font-weight:700;color:#555">تفاصيل الشكوى *</label><textarea id="csn-desc" rows="4" style="'+CS_INP+';margin:4px 0 10px;resize:vertical"></textarea>'
+    +'<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#D64531;margin-bottom:14px"><input type="checkbox" id="csn-urgent" style="width:auto"> شكوى عاجلة (تظهر للإدارة فوراً)</label>'
+    +'<div style="display:flex;gap:8px">'+csBtn('حفظ وتوجيه الشكوى','csSaveNew()')+csBtn('إلغاء','csClose()','#f3f6f2','#16241d')+'</div>');
+}
+var _csCT=null;
+function csCustSearch(v){
+  if(_csCT)clearTimeout(_csCT);
+  var box=document.getElementById('csn-res');if(!box)return;
+  v=(v||'').trim();if(v.length<3){box.style.display='none';return;}
+  _csCT=setTimeout(async function(){
+    var r=await db.from('customers').select('id,full_name,phone,address').or('full_name.ilike.%'+v+'%,phone.ilike.%'+v+'%').limit(6);
+    var d=r.data||[];window._csCustRes=d;
+    if(!d.length){box.style.display='none';return;}
+    box.style.display='block';
+    box.innerHTML=d.map(function(c,i){return '<div onclick="csPickCust('+i+')" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #f0f0e8;font-size:13px"><b>'+plEsc(c.full_name)+'</b> <span style="color:#888;font-size:11px">'+plEsc(c.phone||'')+'</span></div>';}).join('');
+  },250);
+}
+function csPickCust(i){
+  var c=(window._csCustRes||[])[i];if(!c)return;
+  logCust('attach',c,'case');
+  document.getElementById('csn-cid').value=c.id;
+  document.getElementById('csn-name').value=c.full_name||'';
+  document.getElementById('csn-phone').value=c.phone||'';
+  document.getElementById('csn-addr').value=c.address||'';
+  var box=document.getElementById('csn-res');if(box)box.style.display='none';
+}
+async function csSaveNew(){
+  var g=function(id){var el=document.getElementById(id);return el?el.value.trim():'';};
+  if(g('csn-name').length<2){toast('اكتب اسم العميل',true);return;}
+  if(g('csn-desc').length<3){toast('اكتب تفاصيل الشكوى',true);return;}
+  var r=await db.rpc('case_create',{p:{type:g('csn-type'),customer_id:g('csn-cid'),customer_name:g('csn-name'),phone:g('csn-phone'),address:g('csn-addr'),task_num:g('csn-task'),description:g('csn-desc'),priority:document.getElementById('csn-urgent').checked?'urgent':'normal'}});
+  if(r.error){toast('خطأ: '+r.error.message,true);return;}
+  toast('تم فتح الشكوى '+r.data.case_num+' وتوجيهها إلى '+(r.data.assigned_name||'الإدارة'));
+  csClose();await csFetch();renderCases();
+}
+// ---- case detail ----
+async function csOpen(id){
+  var c=csFind(id);if(!c)return;
+  if(CU.role!=='owner')logCust('view',{id:c.customer_id,full_name:c.customer_name},'case '+c.case_num);
+  var er=await db.from('case_events').select('*').eq('case_id',id).order('at');
+  var evs=er.data||[];
+  var mgr=csIsMgr(),asg=c.assigned_to===CU.id,canAct=mgr||asg,open=csOpenSt(c);
+  var canNote=canAct||c.created_by===CU.id||(c.parts_tagged&&CU.role==='parts_manager');
+  var sla=csSla(c);
+  var info=function(l,v){return v?'<div style="font-size:13px;margin-bottom:5px"><span style="color:#7b8a82">'+l+':</span> <b>'+v+'</b></div>':'';};
+  var acts='';
+  if(open&&canAct){
+    if(csNotStarted(c))acts+=csBtn('▶ بدء العمل','csAct(\''+id+'\',\'start\')');
+    if(c.status==='in_progress')acts+=csBtn('في انتظار العميل','csAct(\''+id+'\',\'wait_customer\')','#fff4e0','#B26A00')+csBtn('في انتظار قسم داخلي','csAct(\''+id+'\',\'wait_internal\')','#fff4e0','#B26A00');
+    if(c.status==='waiting_customer'||c.status==='waiting_internal')acts+=csBtn('▶ استكمال العمل','csAct(\''+id+'\',\'resume\')');
+    acts+=csBtn('✓ تم الحل','csResolveForm(\''+id+'\')','#3B6D11');
+    acts+=csBtn(c.parts_tagged?'إلغاء إشراك قطع الغيار':'إشراك مدير قطع الغيار','csAct(\''+id+'\',\'tag_parts\',{on:'+(!c.parts_tagged)+'})','#efeafa','#6a4bb5');
+  }
+  if(c.status==='resolved'&&canAct)acts+=csBtn('إغلاق الشكوى','csAct(\''+id+'\',\'close\')','#16241d');
+  if(!open&&mgr)acts+=csBtn('↺ إعادة فتح','csReopen(\''+id+'\')','#fdecea','#D64531');
+  var mgrBox='';
+  if(mgr){
+    var uo=CS_USERS.map(function(u){return '<option value="'+u.id+'"'+(u.id===c.assigned_to?' selected':'')+'>'+plEsc(u.full_name)+' — '+plEsc((ROLES[u.role]&&ROLES[u.role].l)||u.role)+'</option>';}).join('');
+    mgrBox='<div style="background:#f6f8f6;border-radius:12px;padding:12px;margin-top:12px"><div style="font-size:12px;font-weight:800;color:#5f6f67;margin-bottom:8px">إدارة الشكوى</div>'
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><select id="csd-user" style="'+CS_INP+';flex:1;min-width:180px;padding:8px">'+uo+'</select>'+csBtn('تحويل','csReassign(\''+id+'\')','#1E6FB8')
+      +csBtn(c.priority==='urgent'?'إلغاء العاجل':'تحديد كعاجلة','csAct(\''+id+'\',\'priority\',{priority:\''+(c.priority==='urgent'?'normal':'urgent')+'\'})','#fdecea','#D64531')+'</div></div>';
+  }
+  var tl=evs.map(function(e){
+    var d=new Date(e.at);var esc=(e.kind==='escalate1'||e.kind==='escalate2');
+    return '<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px dashed #eef1ee"><div style="font-size:11px;color:#99a39d;white-space:nowrap;min-width:92px">'+d.toLocaleDateString('en-GB').slice(0,5)+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})+'</div>'
+      +'<div style="flex:1;min-width:0;font-size:12.5px"><b style="color:'+(esc?'#D64531':'#16241d')+'">'+(CS_EV[e.kind]||e.kind)+'</b> <span style="color:#7b8a82">— '+plEsc(e.by_name||'')+'</span>'+(e.note?'<div style="color:#33443b;margin-top:2px;white-space:pre-wrap">'+plEsc(e.note)+'</div>':'')+'</div></div>';
+  }).join('');
+  csOverlay(
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:12px"><div><div style="font-size:18px;font-weight:800">'+plEsc(c.case_num)+' · '+plEsc(csTypeLabel(c.type))+'</div>'
+      +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">'+csPill(CS_STATUS[c.status]||c.status,CS_STATUS_C[c.status]||'#777')+(c.priority==='urgent'?csPill('عاجلة','#D64531',true):'')+(open&&c.escalation_level>=2?csPill('مُصعّدة للمالك','#D64531',true):(open&&c.escalation_level===1?csPill('تنبيه المدير','#E08A00',true):''))+(sla.t?csPill(sla.t,sla.k==='late'?'#D64531':(sla.k==='warn'?'#B26A00':'#0c6b47')):'')+'</div></div>'
+      +'<button onclick="csClose()" style="border:none;background:#eef1ee;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:14px;color:#555">✕</button></div>'
+    +'<div style="background:#f6f8f6;border-radius:12px;padding:12px;margin-bottom:12px">'
+      +info('العميل',plEsc(c.customer_name))
+      +info('الهاتف',c.phone?'<a href="tel:'+plEsc(c.phone)+'" style="color:#1E6FB8;text-decoration:none" dir="ltr">'+plEsc(c.phone)+'</a>':'')
+      +info('العنوان',plEsc(c.address||''))+info('رقم الطلب',plEsc(c.task_num||''))
+      +info('المسؤول',plEsc(c.assigned_name||'غير محدد'))+info('فتحها',plEsc(c.created_by_name||''))
+    +'</div>'
+    +'<div style="font-size:12px;font-weight:800;color:#5f6f67;margin-bottom:4px">تفاصيل الشكوى</div><div style="font-size:13.5px;line-height:1.7;white-space:pre-wrap;margin-bottom:12px">'+plEsc(c.description)+'</div>'
+    +(c.resolution?'<div style="background:#eef6e6;border-radius:12px;padding:12px;margin-bottom:12px;font-size:13px;line-height:1.7"><b style="color:#3B6D11">الحل:</b> '+plEsc(c.resolution)+'<br><b style="color:#3B6D11">سبب المشكلة:</b> '+plEsc(c.root_cause||'')+'</div>':'')
+    +'<div id="csd-form"></div>'
+    +(acts?'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px">'+acts+'</div>':'')
+    +mgrBox
+    +(canNote?'<div style="display:flex;gap:8px;margin-top:12px"><input id="csd-note" placeholder="أضف ملاحظة أو تحديث..." style="'+CS_INP+'">'+csBtn('إضافة','csNote(\''+id+'\')','#16241d')+'</div>':'')
+    +'<div style="font-size:12px;font-weight:800;color:#5f6f67;margin:16px 0 4px">سجل الشكوى</div>'+tl,true);
+}
+async function csAct(id,action,payload){
+  var r=await db.rpc('case_action',{p_id:id,p_action:action,p:payload||{}});
+  if(r.error){toast(r.error.message,true);return false;}
+  toast('تم التحديث');
+  await csFetch();renderCases();csOpen(id);
+  return true;
+}
+function csNote(id){
+  var el=document.getElementById('csd-note');var v=el?el.value.trim():'';
+  if(!v){toast('اكتب الملاحظة',true);return;}
+  csAct(id,'note',{note:v});
+}
+function csReassign(id){
+  var el=document.getElementById('csd-user');if(!el||!el.value)return;
+  csAct(id,'reassign',{user_id:el.value});
+}
+function csReopen(id){
+  var why=prompt('سبب إعادة فتح الشكوى:');
+  if(why===null)return;
+  csAct(id,'reopen',{note:why});
+}
+function csResolveForm(id){
+  var f=document.getElementById('csd-form');if(!f)return;
+  f.innerHTML='<div style="background:#eef6e6;border-radius:12px;padding:12px;margin-bottom:12px">'
+    +'<div style="font-size:12px;font-weight:800;color:#3B6D11;margin-bottom:6px">إتمام الحل</div>'
+    +'<textarea id="csd-res" rows="2" placeholder="ماذا تم لحل الشكوى؟ *" style="'+CS_INP+';margin-bottom:8px;resize:vertical"></textarea>'
+    +'<input id="csd-cause" placeholder="ما سبب المشكلة؟ *" style="'+CS_INP+';margin-bottom:8px">'
+    +csBtn('تأكيد الحل','csResolve(\''+id+'\')','#3B6D11')+'</div>';
+  var el=document.getElementById('csd-res');if(el)el.focus();
+}
+function csResolve(id){
+  var a=document.getElementById('csd-res').value.trim(),b=document.getElementById('csd-cause').value.trim();
+  if(a.length<3){toast('اكتب ما تم لحل الشكوى',true);return;}
+  if(b.length<3){toast('اكتب سبب المشكلة',true);return;}
+  csAct(id,'resolve',{resolution:a,root_cause:b});
+}
+// ---- dashboard (managers) ----
+function csDashHtml(){
+  var since=Date.now()-30*86400000;
+  var L=CS_LIST.filter(function(c){return new Date(c.created_at).getTime()>=since;});
+  var open=L.filter(csOpenSt);
+  var late=open.filter(function(c){return c.escalation_level>=1||csSla(c).k==='late';});
+  var esc=open.filter(function(c){return c.escalation_level>=2;});
+  var unas=open.filter(function(c){return !c.assigned_to;});
+  var avg=function(arr,f){var v=arr.map(f).filter(function(x){return x!=null;});if(!v.length)return null;return v.reduce(function(a,b){return a+b;},0)/v.length;};
+  var aResp=avg(L,function(c){return c.resp_minutes;}),aRes=avg(L,function(c){return c.res_minutes;});
+  var solved=L.filter(function(c){return c.res_minutes!=null;});
+  var inSla=solved.filter(function(c){return c.res_minutes<=CS_SET.resolve_hours*60;});
+  var slaPct=solved.length?Math.round(inSla.length*100/solved.length):null;
+  var reop=L.filter(function(c){return c.reopen_count>0;});
+  var card=function(l,v,color){return '<div style="background:#fff;border:1px solid #e6ebe8;border-radius:14px;padding:14px 16px"><div style="font-size:12px;color:#7b8a82;font-weight:700">'+l+'</div><div style="font-size:24px;font-weight:800;color:'+(color||'#16241d')+';margin-top:4px">'+v+'</div></div>';};
+  var cards=card('إجمالي الشكاوى',L.length)+card('مفتوحة',open.length,'#1E6FB8')+card('غير مُسندة',unas.length,unas.length?'#D64531':'#16241d')+card('متأخرة',late.length,late.length?'#D64531':'#16241d')+card('مُصعّدة للمالك',esc.length,esc.length?'#D64531':'#16241d')
+    +card('متوسط بدء العمل',aResp==null?'—':csDur(aResp))+card('متوسط وقت الحل',aRes==null?'—':csDur(aRes))+card('الالتزام بوقت الحل',slaPct==null?'—':slaPct+'%',slaPct!=null&&slaPct<80?'#D64531':'#0c6b47')+card('أعيد فتحها',reop.length);
+  var th='padding:8px 10px;text-align:start;font-size:12px;color:#5f6f67;background:#f6f8f6',td='padding:8px 10px;font-size:13px;border-top:1px solid #eef1ee';
+  var byT={},byE={};
+  L.forEach(function(c){
+    var t=byT[c.type]=byT[c.type]||{n:0,o:0};t.n++;if(csOpenSt(c))t.o++;
+    var k=c.assigned_name||'غير محدد';var e=byE[k]=byE[k]||{n:0,o:0,l:0,rs:[]};e.n++;if(csOpenSt(c))e.o++;
+    if(c.escalation_level>=1||(c.res_minutes!=null&&c.res_minutes>CS_SET.resolve_hours*60))e.l++;
+    if(c.res_minutes!=null)e.rs.push(c.res_minutes);
+  });
+  var tRows=Object.keys(byT).sort(function(a,b){return byT[b].n-byT[a].n;}).map(function(k){return '<tr><td style="'+td+'">'+plEsc(csTypeLabel(k))+'</td><td style="'+td+'">'+byT[k].n+'</td><td style="'+td+'">'+byT[k].o+'</td></tr>';}).join('')||'<tr><td colspan="3" style="'+td+';text-align:center;color:#aaa">لا توجد بيانات</td></tr>';
+  var eRows=Object.keys(byE).sort(function(a,b){return byE[b].n-byE[a].n;}).map(function(k){var e=byE[k];var a=e.rs.length?csDur(e.rs.reduce(function(x,y){return x+y;},0)/e.rs.length):'—';return '<tr><td style="'+td+'">'+plEsc(k)+'</td><td style="'+td+'">'+e.n+'</td><td style="'+td+'">'+e.o+'</td><td style="'+td+'">'+a+'</td><td style="'+td+';color:'+(e.l?'#D64531':'#16241d')+';font-weight:700">'+e.l+'</td></tr>';}).join('')||'<tr><td colspan="5" style="'+td+';text-align:center;color:#aaa">لا توجد بيانات</td></tr>';
+  var tbl=function(title,heads,rows){return '<div style="background:#fff;border:1px solid #e6ebe8;border-radius:14px;overflow:hidden;margin-top:14px"><div style="padding:12px 14px;font-weight:800;font-size:14px">'+title+'</div><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr>'+heads.map(function(h){return '<th style="'+th+'">'+h+'</th>';}).join('')+'</tr></thead><tbody>'+rows+'</tbody></table></div></div>';};
+  return '<div style="font-size:12px;color:#7b8a82;margin-bottom:10px;font-weight:700">آخر 30 يوم · الأوقات محسوبة بساعات العمل فقط</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px">'+cards+'</div>'
+    +tbl('حسب نوع الشكوى',['النوع','الإجمالي','مفتوحة'],tRows)
+    +tbl('حسب الموظف',['الموظف','الإجمالي','مفتوحة','متوسط الحل','متأخرة'],eRows);
+}
+// ---- settings (owner) ----
+function csSettingsHtml(){
+  var teams=['cs_maintenance','cs_installation','sales','cs_sales_manager','parts_manager'];
+  var num=function(id,l,v){return '<div style="flex:1;min-width:130px"><label style="font-size:12px;font-weight:700;color:#555">'+l+'</label><input id="'+id+'" type="number" value="'+v+'" style="'+CS_INP+';margin-top:4px"></div>';};
+  var rows=CS_TYPES.map(function(t){
+    return '<div style="display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px solid #eef1ee;flex-wrap:wrap"><div style="flex:1;min-width:160px;font-size:13px;font-weight:700">'+plEsc(t.label)+'</div><select onchange="csSaveRoute(\''+t.key+'\',this.value)" style="'+CS_INP+';width:auto;min-width:200px;padding:8px">'
+      +teams.map(function(k){return '<option value="'+k+'"'+(k===t.team?' selected':'')+'>'+plEsc((ROLES[k]&&ROLES[k].l)||k)+'</option>';}).join('')+'</select></div>';
+  }).join('');
+  return '<div style="background:#fff;border:1px solid #e6ebe8;border-radius:14px;padding:16px"><div style="font-weight:800;font-size:14px;margin-bottom:12px">أوقات الخدمة</div>'
+    +'<div style="display:flex;gap:10px;flex-wrap:wrap">'+num('css-resp','بدء العمل خلال (ساعة)',CS_SET.response_hours)+num('css-res','الحل خلال (ساعة)',CS_SET.resolve_hours)+num('css-ws','بداية العمل (ساعة)',CS_SET.work_start)+num('css-we','نهاية العمل (ساعة)',CS_SET.work_end)+'</div>'
+    +'<div style="font-size:12px;color:#7b8a82;margin:10px 0">يوم الجمعة إجازة. الوقت يتوقف خارج ساعات العمل وأثناء انتظار العميل.</div>'+csBtn('حفظ الأوقات','csSaveSettings()')+'</div>'
+    +'<div style="background:#fff;border:1px solid #e6ebe8;border-radius:14px;padding:16px;margin-top:14px"><div style="font-weight:800;font-size:14px;margin-bottom:4px">توجيه الشكاوى</div><div style="font-size:12px;color:#7b8a82;margin-bottom:8px">كل نوع يذهب تلقائياً إلى القسم المحدد (لأقل موظف انشغالاً).</div>'+rows+'</div>';
+}
+async function csSaveSettings(){
+  if(!CU||CU.role!=='owner')return;
+  var n=function(id){return parseFloat(document.getElementById(id).value);};
+  var v={response_hours:n('css-resp'),resolve_hours:n('css-res'),work_start:Math.round(n('css-ws')),work_end:Math.round(n('css-we'))};
+  if(!(v.response_hours>0)||!(v.resolve_hours>=v.response_hours)||!(v.work_start>=0)||!(v.work_end>v.work_start)||v.work_end>24){toast('راجع الأرقام',true);return;}
+  var r=await db.from('case_settings').update(v).eq('id',1);
+  if(r.error){toast('خطأ: '+r.error.message,true);return;}
+  CS_SET.response_hours=v.response_hours;CS_SET.resolve_hours=v.resolve_hours;CS_SET.work_start=v.work_start;CS_SET.work_end=v.work_end;
+  toast('تم حفظ الأوقات');renderCases();
+}
+async function csSaveRoute(key,team){
+  if(!CU||CU.role!=='owner')return;
+  var r=await db.from('case_types').update({team:team}).eq('key',key);
+  if(r.error){toast('خطأ: '+r.error.message,true);return;}
+  CS_TYPES.forEach(function(t){if(t.key===key)t.team=team;});
+  toast('تم حفظ التوجيه');
+}
+// ══════════ END CASES ══════════
+
 // ══════════ PRICE LIST (قائمة الأسعار) — isolated, reference-only ══════════
 var PL_DATA={parts:[],copper:[],ac:[]};
 var PL_SECTIONS={parts:'قطع الغيار',copper:'النحاس',ac:'كتالوج التكييفات'};
