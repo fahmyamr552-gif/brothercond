@@ -238,7 +238,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
 <div class="mn">
 <div class="tb">
   <button class="hamburger" onclick="toggleSidebar()" style="display:none;background:none;border:none;font-size:22px;cursor:pointer;padding:4px 10px;color:#333">&#9776;</button>
-  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-11-14</span>
+  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-11-14b</span>
   <div style="display:flex;align-items:center;gap:8px"><div class="lang-btns"><button class="lbtn on" onclick="setLang('en',this)">EN</button><button class="lbtn" onclick="setLang('ar',this)">عربي</button></div><div id="tact" style="display:flex;gap:7px"></div></div>
 </div>
 <div class="ct">
@@ -1208,7 +1208,7 @@ async function doSignIn(){
     if(!data||data.length===0){if(errEl){errEl.textContent='Wrong username or password.';errEl.style.display='block';}return;}
     CU=data[0];
     // Save session so page refresh doesn't sign out
-    try{localStorage.setItem('bc_user',JSON.stringify(CU));}catch(e){}
+    try{localStorage.setItem('bc_user',JSON.stringify(CU));localStorage.setItem('bc_login_at',String(Date.now()));}catch(e){}
     document.getElementById('ls').style.display='none';
     document.getElementById('app').classList.remove('h');
     document.getElementById('sname').textContent=CU.full_name;
@@ -1228,7 +1228,27 @@ async function doSignIn(){
   }
 }
 
-function doSignOut(){CU=null;try{localStorage.removeItem('bc_user');}catch(e){}document.getElementById('app').classList.add('h');document.getElementById('ls').style.display='flex';document.getElementById('lp').value='';}
+// ── Session safety: sign-in lasts 12 hours, and is re-checked against the users table ──
+var SESSION_HOURS=12;
+function sessionExpired(){
+  var at=0;try{at=parseInt(localStorage.getItem('bc_login_at')||'0',10)||0;}catch(e){}
+  return !at||(Date.now()-at)>SESSION_HOURS*3600*1000;
+}
+async function sessionCheck(){
+  if(!CU||!CU.id)return;
+  if(sessionExpired()){doSignOut();return;}
+  try{
+    var r=await db.from('users').select('*').eq('id',CU.id).limit(1);
+    if(r.error)return; // connection problem: do nothing
+    var u=(r.data||[])[0];
+    if(!u||u.active===false||u.password!==CU.password){doSignOut();return;} // removed, switched off, or password changed
+    var roleChanged=u.role!==CU.role;
+    CU=u;try{localStorage.setItem('bc_user',JSON.stringify(CU));}catch(e){}
+    if(roleChanged){location.reload();}
+  }catch(e){}
+}
+setInterval(function(){sessionCheck();},5*60*1000);
+function doSignOut(){CU=null;try{localStorage.removeItem('bc_user');localStorage.removeItem('bc_login_at');}catch(e){}document.getElementById('app').classList.add('h');document.getElementById('ls').style.display='flex';document.getElementById('lp').value='';}
 
 function applyRole(){
   const perms=ROLES[CU.role]?.can||[];
@@ -9349,12 +9369,10 @@ function applyTranslations(){
     const saved=localStorage.getItem('bc_user');
     if(!saved)return;
     CU=JSON.parse(saved);
-    if(!CU||!CU.id){localStorage.removeItem('bc_user');return;}
+    if(!CU||!CU.id||sessionExpired()){CU=null;localStorage.removeItem('bc_user');localStorage.removeItem('bc_login_at');return;}
     // Refresh CU from DB in the background so fields like deduction_name stay current
     // without forcing a re-login (cached session may predate new columns).
-    (function(){var uid=CU.id;db.from('users').select('*').eq('id',uid).single().then(function(r){
-      if(r&&r.data){CU=r.data;try{localStorage.setItem('bc_user',JSON.stringify(CU));}catch(e){}}
-    }).catch(function(){});})();
+    sessionCheck();
     document.getElementById('ls').style.display='none';
     document.getElementById('app').classList.remove('h');
     document.getElementById('sname').textContent=CU.full_name;
