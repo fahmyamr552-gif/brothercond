@@ -244,7 +244,7 @@ html[dir=ltr] .hero-bg{transform:scaleX(-1)}
 .proj .wrap{position:relative}
 .proj .eyebrow{background:rgba(200,169,106,.14);color:#e6cf9c;border:1px solid rgba(200,169,106,.35)}.proj .eyebrow i{background:#c8a96a}
 .proj .sec-h h2{color:#fff}.proj .sec-h p{color:#c5d5ec}
-.ph2{display:flex;justify-content:space-between;align-items:flex-end;gap:30px;flex-wrap:wrap;margin-bottom:44px}
+.ph2{display:flex;justify-content:space-between;align-items:center;gap:30px;flex-wrap:wrap}.proj.sec{padding:72px 0}
 .bigstat{text-align:center;border:1px solid rgba(200,169,106,.4);border-radius:22px;padding:22px 34px;background:rgba(255,255,255,.04)}
 .bigstat b{display:block;font-size:clamp(46px,6vw,72px);font-weight:800;line-height:1;background:linear-gradient(180deg,#f3e2b8,#c8a96a);-webkit-background-clip:text;background-clip:text;color:transparent;direction:ltr}
 .bigstat span{font-size:15px;color:#c5d5ec;font-weight:600}
@@ -261,7 +261,7 @@ html[dir=ltr] .hero-bg{transform:scaleX(-1)}
 @media(max-width:560px){.pgs{grid-template-columns:1fr}.awg{grid-template-columns:1fr}.lt{width:150px;height:80px;padding:16px 20px}.bigstat{width:100%}}
 @media(prefers-reduced-motion:reduce){.track{animation:none;flex-wrap:wrap;justify-content:center;width:auto}.marq{-webkit-mask-image:none;mask-image:none}}
 /* branches */
-.brs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.brs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
 .br{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:28px 26px;display:flex;flex-direction:column;gap:6px;min-width:0;transition:transform .25s ease,box-shadow .25s ease,border-color .25s ease}
 .br:hover{box-shadow:var(--sh);border-color:var(--ice-2)}
 .br .pin{width:52px;height:52px;border-radius:16px;background:linear-gradient(150deg,var(--navy),var(--blue));display:flex;align-items:center;justify-content:center;margin-bottom:12px;transform:translateZ(30px);box-shadow:0 10px 24px rgba(15,35,71,.25)}
@@ -280,6 +280,7 @@ html[dir=ltr] .hero-bg{transform:scaleX(-1)}
 @media(prefers-reduced-motion:reduce){.js .rv{transform:none}.stage .chip-a{animation:none}}
 .grid5{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}.grid5 .card .art{aspect-ratio:16/9}.card .art svg{width:100%;height:100%}
 @media(max-width:860px){.grid5{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:560px){.grid5{grid-template-columns:1fr}.grid5 .card .art{aspect-ratio:1/1}}
+@media(max-width:1080px){.brs{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:560px){.brs{grid-template-columns:1fr}}
 </style>
 <script>
 document.documentElement.classList.add('js');
@@ -340,7 +341,7 @@ try{if(sessionStorage.getItem('bc_intro')==='1'||/[?&]nointro/.test(location.sea
       <div class="trust rv d4">
         <div><b>1990</b><span data-i="t1">سنة التأسيس</span></div>
         <div><b>+35</b><span data-i="t2">سنة خبرة</span></div>
-        <div><b>3</b><span data-i="t3">فروع في القاهرة</span></div>
+        <div><b>4</b><span data-i="t3">فروع في القاهرة</span></div>
       </div>
     </div>
     <div class="stage" id="stage" aria-hidden="true">
@@ -493,13 +494,11 @@ try{if(sessionStorage.getItem('bc_intro')==='1'||/[?&]nointro/.test(location.sea
     <div class="ph2">
       <div class="sec-h rv" style="margin-bottom:0">
         <span class="eyebrow"><i></i><span data-i="pr_eb">سابقة أعمالنا</span></span>
-        <h2 data-i="pr_h">ثقة مؤسسات كبرى على مدار السنين</h2>
-        <p data-i="pr_p">من الجامعات والسفارات إلى المصانع ومعارض السيارات، هذه بعض الجهات التي نفّذنا لها أعمال التكييف.</p>
+        <h2 data-i="pr_h">مشاريع نفخر بها على مدار السنين</h2>
+        <p data-i="pr_p">نفّذنا أعمال التكييف للمنازل والشركات والمدارس والفنادق والمصانع، وثقة عملائنا هي سرّ استمرارنا.</p>
       </div>
       <div class="bigstat rv d1"><b>+300</b><span data-i="pr_stat">مشروع تم تنفيذه</span></div>
-    </div>
-    <div class="pgs"><div class="pg tilt rv"><h3 data-i="pg1">التعليم</h3><ul><li data-i="pj1">الجامعة الأمريكية بالقاهرة</li><li data-i="pj2">الجامعة الألمانية بالقاهرة</li><li data-i="pj3">جامعة مصر</li><li data-i="pj4">الأكاديمية العربية للعلوم والتكنولوجيا والنقل البحري</li><li data-i="pj5">مدرسة CIC</li></ul></div><div class="pg tilt rv"><h3 data-i="pg2">الشركات والصناعة</h3><ul><li data-i="pj6">هنكل مصر</li><li data-i="pj7">إيديال ستاندرد مصر</li><li data-i="pj8">عامر جروب</li><li data-i="pj9">سيتي بنك</li><li data-i="pj10">شركة خدمات البترول الجوية</li><li data-i="pj11">كوك دور</li><li data-i="pj12">فروع أصفور كريستال</li></ul></div><div class="pg tilt rv"><h3 data-i="pg3">السيارات</h3><ul><li data-i="pj13">نيسان</li><li data-i="pj14">كيا موتورز مصر</li><li data-i="pj15">تويوتا – المجموعة العربية</li><li data-i="pj16">أباظة أوتو تريد – بيجو</li></ul></div><div class="pg tilt rv"><h3 data-i="pg4">جهات حكومية ودبلوماسية</h3><ul><li data-i="pj17">وزارة الزراعة</li><li data-i="pj18">السفارة السعودية</li><li data-i="pj19">المكتب التجاري لسفارة إسبانيا</li><li data-i="pj20">المجلس العربي للمرأة والطفولة</li><li data-i="pj21">المجلس الطبي العسكري العام</li></ul></div></div>
-    <div class="aws"><h3 class="rv" data-i="aw_h">جوائز وتكريمات</h3><div class="awg"><div class="aw rv"><b>1999</b><span data-i="aw1">جائزة أفضل موزّع لمبيعات ترين في مصر</span></div><div class="aw rv"><b>2005</b><span data-i="aw2">الشهادة الذهبية من كاريير لتجاوز المبيعات المستهدفة</span></div><div class="aw rv"><b>2008</b><span data-i="aw3">جائزة التميّز لأعلى تجاوز للحصة البيعية في مصر</span></div><div class="aw rv"><b>2016</b><span data-i="aw4">جائزة أفضل موزّع من مجموعة العربي لمبيعات شارب</span></div></div></div>
+    </div> 
   </div>
 </section>
 
@@ -528,6 +527,7 @@ try{if(sessionStorage.getItem('bc_intro')==='1'||/[?&]nointro/.test(location.sea
       <article class="br tilt rv"><span class="pin"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.800 12 21 12 21z"/><circle cx="12" cy="9.500" r="2.500"/></svg></span><h3 data-i="b1n">فرع مدينة نصر</h3><p data-i="b1a">الجولف، مدينة نصر، القاهرة</p><a class="maplink" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=Brothercond+For+Air+Conditioning+Nasr+City&query_place_id=ChIJqWrtoBY-WBQRi6VPA8pqwCA"><span data-i="map">افتح على الخريطة</span> <i>↗</i></a></article>
       <article class="br tilt rv d1"><span class="pin"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.800 12 21 12 21z"/><circle cx="12" cy="9.500" r="2.500"/></svg></span><h3 data-i="b2n">فرع الرحاب</h3><p data-i="b2a">شارع أبو حنيفة النعمان، القاهرة الجديدة</p><a class="maplink" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=Brothercond+For+Air+Conditioning+New+Cairo&query_place_id=ChIJyfqweIcYWBQRVVjn30KyXb8"><span data-i="map">افتح على الخريطة</span> <i>↗</i></a></article>
       <article class="br tilt rv d2"><span class="pin"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.800 12 21 12 21z"/><circle cx="12" cy="9.500" r="2.500"/></svg></span><h3 data-i="b3n">فرع مدينتي</h3><p data-i="b3a">منطقة الحرف (Craft Zone)، G1 و G2، مدينتي</p><a class="maplink" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=Brothercond+For+Air+Conditioning+Madinaty&query_place_id=ChIJW31F8yT1VxQRgDe2GIsa_AE"><span data-i="map">افتح على الخريطة</span> <i>↗</i></a></article>
+      <article class="br tilt rv d3"><span class="pin"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.800 12 21 12 21z"/><circle cx="12" cy="9.500" r="2.500"/></svg></span><h3 data-i="b4n">فرع التجمع الأول</h3><p data-i="b4a">محور مصطفى كامل، التجمع الأول، القاهرة الجديدة</p><a class="maplink" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=Brothercond+For+Air+Conditioning+First+Settlement&query_place_id=ChIJxZtV3cQZWBQRtpTdtVEmt0A"><span data-i="map">افتح على الخريطة</span> <i>↗</i></a></article>
     </div>
   </div>
 </section>
@@ -550,7 +550,7 @@ try{if(sessionStorage.getItem('bc_intro')==='1'||/[?&]nointro/.test(location.sea
   <div class="wrap">
     <div><div class="logo-w"><svg viewBox="0 0 1930 1560" role="img" aria-label="BrotherCond Air Conditioning"><use href="#bc-logo-w"/></svg></div><p style="margin-top:14px;font-size:14.5px;max-width:320px" data-i="ft_p">برازر كوند للتكييف — بيع وتركيب وصيانة منذ 1990.</p></div>
     <div><h4 data-i="ft_s">الخدمات</h4><ul><li><a href="booking.html" data-i="ft_b">حجز خدمة</a></li><li><a href="booking.html#complaint" data-i="ft_c">تقديم شكوى</a></li><li><a href="#services" data-i="nav_services">خدماتنا</a></li></ul></div>
-    <div><h4 data-i="ft_br">الفروع</h4><ul><li><a href="#branches" data-i="br1">مدينة نصر</a></li><li><a href="#branches" data-i="br2">الرحاب</a></li><li><a href="#branches" data-i="br3">مدينتي</a></li></ul></div>
+    <div><h4 data-i="ft_br">الفروع</h4><ul><li><a href="#branches" data-i="br1">مدينة نصر</a></li><li><a href="#branches" data-i="br2">الرحاب</a></li><li><a href="#branches" data-i="br3">مدينتي</a></li><li><a href="#branches" data-i="br4">التجمع الأول</a></li></ul></div>
     <div class="cp"><span>© <span id="yr">2026</span> BrotherCond Air Conditioning</span><a href="system.html" data-i="staff">دخول الموظفين</a></div>
   </div>
 </footer>
@@ -558,7 +558,7 @@ try{if(sessionStorage.getItem('bc_intro')==='1'||/[?&]nointro/.test(location.sea
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 var BC_T={en:{
-  tagline:"ENGINEERING COMFORT SINCE 1990",nav_services:"Services",nav_about:"About",nav_how:"How it works",pg1:"Education",pj1:"The American University in Cairo",pj2:"The German University in Cairo",pj3:"Misr University",pj4:"Arab Academy for Science, Technology & Maritime Transport",pj5:"CIC School",pg2:"Corporate and industry",pj6:"Henkel Egypt",pj7:"Ideal Standard Egypt",pj8:"Amer Group",pj9:"City Bank",pj10:"Air Petroleum Services Company",pj11:"Cook Door Restaurants",pj12:"Asfour Crystal branches",pg3:"Automotive",pj13:"Nissan Auto Group",pj14:"Kia Motors Egypt",pj15:"Toyota Arabian Group",pj16:"Abaza Auto Trade – Peugeot",pg4:"Government and diplomatic",pj17:"Ministry of Agriculture",pj18:"Saudi Embassy",pj19:"Commercial Office of the Embassy of Spain",pj20:"Arab Council for Women and Childhood",pj21:"General Military Medical Council",aw1:"Top dealer sales award for Trane in Egypt",aw2:"Carrier golden certificate for exceeding the sales target",aw3:"Excellence award for best quota breaker in Egypt",aw4:"Top dealer award from ElAraby Group for Sharp sales",lb_cap:"Authorised distributor for the leading international air-conditioning brands",pr_eb:"Our projects",pr_h:"Trusted by major institutions over the years",pr_p:"From universities and embassies to factories and car showrooms, these are some of the organisations we have delivered air-conditioning work for.",pr_stat:"projects delivered",aw_h:"Awards and recognition",nav_pr:"Projects",nav_br:"Branches",br_eb:"Our branches",br_h:"Close to you in Cairo",br_p:"Visit the nearest branch, or request a service and we will come to you.",b1n:"Nasr City branch",b1a:"Al Golf, Nasr City, Cairo",b2n:"Rehab branch",b2a:"Abou Hanifa Al Noaman St, New Cairo",b3n:"Madinaty branch",b3a:"Craft Zone, G1 & G2, Madinaty",map:"Open in Maps",staff:"Staff login",nav_contact:"Contact",cta_book:"Book a service",cta_about:"About us",
+  tagline:"ENGINEERING COMFORT SINCE 1990",nav_services:"Services",nav_about:"About",nav_how:"How it works",pg1:"Education",pj1:"The American University in Cairo",pj2:"The German University in Cairo",pj3:"Misr University",pj4:"Arab Academy for Science, Technology & Maritime Transport",pj5:"CIC School",pg2:"Corporate and industry",pj6:"Henkel Egypt",pj7:"Ideal Standard Egypt",pj8:"Amer Group",pj9:"City Bank",pj10:"Air Petroleum Services Company",pj11:"Cook Door Restaurants",pj12:"Asfour Crystal branches",pg3:"Automotive",pj13:"Nissan Auto Group",pj14:"Kia Motors Egypt",pj15:"Toyota Arabian Group",pj16:"Abaza Auto Trade – Peugeot",pg4:"Government and diplomatic",pj17:"Ministry of Agriculture",pj18:"Saudi Embassy",pj19:"Commercial Office of the Embassy of Spain",pj20:"Arab Council for Women and Childhood",pj21:"General Military Medical Council",aw1:"Top dealer sales award for Trane in Egypt",aw2:"Carrier golden certificate for exceeding the sales target",aw3:"Excellence award for best quota breaker in Egypt",aw4:"Top dealer award from ElAraby Group for Sharp sales",lb_cap:"Authorised distributor for the leading international air-conditioning brands",pr_eb:"Our projects",pr_h:"Projects we are proud of, year after year",pr_p:"We have delivered air-conditioning work for homes, companies, schools, hotels and factories, and our clients' trust is what keeps us going.",pr_stat:"projects delivered",aw_h:"Awards and recognition",nav_pr:"Projects",nav_br:"Branches",br_eb:"Our branches",br_h:"Close to you in Cairo",br_p:"Visit the nearest branch, or request a service and we will come to you.",b1n:"Nasr City branch",b1a:"Al Golf, Nasr City, Cairo",b2n:"Rehab branch",b2a:"Abou Hanifa Al Noaman St, New Cairo",b4n:"First Settlement branch",b4a:"Mehwar Mostafa Kamel, First Settlement, New Cairo",br4:"First Settlement",b3n:"Madinaty branch",b3a:"Craft Zone, G1 & G2, Madinaty",map:"Open in Maps",staff:"Staff login",nav_contact:"Contact",cta_book:"Book a service",cta_about:"About us",
   eyebrow:"Air conditioning · Installation · Maintenance — since 1990",h1:"Your Comfort. <em>Our Expertise.</em>",
   lead:"Professional air conditioning solutions, installation, maintenance and technical support backed by more than 35 years of experience.",
   t1:"Founded",t2:"Years of experience",t3:"Branches in Cairo",chip1:"Steady, comfortable temperature",chip2:"Quiet air distribution",chip2s:"Installation planned for the room",
