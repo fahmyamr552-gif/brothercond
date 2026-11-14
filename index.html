@@ -238,7 +238,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
 <div class="mn">
 <div class="tb">
   <button class="hamburger" onclick="toggleSidebar()" style="display:none;background:none;border:none;font-size:22px;cursor:pointer;padding:4px 10px;color:#333">&#9776;</button>
-  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-11-14b</span>
+  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-11-14c</span>
   <div style="display:flex;align-items:center;gap:8px"><div class="lang-btns"><button class="lbtn on" onclick="setLang('en',this)">EN</button><button class="lbtn" onclick="setLang('ar',this)">عربي</button></div><div id="tact" style="display:flex;gap:7px"></div></div>
 </div>
 <div class="ct">
@@ -1163,18 +1163,24 @@ function can(p){return CU&&ROLES[CU.role]?.can.includes(p);}
 var ROLE_LEGACY={
   owner:['owner'],
   finance_manager:['admin','finance'],              // ghoniem: office-admin powers (but NO delete — handled separately)
-  cs_sales_manager:['salesperson','sales_feedback'], // sees what her sales/CS team sees (no finance/payroll)
+  cs_sales_manager:['salesperson'], // sees what her sales/CS team sees (no finance/payroll)
   finance:['finance'],
   parts_manager:['inventory_manager'],
   cs_maintenance:['salesperson'],         // does order/task work salespeople did
   cs_installation:['salesperson'],
-  sales:['salesperson','sales_feedback']  // sales + feedback work
+  sales:['salesperson']
 };
 // legacyRole(): returns the primary old-role string for CU, so a direct
 // comparison CU.role==='admin' can be rewritten as roleEq('admin').
 function _legacy(){return (CU&&ROLE_LEGACY[CU.role])||[];}
 // roleEq(x): true if the current user's new role inherits old role x (or IS new role x)
-function roleEq(x){return !!CU&&(CU.role===x||_legacy().indexOf(x)>=0);}
+// Feedback screens: only these usernames (plus the owner, as before)
+var FEEDBACK_USERS=['ahmed','ganna'];
+function roleEq(x){
+  if(!CU)return false;
+  if(x==='sales_feedback')return FEEDBACK_USERS.indexOf(CU.username)>=0;
+  return CU.role===x||_legacy().indexOf(x)>=0;
+}
 // roleIn(list): true if any entry in list matches via roleEq
 function roleIn(list){if(!CU)return false;for(var i=0;i<list.length;i++){if(roleEq(list[i]))return true;}return false;}
 // finance_manager must never delete, even though it inherits 'admin'
