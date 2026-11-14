@@ -238,7 +238,7 @@ tr.hv:hover td{background:#f5f5f0;cursor:pointer}
 <div class="mn">
 <div class="tb">
   <button class="hamburger" onclick="toggleSidebar()" style="display:none;background:none;border:none;font-size:22px;cursor:pointer;padding:4px 10px;color:#333">&#9776;</button>
-  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-11-14c</span>
+  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-11-15</span>
   <div style="display:flex;align-items:center;gap:8px"><div class="lang-btns"><button class="lbtn on" onclick="setLang('en',this)">EN</button><button class="lbtn" onclick="setLang('ar',this)">عربي</button></div><div id="tact" style="display:flex;gap:7px"></div></div>
 </div>
 <div class="ct">
@@ -1085,7 +1085,13 @@ function t(k){
 }
 const SU='https://biziptdqzxxedupuyoff.supabase.co';
 const SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpemlwdGRxenh4ZWR1cHV5b2ZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxMjQzNTksImV4cCI6MjA5NzcwMDM1OX0.wBN6UwNvQjDvWhxNgRmsqHxaOEW-mW-TXVA0GbrzrvA';
-const db=supabase.createClient(SU,SK);
+// Every request carries this browser's session token; the database refuses requests without a valid one.
+function bcToken(){try{return localStorage.getItem('bc_token')||'';}catch(e){return '';}}
+const db=supabase.createClient(SU,SK,{global:{fetch:function(url,opts){
+  opts=opts||{};var h=new Headers(opts.headers||{});var tk=bcToken();
+  if(tk)h.set('x-app-session',tk);
+  opts.headers=h;return fetch(url,opts);
+}}});
 
 const POL=`1. Notes:
 
@@ -1208,11 +1214,12 @@ async function doSignIn(){
   const btn=document.querySelector('.btn.bp[onclick*="doSignIn"]');
   if(btn){btn.textContent=t('loadin');btn.disabled=true;}
   try{
-    const{data,error}=await db.from('users').select('*').eq('username',u).eq('password',p).eq('active',true);
+    const{data,error}=await db.rpc('app_login',{p_username:u,p_password:p});
     if(btn){btn.textContent='Sign in';btn.disabled=false;}
     if(error)throw error;
-    if(!data||data.length===0){if(errEl){errEl.textContent='Wrong username or password.';errEl.style.display='block';}return;}
-    CU=data[0];
+    if(!data||!data.token||!data.user){if(errEl){errEl.textContent='Wrong username or password.';errEl.style.display='block';}return;}
+    try{localStorage.setItem('bc_token',data.token);}catch(e){}
+    CU=data.user;
     // Save session so page refresh doesn't sign out
     try{localStorage.setItem('bc_user',JSON.stringify(CU));localStorage.setItem('bc_login_at',String(Date.now()));}catch(e){}
     document.getElementById('ls').style.display='none';
@@ -1238,7 +1245,7 @@ async function doSignIn(){
 var SESSION_HOURS=12;
 function sessionExpired(){
   var at=0;try{at=parseInt(localStorage.getItem('bc_login_at')||'0',10)||0;}catch(e){}
-  return !at||(Date.now()-at)>SESSION_HOURS*3600*1000;
+  return !bcToken()||!at||(Date.now()-at)>SESSION_HOURS*3600*1000;
 }
 async function sessionCheck(){
   if(!CU||!CU.id)return;
@@ -1247,14 +1254,14 @@ async function sessionCheck(){
     var r=await db.from('users').select('*').eq('id',CU.id).limit(1);
     if(r.error)return; // connection problem: do nothing
     var u=(r.data||[])[0];
-    if(!u||u.active===false||u.password!==CU.password){doSignOut();return;} // removed, switched off, or password changed
+    if(!u||u.active===false){doSignOut();return;} // removed, switched off, password changed, or session ended on the server
     var roleChanged=u.role!==CU.role;
     CU=u;try{localStorage.setItem('bc_user',JSON.stringify(CU));}catch(e){}
     if(roleChanged){location.reload();}
   }catch(e){}
 }
 setInterval(function(){sessionCheck();},5*60*1000);
-function doSignOut(){CU=null;try{localStorage.removeItem('bc_user');localStorage.removeItem('bc_login_at');}catch(e){}document.getElementById('app').classList.add('h');document.getElementById('ls').style.display='flex';document.getElementById('lp').value='';}
+function doSignOut(){try{var tk0=bcToken();if(tk0)fetch(SU+'/rest/v1/rpc/app_logout',{method:'POST',headers:{'apikey':SK,'Authorization':'Bearer '+SK,'Content-Type':'application/json','x-app-session':tk0},body:'{}'}).then(function(){},function(){});}catch(e){}CU=null;try{localStorage.removeItem('bc_user');localStorage.removeItem('bc_login_at');localStorage.removeItem('bc_token');}catch(e){}document.getElementById('app').classList.add('h');document.getElementById('ls').style.display='flex';document.getElementById('lp').value='';}
 
 function applyRole(){
   const perms=ROLES[CU.role]?.can||[];
@@ -6123,6 +6130,7 @@ async function loadUsr(){
       +'<span class="bx '+roleColor+'" style="font-size:11px">'+roleLabel+'</span>'
       +'<span style="font-size:12px;color:#888">'+u.branch+'</span>'
       +'<span style="font-size:11px;font-weight:700;color:'+statusColor+'">'+( u.active?t('active'):t('inactive'))+'</span>'
+      +'<button onclick="resetUsrPw(\''+u.id+'\')" style="font-size:11px;padding:3px 10px;border:1px solid #1E6FB8;color:#1E6FB8;background:#fff;border-radius:6px;cursor:pointer">كلمة سر جديدة</button>'
       +(!isMe?'<button onclick="togUsr(\''+u.id+'\','+!u.active+')" style="font-size:11px;padding:3px 10px;border:1px solid #ccc;border-radius:6px;cursor:pointer">'+( u.active?'Deactivate':'Activate')+'</button>':'');
     body.appendChild(d);
   });
@@ -6137,6 +6145,15 @@ async function saveUsr(){
   toast(t('usercreated'));document.getElementById('auf').style.display='none';loadUsr();
 }
 
+async function resetUsrPw(id){
+  if(!CU||CU.role!=='owner'){toast('فقط المالك',true);return;}
+  var pw=prompt('كلمة السر الجديدة (6 حروف على الأقل):');
+  if(pw===null)return;
+  if(pw.length<6){toast('كلمة السر قصيرة',true);return;}
+  var r=await db.rpc('app_set_password',{p_user_id:id,p_new:pw});
+  if(r.error){toast('خطأ: '+r.error.message,true);return;}
+  toast('تم تغيير كلمة السر — سيُطلب من المستخدم الدخول من جديد');
+}
 async function togUsr(id,active){
   await db.from('users').update({active:active}).eq('id',id);
   toast(active?t('active'):t('inactive'));loadUsr();
@@ -9375,7 +9392,7 @@ function applyTranslations(){
     const saved=localStorage.getItem('bc_user');
     if(!saved)return;
     CU=JSON.parse(saved);
-    if(!CU||!CU.id||sessionExpired()){CU=null;localStorage.removeItem('bc_user');localStorage.removeItem('bc_login_at');return;}
+    if(!CU||!CU.id||sessionExpired()){CU=null;localStorage.removeItem('bc_user');localStorage.removeItem('bc_login_at');localStorage.removeItem('bc_token');return;}
     // Refresh CU from DB in the background so fields like deduction_name stay current
     // without forcing a re-login (cached session may predate new columns).
     sessionCheck();
