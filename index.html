@@ -3,6 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="BrotherCond">
 <title>BrotherCond</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -454,6 +459,7 @@ td{padding:10px 12px;border-color:#edf1ee;overflow-wrap:anywhere}
   <div class="sf">
     <div style="font-size:12px;font-weight:700" id="sname">—</div>
     <div style="font-size:11px;color:#888;margin-bottom:8px" id="sbranch">—</div>
+    <button class="btn bs" id="push-btn" data-s="off" style="width:100%;justify-content:center;margin-bottom:6px;display:none" onclick="bcPushToggle()">&#128276; تفعيل الإشعارات</button>
     <button class="btn bs" style="width:100%;justify-content:center" onclick="doSignOut()" data-t="signout">Sign out</button>
   </div>
 </div>
@@ -462,7 +468,7 @@ td{padding:10px 12px;border-color:#edf1ee;overflow-wrap:anywhere}
 <div class="mn">
 <div class="tb">
   <button class="hamburger" onclick="toggleSidebar()" style="display:none;background:none;border:none;font-size:22px;cursor:pointer;padding:4px 10px;color:#333">&#9776;</button>
-  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-11-21</span>
+  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-11-23</span>
   <div style="display:flex;align-items:center;gap:8px"><div class="lang-btns"><button class="lbtn on" onclick="setLang('en',this)">EN</button><button class="lbtn" onclick="setLang('ar',this)">عربي</button></div><div id="tact" style="display:flex;gap:7px"></div></div>
 </div>
 <div class="ct">
@@ -1489,7 +1495,7 @@ async function sessionCheck(){
   }catch(e){}
 }
 setInterval(function(){sessionCheck();},5*60*1000);
-function doSignOut(){var _bn=document.getElementById('bc-bnav');if(_bn)_bn.remove();CS_LIST=[];try{csUpdateBadge();}catch(e){}try{var tk0=bcToken();if(tk0)fetch(SU+'/rest/v1/rpc/app_logout',{method:'POST',headers:{'apikey':SK,'Authorization':'Bearer '+SK,'Content-Type':'application/json','x-app-session':tk0},body:'{}'}).then(function(){},function(){});}catch(e){}CU=null;try{localStorage.removeItem('bc_user');localStorage.removeItem('bc_login_at');localStorage.removeItem('bc_token');}catch(e){}document.getElementById('app').classList.add('h');document.getElementById('ls').style.display='flex';document.getElementById('lp').value='';}
+function doSignOut(){try{bcPushForget();}catch(e){}var _bn=document.getElementById('bc-bnav');if(_bn)_bn.remove();CS_LIST=[];try{csUpdateBadge();}catch(e){}try{var tk0=bcToken();if(tk0)fetch(SU+'/rest/v1/rpc/app_logout',{method:'POST',headers:{'apikey':SK,'Authorization':'Bearer '+SK,'Content-Type':'application/json','x-app-session':tk0},body:'{}'}).then(function(){},function(){});}catch(e){}CU=null;try{localStorage.removeItem('bc_user');localStorage.removeItem('bc_login_at');localStorage.removeItem('bc_token');}catch(e){}document.getElementById('app').classList.add('h');document.getElementById('ls').style.display='flex';document.getElementById('lp').value='';}
 
 // AC inventory as a read-only preview (no add / edit / delete, AC units tab only)
 function invViewOnly(){return !!CU&&!can('inv')&&!!can('inv_view');}
@@ -1551,6 +1557,8 @@ function applyRole(){
   var csNav=document.getElementById('ni-cases');if(csNav)csNav.style.display=(CU&&can('cases'))?'':'none';
   if(CU&&can('cases'))csStartPoll();
   bcInitResponsive();
+  try{bcPushInit();}catch(e){}
+  try{bcOpenCaseFromUrl();}catch(e){}
   if(CU)updateBkBadge();
   if(CU)updateCtBadge();
   if(CU)checkBackupReminder();
@@ -6140,6 +6148,84 @@ var BACKUP_TABLES=['tasks','task_products','payments','customers','inventory','s
   'dispatch_assignments','employees','payroll','payroll_items','deductions','attendance',
   'leave_usage','feedback','feedback_attempts','booking_requests','maintenance_contracts',
   'contract_visits','install_templates','users'];
+// ══════════ PUSH NOTIFICATIONS (cases) ══════════
+var BC_VAPID='BNrsdjlM_fLKE6hVSMDE06yY2JWTTLuwOTJ3X4wyXHl3p3-Jqt_NXW7YDQnZ-Etsxgy-we5AE907Pw87cT5ek4w';
+function bcPushSupported(){return ('serviceWorker' in navigator)&&('PushManager' in window)&&('Notification' in window);}
+function bcB64ToU8(s){var pad='';var n=(4-s.length%4)%4;for(var k=0;k<n;k++)pad+='=';var b=atob((s+pad).replace(/-/g,'+').replace(/_/g,'/'));var a=new Uint8Array(b.length);for(var i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return a;}
+function bcPushSet(state,label){var b=document.getElementById('push-btn');if(!b)return;b.setAttribute('data-s',state);b.innerHTML='&#128276; '+label;}
+async function bcPushSave(sub){
+  var j=sub.toJSON();if(!j||!j.keys)return false;
+  var r=await db.rpc('push_subscribe',{p_endpoint:sub.endpoint,p_p256dh:j.keys.p256dh,p_auth:j.keys.auth,p_ua:navigator.userAgent});
+  if(r.error)return false;
+  try{localStorage.setItem('bc_push_ep',sub.endpoint);}catch(e){}
+  return true;
+}
+async function bcPushSubscribe(reg){
+  var sub=await reg.pushManager.getSubscription();
+  if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:bcB64ToU8(BC_VAPID)});
+  return sub;
+}
+// called after every login: shows the button and silently re-links this device to the signed-in user
+async function bcPushInit(){
+  var b=document.getElementById('push-btn');if(!b)return;
+  if(!CU||!can('cases')){b.style.display='none';return;}
+  b.style.display='';
+  if(!bcPushSupported()){bcPushSet('need','الإشعارات: طريقة التفعيل');return;}
+  try{
+    var reg=await navigator.serviceWorker.register('sw.js');
+    if(Notification.permission==='granted'){
+      var sub=await bcPushSubscribe(reg);
+      if(await bcPushSave(sub)){bcPushSet('on','الإشعارات مفعّلة (اختبار)');return;}
+    }
+    bcPushSet('off','تفعيل الإشعارات');
+  }catch(e){bcPushSet('off','تفعيل الإشعارات');}
+}
+async function bcPushToggle(){
+  var b=document.getElementById('push-btn');if(!b)return;var s=b.getAttribute('data-s');
+  if(s==='need'){bcPushHelp();return;}
+  if(s==='on'){var r=await db.rpc('push_test');toast(r.error?('خطأ: '+r.error.message):'تم إرسال إشعار تجريبي، سيصلك خلال ثوانٍ',!!r.error);return;}
+  try{
+    var perm=await Notification.requestPermission();
+    if(perm!=='granted'){toast('لم يتم السماح بالإشعارات. فعّلها من إعدادات المتصفح',true);return;}
+    var reg=await navigator.serviceWorker.register('sw.js');
+    await navigator.serviceWorker.ready;
+    var sub=await bcPushSubscribe(reg);
+    if(await bcPushSave(sub)){bcPushSet('on','الإشعارات مفعّلة (اختبار)');toast('تم تفعيل الإشعارات على هذا الجهاز');}
+    else toast('تعذر حفظ الاشتراك، حاول مرة أخرى',true);
+  }catch(e){toast('تعذر تفعيل الإشعارات: '+((e&&e.message)||''),true);}
+}
+function bcPushHelp(){
+  var old=document.getElementById('push-help');if(old)old.remove();
+  var ov=document.createElement('div');ov.id='push-help';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  var ios=/iPhone|iPad|iPod/.test(navigator.userAgent);
+  ov.innerHTML='<div dir="rtl" style="background:#fff;border-radius:14px;max-width:420px;width:100%;padding:20px;font-size:14px;line-height:1.9">'
+    +'<div style="font-weight:800;font-size:16px;margin-bottom:8px">تفعيل الإشعارات على هذا الجهاز</div>'
+    +(ios?('<div>على الآيفون تعمل الإشعارات فقط بعد إضافة النظام للشاشة الرئيسية (iOS 16.4 أو أحدث):</div>'
+      +'<ol style="padding-inline-start:20px;margin:8px 0"><li>افتح النظام في متصفح Safari.</li><li>اضغط زر المشاركة ثم «إضافة إلى الشاشة الرئيسية».</li><li>افتح النظام من الأيقونة الجديدة وسجّل الدخول.</li><li>اضغط «تفعيل الإشعارات» ثم «السماح».</li></ol>')
+      :'<div>هذا المتصفح لا يدعم الإشعارات. افتح النظام من Chrome على الأندرويد أو الكمبيوتر، ثم اضغط «تفعيل الإشعارات».</div>')
+    +'<div style="text-align:left;margin-top:10px"><button class="btn bp" onclick="document.getElementById(\'push-help\').remove()">تم</button></div></div>';
+  ov.onclick=function(e){if(e.target===ov)ov.remove();};
+  document.body.appendChild(ov);
+}
+// on sign-out: stop sending this user's notifications to this device
+function bcPushForget(){
+  var ep=null,tk=null;try{ep=localStorage.getItem('bc_push_ep');tk=bcToken();}catch(e){}
+  if(!ep||!tk)return;
+  try{fetch(SU+'/rest/v1/rpc/push_unsubscribe',{method:'POST',headers:{'apikey':SK,'Authorization':'Bearer '+SK,'Content-Type':'application/json','x-app-session':tk},body:JSON.stringify({p_endpoint:ep})}).then(function(){},function(){});}catch(e){}
+  try{localStorage.removeItem('bc_push_ep');}catch(e){}
+}
+// open a case when the system is opened from a notification (?case=<id>)
+function bcCaseIdFrom(url){var m=/[?&]case=([0-9a-fA-F-]{36})/.exec(url||'');return m?m[1]:null;}
+function bcOpenCaseFromUrl(u){
+  var id=bcCaseIdFrom(u||location.search);if(!id||!CU||!can('cases'))return;
+  if(!u){try{history.replaceState(null,'',location.pathname);}catch(e){}}
+  go('cases',document.getElementById('ni-cases'));
+  setTimeout(function(){csOpen(id);},700);
+}
+try{if('serviceWorker' in navigator){navigator.serviceWorker.addEventListener('message',function(ev){if(ev.data&&ev.data.type==='bc-open-case')bcOpenCaseFromUrl(ev.data.url);});}}catch(e){}
+// ══════════ END PUSH NOTIFICATIONS ══════════
+
 // ══════════ RESPONSIVE LAYER (design system helpers) ══════════
 // 1) Tables: copy each column heading onto its cells so the phone layout can show every row as a labelled card.
 function bcLabelTables(){
@@ -8074,6 +8160,7 @@ async function saveFeedback(taskId){
   var cu=task.customers||{};
   var btn=document.getElementById('fb-save-btn');
   if(btn){btn.disabled=true;btn.textContent='جاري الحفظ...';}
+  var _fbNotesVal=(document.getElementById('fb-notes')&&document.getElementById('fb-notes').value)||'';
   var{error}=await db.from('feedback').insert({
     task_id:taskId,
     task_num:task.task_num,
@@ -8090,7 +8177,22 @@ async function saveFeedback(taskId){
   });
   if(error){toast('Error: '+error.message,true);if(btn){btn.disabled=false;btn.textContent='حفظ التقييم';}return;}
   document.querySelectorAll('.fb-modal').forEach(function(e){e.remove();});
-  toast('تم حفظ التقييم');
+  // A dissatisfied customer automatically becomes a case, routed by the order type
+  var caseMsg='';
+  if(window._fbSat===false){
+    try{
+      var fbNotes=_fbNotesVal;
+      var cType=(task.type==='sales')?'sales_complaint':((task.type==='installation'||task.type==='uninstall_install'||task.type==='uninstall')?'install_delay':'fault');
+      var st=window._fbStars||{};
+      var desc='عميل غير راضٍ (من التقييم) - طلب رقم '+(task.task_num||'-')+' ('+(typeLabels[task.type]||task.type||'')+').'
+        +'\nالتقييم: الكول سنتر '+(st.cc||'-')+'/5، الفنيين '+(st.tech||'-')+'/5، جودة العمل '+(st.work||'-')+'/5.'
+        +(fbNotes?('\nملاحظات العميل: '+fbNotes):'');
+      var cr=await db.rpc('case_create',{p:{type:cType,customer_id:task.customer_id||'',customer_name:task.customer_name||'عميل',phone:cu.phone||'',address:cu.address||'',task_num:task.task_num||'',description:desc,priority:'urgent'}});
+      if(cr.error){caseMsg=' (تعذر فتح الشكوى: '+cr.error.message+')';}
+      else{caseMsg=' وتم فتح الشكوى '+cr.data.case_num+' وتوجيهها إلى '+(cr.data.assigned_name||'الإدارة');try{csUpdateBadge();}catch(e2){}}
+    }catch(e){caseMsg=' (تعذر فتح الشكوى)';}
+  }
+  toast('تم حفظ التقييم'+caseMsg,caseMsg.indexOf('تعذر')>-1);
   loadFeedback();
 }
 
