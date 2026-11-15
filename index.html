@@ -468,7 +468,7 @@ td{padding:10px 12px;border-color:#edf1ee;overflow-wrap:anywhere}
 <div class="mn">
 <div class="tb">
   <button class="hamburger" onclick="toggleSidebar()" style="display:none;background:none;border:none;font-size:22px;cursor:pointer;padding:4px 10px;color:#333">&#9776;</button>
-  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-11-23</span>
+  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-11-24</span>
   <div style="display:flex;align-items:center;gap:8px"><div class="lang-btns"><button class="lbtn on" onclick="setLang('en',this)">EN</button><button class="lbtn" onclick="setLang('ar',this)">عربي</button></div><div id="tact" style="display:flex;gap:7px"></div></div>
 </div>
 <div class="ct">
@@ -6558,7 +6558,22 @@ async function csLoadCase(id){
     db.from('tasks').select('id,task_num,type,status,pay_status,date,created_by').eq('case_id',id).order('created_at'),
     (c&&c.customer_id)?db.from('tasks').select('id,task_num,type,status,date,case_id').eq('customer_id',c.customer_id).order('created_at',{ascending:false}).limit(6):Promise.resolve({data:[]})
   ]);
-  CS_CUR={id:id,evs:a[0].data||[],reqs:a[1].data||[],orders:a[2].data||[],hist:a[3].data||[]};
+  CS_CUR={id:id,evs:a[0].data||[],reqs:a[1].data||[],orders:a[2].data||[],hist:a[3].data||[],src:null};
+  // the order this case came from (feedback or a linked order number): full report for the agent
+  if(c&&c.task_num){
+    try{
+      var str=await db.from('tasks').select('*').eq('task_num',c.task_num).limit(1);
+      var stk=str.data&&str.data[0];
+      if(stk){
+        var sb=await Promise.all([
+          db.from('task_products').select('name,qty,price').eq('task_id',stk.id),
+          db.from('payments').select('amount,method,created_at').eq('task_id',stk.id),
+          db.from('feedback').select('*').eq('task_id',stk.id).order('created_at',{ascending:false}).limit(1)
+        ]);
+        CS_CUR.src={task:stk,prods:sb[0].data||[],pays:sb[1].data||[],fb:(sb[2].data&&sb[2].data[0])||null};
+      }
+    }catch(e){}
+  }
   if(CS_CUR.reqs.some(csReqNews)){
     try{await db.rpc('case_requests_seen',{p_case:id});}catch(e){}
     CS_REQ.forEach(function(r){if(r.case_id===id&&r.requested_by===CU.id)r.seen_by_requester=true;});
@@ -6823,11 +6838,44 @@ function csRenderConsole(){
   var histInner=others.slice(0,5).map(function(x){return '<div onclick="csOpen(\''+x.id+'\')" style="cursor:pointer;font-size:12.5px;padding:6px 0;border-bottom:1px dashed #eef1ee"><b>'+plEsc(x.case_num)+'</b> '+plEsc(csTypeLabel(x.type))+' '+csPill(CS_STATUS[x.status]||x.status,CS_STATUS_C[x.status]||'#777')+'</div>';}).join('')
     +CS_CUR.hist.filter(function(o){return o.case_id!==c.id;}).slice(0,5).map(function(o){return '<div '+(can('tasks')?'onclick="openTask(\''+o.id+'\')" style="cursor:pointer;':'style="')+'font-size:12.5px;padding:6px 0;border-bottom:1px dashed #eef1ee"><b>'+plEsc(o.task_num)+'</b> '+plEsc(TL[o.type]||o.type||'')+' <span style="color:#7b8a82">'+plEsc(o.date||'')+'</span></div>';}).join('');
   var histCard=histInner?csCard('سجل العميل <span style="font-size:11px;font-weight:600;color:#7b8a82">شكاوى وطلبات سابقة</span>',histInner):'';
+  var srcCard='';
+  if(CS_CUR.src&&CS_CUR.src.task){
+    var so=CS_CUR.src.task,sp=CS_CUR.src.prods,sfb=CS_CUR.src.fb;
+    var SST={pending:'قيد الانتظار',progress:'جاري التنفيذ',field_done:'تم ميدانيًا',done:'تم مع التقرير',cancel:'ملغي'};
+    var SPAY={paid:'مدفوع',partial:'مدفوع جزئيًا',unpaid:'غير مدفوع',pending:'غير مدفوع'};
+    var sSub=sp.reduce(function(s,x){return s+((x.qty||0)*(x.price||0));},0);
+    var sDisc=so.discount_amount?Number(so.discount_amount):(so.discount_percent?Math.round(sSub*Number(so.discount_percent)/100):0);
+    var sPaid=CS_CUR.src.pays.reduce(function(s,x){return s+Number(x.amount||0);},0);
+    var sRows=sp.map(function(x){return '<tr><td style="padding:6px 8px;border-bottom:1px solid #eef1ee">'+plEsc(x.name||'')+'</td><td style="padding:6px 8px;border-bottom:1px solid #eef1ee;text-align:center">'+(x.qty||0)+'</td><td style="padding:6px 8px;border-bottom:1px solid #eef1ee;text-align:end" dir="ltr">'+Number((x.qty||0)*(x.price||0)).toLocaleString()+'</td></tr>';}).join('');
+    var sStar=function(n){if(!n)return '—';var s='';for(var i=1;i<=5;i++)s+='<span style="color:'+(i<=n?'#f5a623':'#ddd')+'">★</span>';return s+' <span style="color:#7b8a82">'+n+'/5</span>';};
+    var sLong=function(l,v){return v?'<div style="margin-top:8px;font-size:13px;line-height:1.7"><b style="color:#7b8a82">'+l+':</b> <span style="white-space:pre-wrap">'+plEsc(v)+'</span></div>':'';};
+    srcCard=csCard('تقرير الطلب '+plEsc(so.task_num||''),
+      info('نوع الطلب',plEsc(TL[so.type]||so.type||''))
+      +info('التاريخ',plEsc((so.date||'')+(so.time_slot?(' · '+so.time_slot):'')))
+      +info('حالة الطلب',plEsc(SST[so.status]||so.status||''))
+      +info('الفرع',plEsc(so.branch||''))
+      +info('أنشأ الطلب',plEsc(so.created_by||''))
+      +info('البائع',plEsc(so.salesperson||''))
+      +info('الفني',plEsc(so.technician_name||so.installation_tech||''))
+      +info('عنوان التنفيذ',plEsc(so.address||''))
+      +info('حالة الدفع',plEsc(SPAY[so.pay_status]||so.pay_status||''))
+      +(sRows?('<div style="overflow-x:auto;margin-top:10px"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr><th style="padding:6px 8px;text-align:start;color:#7b8a82;border-bottom:1px solid #e6ebe8">الصنف / الخدمة</th><th style="padding:6px 8px;color:#7b8a82;border-bottom:1px solid #e6ebe8">الكمية</th><th style="padding:6px 8px;text-align:end;color:#7b8a82;border-bottom:1px solid #e6ebe8">القيمة</th></tr></thead><tbody>'+sRows+'</tbody></table></div>'
+        +'<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:8px;font-size:13px"><span>الإجمالي: <b dir="ltr">'+Number(sSub-sDisc).toLocaleString()+'</b> ج.م'+(sDisc?(' <span style="color:#7b8a82">(بعد خصم '+Number(sDisc).toLocaleString()+')</span>'):'')+'</span><span>المدفوع: <b dir="ltr">'+Number(sPaid).toLocaleString()+'</b> ج.م</span></div>'):'')
+      +sLong('وصف الطلب',so.description)
+      +sLong('تقرير الإنجاز',so.completion_notes)
+      +sLong('ملاحظة الفني',so.technician_note)
+      +(sfb?('<div style="margin-top:12px;background:'+(sfb.satisfied===false?'#fdecea':'#eef6e6')+';border-radius:10px;padding:12px;font-size:13px;line-height:1.9">'
+        +'<b>تقييم العميل: '+(sfb.satisfied===false?'<span style="color:#D64531">غير راضٍ</span>':(sfb.satisfied===true?'<span style="color:#3B6D11">راضٍ</span>':'—'))+'</b>'
+        +' <span style="color:#7b8a82">— '+plEsc(sfb.created_by||'')+' · '+new Date(sfb.created_at).toLocaleDateString('en-GB')+'</span>'
+        +'<div>الكول سنتر: '+sStar(sfb.rating_callcenter)+'</div><div>الفنيون: '+sStar(sfb.rating_technicians)+'</div><div>جودة العمل: '+sStar(sfb.rating_work)+'</div>'
+        +(sfb.notes?('<div style="margin-top:4px"><b>ملاحظات العميل:</b> <span style="white-space:pre-wrap">'+plEsc(sfb.notes)+'</span></div>'):'')+'</div>'):''),
+      can('tasks')?'<button onclick="openTask(\''+so.id+'\')" style="font-size:12px;font-weight:700;border:1px solid #cfe0d6;background:#fff;border-radius:8px;padding:5px 12px;cursor:pointer;font-family:inherit;white-space:nowrap">فتح الطلب</button>':'');
+  }
   body.innerHTML=head
     +'<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start">'
       +'<div style="flex:1 1 480px;min-width:0">'
         +csCard('تفاصيل الشكوى','<div style="font-size:14px;line-height:1.8;white-space:pre-wrap">'+plEsc(c.description)+'</div>')
-        +'<div id="csd-form"></div>'+actCard+reqCard+ordCard+resCard+tlCard
+        +srcCard+'<div id="csd-form"></div>'+actCard+reqCard+ordCard+resCard+tlCard
       +'</div>'
       +'<div style="flex:0 1 300px;min-width:240px">'+custCard+infoCard+mgrCard+histCard+'</div>'
     +'</div>';
