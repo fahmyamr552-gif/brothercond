@@ -468,7 +468,7 @@ td{padding:10px 12px;border-color:#edf1ee;overflow-wrap:anywhere}
 <div class="mn">
 <div class="tb">
   <button class="hamburger" onclick="toggleSidebar()" style="display:none;background:none;border:none;font-size:22px;cursor:pointer;padding:4px 10px;color:#333">&#9776;</button>
-  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-11-24</span>
+  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-11-25</span>
   <div style="display:flex;align-items:center;gap:8px"><div class="lang-btns"><button class="lbtn on" onclick="setLang('en',this)">EN</button><button class="lbtn" onclick="setLang('ar',this)">عربي</button></div><div id="tact" style="display:flex;gap:7px"></div></div>
 </div>
 <div class="ct">
@@ -480,7 +480,7 @@ td{padding:10px 12px;border-color:#edf1ee;overflow-wrap:anywhere}
   <div class="r4" id="dstats" style="margin-bottom:14px"></div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
     <div class="cd"><div class="sh" data-t="todaystasks">Today's tasks</div><div id="dtoday"><div style="color:#888;font-size:12px">Loading...</div></div></div>
-    <div class="cd"><div class="sh" data-t="lowstockalerts">Low stock alerts</div><div id="dlow"></div></div>
+    <div class="cd"><div class="sh" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span data-t="acavail">Available AC units</span><span id="dlow-total" style="font-size:12px;font-weight:700;color:#3B6D11"></span></div><div id="dlow" style="max-height:340px;overflow-y:auto"></div></div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
     <div class="cd"><div class="sh" data-t="tasksbystatus">Tasks by status</div><div id="dbars"></div></div>
@@ -1653,11 +1653,26 @@ async function loadDash(){
     const tt=tasks.filter(t=>t.date===today);
     todayEl.innerHTML=tt.length?'':'<div style="color:#888;font-size:12px">'+t('notodaytasks')+'</div>';
     tt.forEach(t=>{const d=document.createElement('div');d.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f0f0e8;font-size:12px;cursor:pointer';d.innerHTML=('<div><div style="font-weight:700">'+(t.customer_name||'-')+'</div><div style="font-size:11px;color:#888">'+(t.type)+' - '+(t.branch)+'</div></div><span class="bx '+((t.status==='done'||t.status==='field_done'||t.status==='completed')?'g':t.status==='progress'?'b':t.status==='cancel'?'r':'a')+'">'+(t.status)+'</span>');d.onclick=()=>openTask(t.id);todayEl.appendChild(d);});
-    const inv=await db.from('inventory').select('brand,model,hp,qty,low_stock');
-    const low=(inv.data||[]).filter(p=>p.qty<0||p.qty<=p.low_stock);
-    const lowEl=document.getElementById('dlow');
-    lowEl.innerHTML=low.length?'':'<div style="font-size:12px;color:#3B6D11">'+t('nostockissues')+'</div>';
-    low.forEach(p=>{const d=document.createElement('div');d.style.cssText='display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid #f0f0e8';d.innerHTML=('<span>'+(p.brand)+' '+(p.model)+' '+(p.hp)+'</span><span style="font-weight:700;color:'+(p.qty===0?'#A32D2D':'#854F0B')+'">'+(p.qty===0?'Out':p.qty+' left')+'</span>');lowEl.appendChild(d);});
+    // AC inventory preview: only the models that have units available
+    var invR=await db.from('inventory').select('*').order('brand');
+    var avail=(invR.data||[]).filter(function(p){return (p.qty||0)>0;});
+    avail.sort(function(a,b){return String(a.brand||'').localeCompare(String(b.brand||''))||String(a.model||'').localeCompare(String(b.model||''))||(parseFloat(a.hp)||0)-(parseFloat(b.hp)||0);});
+    var lowEl=document.getElementById('dlow');
+    var totEl=document.getElementById('dlow-total');
+    var totUnits=avail.reduce(function(s,p){return s+(p.qty||0);},0);
+    if(totEl)totEl.textContent=avail.length?(totUnits+' '+t('units')):'';
+    if(lowEl){
+      lowEl.innerHTML=avail.length?'':'<div style="font-size:12px;color:#888">'+t('noacavail')+'</div>';
+      avail.forEach(function(p){
+        var d=document.createElement('div');
+        d.style.cssText='display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12.5px;padding:7px 0;border-bottom:1px solid #f0f0e8;cursor:pointer';
+        var sub=[p.hp?(p.hp+' HP'):'',p.cooling||'',p.ac_type||'',p.unit_type||''].filter(function(x){return x;}).join(' · ');
+        d.innerHTML='<span style="min-width:0"><b>'+plEsc((p.brand||'')+' '+(p.model||''))+'</b>'+(sub?('<span style="display:block;font-size:11px;color:#888">'+plEsc(sub)+'</span>'):'')+'</span>'
+          +'<span style="font-weight:800;color:#3B6D11;white-space:nowrap">'+(p.qty||0)+'</span>';
+        d.onclick=function(){var ni=document.getElementById('ni-inv');if(ni&&!ni.classList.contains('off'))go('inv',ni);};
+        lowEl.appendChild(d);
+      });
+    }
     const counts={pending:0,progress:0,done:0,cancel:0};
     tasks.forEach(t=>{if(counts[t.status]!==undefined)counts[t.status]++;});
     const bEl=document.getElementById('dbars');bEl.innerHTML='';
@@ -10287,7 +10302,7 @@ window.T={
     
     revenue:'Total revenue',collected:'Collected',outstanding:'Outstanding',netprofit:'Net profit',
     allsales:'All transactions',expenses:'Expenses',
-    todaystasks:"Today's tasks",lowstockalerts:'Low stock alerts',
+    todaystasks:"Today's tasks",lowstockalerts:'Low stock alerts',acavail:'Available AC units',noacavail:'No units in stock right now',units:'units',
     tasksbystatus:'Tasks by status',outstandingpayments:'Outstanding payments',
     allbranches:'All branches',alltypes:'All types',allstatuses:'All statuses',
     ponum:'PO #',items:'Items',
@@ -10382,7 +10397,7 @@ window.T={
     
     revenue:'إجمالي الإيرادات',collected:'المحصّل',outstanding:'المتأخر',netprofit:'صافي الربح',
     allsales:'جميع المعاملات',expenses:'المصروفات',
-    todaystasks:'مهام اليوم',lowstockalerts:'تنبيهات المخزون المنخفض',
+    todaystasks:'مهام اليوم',lowstockalerts:'تنبيهات المخزون المنخفض',acavail:'التكييفات المتاحة في المخزن',noacavail:'لا توجد أجهزة متاحة حاليًا',units:'جهاز',
     tasksbystatus:'المهام حسب الحالة',outstandingpayments:'المدفوعات المتأخرة',
     allbranches:'جميع الفروع',alltypes:'جميع الأنواع',allstatuses:'جميع الحالات',
     ponum:'رقم أمر الشراء',items:'عناصر',
