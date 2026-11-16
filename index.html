@@ -468,7 +468,7 @@ td{padding:10px 12px;border-color:#edf1ee;overflow-wrap:anywhere}
 <div class="mn">
 <div class="tb">
   <button class="hamburger" onclick="toggleSidebar()" style="display:none;background:none;border:none;font-size:22px;cursor:pointer;padding:4px 10px;color:#333">&#9776;</button>
-  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-11-25</span>
+  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-11-26</span>
   <div style="display:flex;align-items:center;gap:8px"><div class="lang-btns"><button class="lbtn on" onclick="setLang('en',this)">EN</button><button class="lbtn" onclick="setLang('ar',this)">عربي</button></div><div id="tact" style="display:flex;gap:7px"></div></div>
 </div>
 <div class="ct">
@@ -695,6 +695,7 @@ td{padding:10px 12px;border-color:#edf1ee;overflow-wrap:anywhere}
       <div class="tr" style="border-top:1px solid #e8e8e0"><span class="tl" style="font-weight:700" data-t="grandtotal">Grand total</span><span class="tv" style="color:#1D9E75;font-weight:700" id="vgr">EGP 0</span></div>
       <div id="sp-used-block" style="display:none;margin-top:10px;padding:10px 14px;background:#FFF8E1;border-radius:8px;border:1px solid #FFD54F;font-size:12px"></div>
     </div>
+    <div class="cd" id="quote-card" style="display:none"><div id="quote-body"></div></div>
     <div class="cd" id="plc" style="display:none"><div class="sh" data-t="termsandpolicy">Terms & offer policy</div><div style="font-size:11px;color:#666;line-height:1.7" id="plt" style="white-space:pre-wrap"></div></div>
   </div>
   <div id="ti-comp" style="display:none">
@@ -1975,6 +1976,7 @@ async function openTask(id){
     CT.spUsed=spUsedData||[];
     go('td',null);
     try{csTaskBanner(CT);}catch(e){}
+    try{qtLoad();}catch(e){}
     const S=(id)=>document.getElementById(id);
     const isLocked2=CT.pay_status==='paid'&&!roleIn(['owner','admin','finance']);
     const recBtn=document.getElementById('rec-pay-btn');
@@ -6240,6 +6242,206 @@ function bcOpenCaseFromUrl(u){
 }
 try{if('serviceWorker' in navigator){navigator.serviceWorker.addEventListener('message',function(ev){if(ev.data&&ev.data.type==='bc-open-case')bcOpenCaseFromUrl(ev.data.url);});}}catch(e){}
 // ══════════ END PUSH NOTIFICATIONS ══════════
+
+// ══════════ QUOTATIONS (عروض الأسعار) — Stage 1 ══════════
+var QT=[];              // quotes for the open task
+var QT_EDIT=null;       // local draft editing buffer {id,items:[],...}
+var QT_MODE=null;       // null | 'approve' | 'reject' | 'partial'
+var QT_INP='width:100%;font-family:inherit;font-size:12px;padding:6px 8px;border:1px solid #dcdcd2;border-radius:7px;background:#fff;color:#1a1a1a';
+var QT_ST={draft:['مسودة','#5c6a82','#eef1f6'],sent:['مُرسَل — بانتظار رد العميل','#8a5a00','#fbf0dc'],approved:['معتمد من العميل','#1f8f5f','#e7f5ee'],partial:['معتمد جزئيًا','#2470b0','#e8f1fb'],rejected:['مرفوض','#cf3636','#fdecec'],expired:['منتهي الصلاحية','#8a5a00','#fbf0dc'],invoiced:['تم إصدار الفاتورة','#1f8f5f','#e7f5ee']};
+var QT_KIND={part:'قطعة',labor:'عمالة',charge:'رسوم'};
+function qtCanUse(){return can('tasks');}
+function qtShouldShow(){return !!CT&&(CT.type==='inspection'||CT.type==='maintenance'||QT.length>0);}
+function qtMoney(n){return plMoney(Math.round(n||0));}
+function qtPill(st){var s=QT_ST[st]||['',''];return '<span style="display:inline-flex;font-size:11px;font-weight:800;padding:4px 11px;border-radius:999px;color:'+s[1]+';background:'+s[2]+'">'+s[0]+'</span>';}
+function qtActive(){for(var i=0;i<QT.length;i++){if(!QT[i].superseded_by)return QT[i];}return QT[0]||null;}
+function qtItemsSum(items,approvedOnly){var s=0;(items||[]).forEach(function(i){if(approvedOnly&&i.approved!==true)return;s+=(Number(i.qty)||0)*(Number(i.unit_price)||0);});return s;}
+function qtNet(q,approvedOnly){var sub=qtItemsSum(q.items,approvedOnly);var da=Number(q.discount_amount)||0;var dp=Number(q.discount_percent)||0;return Math.max(0,sub-da-(sub*dp/100));}
+
+async function qtLoad(){
+  var card=document.getElementById('quote-card');if(!card||!CT)return;
+  QT_EDIT=null;QT_MODE=null;
+  var r=await db.rpc('quote_get',{p_task_id:CT.id});
+  QT=(r&&r.data)||[];
+  if(!qtShouldShow()){card.style.display='none';return;}
+  card.style.display='';qtRender();
+}
+async function qtReload(){var r=await db.rpc('quote_get',{p_task_id:CT.id});QT=(r&&r.data)||[];QT_EDIT=null;QT_MODE=null;qtRender();}
+
+function qtRender(){
+  var body=document.getElementById('quote-body');if(!body)return;
+  var q=qtActive();
+  var head='<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">'
+    +'<div class="sh" style="margin-bottom:0">عرض السعر'+(q?(' <span style="color:#999;font-size:11px;font-weight:600">'+plEsc(q.quote_num)+'</span>'):'')+'</div>'
+    +(q?qtPill(q.status):'')+'</div>';
+  var inner;
+  if(!q)inner=qtCanUse()?'<button class="btn bs" onclick="qtCreate()" style="font-size:12px">➕ إنشاء عرض سعر</button>':'<div style="font-size:12px;color:#888">لا يوجد عرض سعر لهذه المهمة.</div>';
+  else if(q.status==='draft')inner=qtDraftHtml(q);
+  else inner=qtViewHtml(q);
+  var hist=QT.filter(function(x){return q?x.id!==q.id:false;});
+  var h='';
+  if(hist.length){
+    h='<div style="margin-top:12px;border-top:1px dashed #e8e8e0;padding-top:8px"><div style="font-size:11px;color:#888;font-weight:700;margin-bottom:5px">عروض سابقة</div>'
+      +hist.map(function(x){return '<div style="display:flex;justify-content:space-between;font-size:11.5px;padding:3px 0;color:#555"><span>'+plEsc(x.quote_num)+' · '+((QT_ST[x.status]||[])[0]||x.status)+'</span><span style="font-weight:700" dir="ltr">'+qtMoney(qtNet(x))+' ج.م</span></div>';}).join('')+'</div>';
+  }
+  body.innerHTML=head+inner+h;
+}
+
+// ---- draft editor ----
+function qtStartEdit(q){
+  QT_EDIT={id:q.id,
+    items:(q.items||[]).map(function(i){return {name:i.name||'',kind:i.kind||'part',qty:Number(i.qty)||1,unit_price:Number(i.unit_price)||0};}),
+    service_center:q.service_center||'',inspection_findings:q.inspection_findings||'',customer_notes:q.customer_notes||'',
+    validity_date:(q.validity_date||'').slice(0,10),discount_amount:Number(q.discount_amount)||0};
+  if(!QT_EDIT.items.length)QT_EDIT.items.push({name:'',kind:'part',qty:1,unit_price:0});
+}
+function qtKindOpts(sel){var o='';for(var k in QT_KIND){o+='<option value="'+k+'"'+(k===sel?' selected':'')+'>'+QT_KIND[k]+'</option>';}return o;}
+function qtDraftHtml(q){
+  if(!QT_EDIT||QT_EDIT.id!==q.id)qtStartEdit(q);
+  var e=QT_EDIT;
+  var rows=e.items.map(function(it,idx){
+    return '<tr>'
+      +'<td style="padding:3px"><input value="'+plEsc(it.name)+'" oninput="qtEI('+idx+',\'name\',this.value)" placeholder="اسم البند" style="'+QT_INP+'"></td>'
+      +'<td style="padding:3px;width:72px"><select onchange="qtEI('+idx+',\'kind\',this.value)" style="'+QT_INP+'">'+qtKindOpts(it.kind)+'</select></td>'
+      +'<td style="padding:3px;width:52px"><input type="number" min="1" value="'+it.qty+'" oninput="qtEI('+idx+',\'qty\',this.value)" style="'+QT_INP+'"></td>'
+      +'<td style="padding:3px;width:82px"><input type="number" min="0" value="'+it.unit_price+'" oninput="qtEI('+idx+',\'unit_price\',this.value)" style="'+QT_INP+'"></td>'
+      +'<td style="padding:3px;width:28px;text-align:center"><button onclick="qtDelI('+idx+')" title="حذف" style="border:none;background:none;color:#cf3636;cursor:pointer;font-size:15px">✕</button></td></tr>';
+  }).join('');
+  return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">'
+      +'<div><label style="font-size:11px;color:#888;font-weight:600">مركز الصيانة (إن وجد)</label><input value="'+plEsc(e.service_center)+'" oninput="qtEF(\'service_center\',this.value)" style="'+QT_INP+'"></div>'
+      +'<div><label style="font-size:11px;color:#888;font-weight:600">صالح حتى</label><input type="date" value="'+plEsc(e.validity_date)+'" oninput="qtEF(\'validity_date\',this.value)" style="'+QT_INP+'"></div>'
+    +'</div>'
+    +'<label style="font-size:11px;color:#888;font-weight:600">نتيجة الفحص</label><textarea rows="2" oninput="qtEF(\'inspection_findings\',this.value)" style="'+QT_INP+';margin-bottom:8px">'+plEsc(e.inspection_findings)+'</textarea>'
+    +'<div class="tw"><table style="width:100%;border-collapse:collapse"><thead><tr>'
+      +'<th style="text-align:start;font-size:10px;color:#999;padding:3px">البند</th><th style="font-size:10px;color:#999;padding:3px">النوع</th><th style="font-size:10px;color:#999;padding:3px">كمية</th><th style="font-size:10px;color:#999;padding:3px">السعر</th><th></th></tr></thead>'
+      +'<tbody>'+rows+'</tbody></table></div>'
+    +'<button onclick="qtAddI()" class="btn bs" style="font-size:11px;padding:4px 10px;margin-top:6px">➕ إضافة بند</button>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;align-items:end">'
+      +'<div><label style="font-size:11px;color:#888;font-weight:600">خصم (ج.م)</label><input type="number" min="0" value="'+(e.discount_amount||0)+'" oninput="qtEF(\'discount_amount\',this.value)" style="'+QT_INP+'"></div>'
+      +'<div style="text-align:left"><div style="font-size:11px;color:#888">الإجمالي</div><div id="qt-nettotal" style="font-size:20px;font-weight:800;color:#0f2347" dir="ltr">'+qtMoney(qtNet({items:e.items,discount_amount:e.discount_amount}))+' ج.م</div></div>'
+    +'</div>'
+    +'<label style="font-size:11px;color:#888;font-weight:600;margin-top:8px;display:block">ملاحظات للعميل</label><textarea rows="2" oninput="qtEF(\'customer_notes\',this.value)" style="'+QT_INP+'">'+plEsc(e.customer_notes)+'</textarea>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'
+      +'<button class="btn bs" onclick="qtSave()" style="font-size:12px">💾 حفظ</button>'
+      +'<button class="btn" onclick="qtSendFlow()" style="font-size:12px;background:#0f2347;color:#fff;border-color:#0f2347">📤 إرسال للعميل</button>'
+    +'</div>';
+}
+function qtEI(idx,f,v){if(!QT_EDIT)return;QT_EDIT.items[idx][f]=(f==='qty'||f==='unit_price')?(parseFloat(v)||0):v;qtUpdTot();}
+function qtEF(f,v){if(!QT_EDIT)return;QT_EDIT[f]=(f==='discount_amount')?(parseFloat(v)||0):v;if(f==='discount_amount')qtUpdTot();}
+function qtAddI(){if(!QT_EDIT)return;QT_EDIT.items.push({name:'',kind:'part',qty:1,unit_price:0});qtRender();}
+function qtDelI(idx){if(!QT_EDIT)return;QT_EDIT.items.splice(idx,1);if(!QT_EDIT.items.length)QT_EDIT.items.push({name:'',kind:'part',qty:1,unit_price:0});qtRender();}
+function qtUpdTot(){var el=document.getElementById('qt-nettotal');if(el&&QT_EDIT)el.textContent=qtMoney(qtNet({items:QT_EDIT.items,discount_amount:QT_EDIT.discount_amount}))+' ج.م';}
+
+async function qtCreate(){
+  if(!qtCanUse())return;
+  var r=await db.rpc('quote_create',{p_task_id:CT.id});
+  if(r.error){toast('خطأ: '+r.error.message,true);return;}
+  QT.unshift(r.data);QT_EDIT=null;qtRender();
+}
+async function qtSave(silent){
+  if(!QT_EDIT)return true;
+  var items=QT_EDIT.items.filter(function(i){return (i.name||'').trim();});
+  var p={service_center:QT_EDIT.service_center,inspection_findings:QT_EDIT.inspection_findings,customer_notes:QT_EDIT.customer_notes,validity_date:QT_EDIT.validity_date,discount_amount:QT_EDIT.discount_amount||0,discount_percent:0,items:items};
+  var r=await db.rpc('quote_save',{p_id:QT_EDIT.id,p:p});
+  if(r.error){toast('خطأ: '+r.error.message,true);return false;}
+  for(var i=0;i<QT.length;i++){if(QT[i].id===r.data.id){QT[i]=r.data;break;}}
+  if(!silent){toast('تم حفظ العرض');QT_EDIT=null;qtRender();}
+  return true;
+}
+async function qtSendFlow(){
+  if(!QT_EDIT){return;}
+  if(!QT_EDIT.items.filter(function(i){return (i.name||'').trim();}).length){toast('أضف بندًا واحدًا على الأقل',true);return;}
+  var ok=await qtSave(true);if(!ok)return;
+  var q=qtActive();if(!q)return;
+  var r=await db.rpc('quote_send',{p_id:q.id});
+  if(r.error){toast('خطأ: '+r.error.message,true);return;}
+  await qtReload();toast('تم إرسال العرض للعميل');
+}
+
+// ---- view / response ----
+function qtItemsTable(q,showApproved){
+  var rows=(q.items||[]).map(function(i){
+    var rej=showApproved&&i.approved===false;
+    return '<tr style="'+(rej?'opacity:.45':'')+'"><td style="padding:6px 4px;font-size:12px;'+(rej?'text-decoration:line-through':'')+'">'
+      +(showApproved?('<span style="color:'+(i.approved?'#1f8f5f':'#cf3636')+';font-weight:800;margin-left:5px">'+(i.approved?'✓':'✗')+'</span>'):'')
+      +plEsc(i.name)+' <span style="font-size:10px;color:#999">'+(QT_KIND[i.kind]||'')+'</span></td>'
+      +'<td style="padding:6px 4px;text-align:center;font-size:12px;'+(rej?'text-decoration:line-through':'')+'">'+(i.qty)+'</td>'
+      +'<td style="padding:6px 4px;text-align:left;font-size:12px;font-weight:700;'+(rej?'text-decoration:line-through':'')+'" dir="ltr">'+qtMoney((Number(i.qty)||0)*(Number(i.unit_price)||0))+'</td></tr>';
+  }).join('');
+  return '<div class="tw"><table style="width:100%;border-collapse:collapse"><thead><tr><th style="text-align:start;font-size:10px;color:#999;padding:4px">البند</th><th style="font-size:10px;color:#999;padding:4px">كمية</th><th style="font-size:10px;color:#999;padding:4px;text-align:left">القيمة</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+}
+function qtMethodSel(id){return '<select id="'+id+'" style="'+QT_INP+'"><option value="مكالمة">مكالمة هاتفية</option><option value="واتساب">واتساب</option><option value="حضور">حضور شخصي</option><option value="رسالة">رسالة</option></select>';}
+function qtViewHtml(q){
+  var showApp=(q.status==='partial'||q.status==='rejected');
+  var net=qtNet(q,q.status==='partial'||q.status==='invoiced');
+  var out=qtItemsTable(q,showApp||q.status==='invoiced');
+  out+='<div class="tr" style="margin-top:6px"><span class="tl" style="font-weight:700">'+((q.status==='partial')?'المعتمد':'الإجمالي')+'</span><span class="tv" dir="ltr">'+qtMoney(net)+' ج.م</span></div>';
+  if(q.service_center)out+='<div style="font-size:11px;color:#777;margin-top:4px">مركز الصيانة: '+plEsc(q.service_center)+'</div>';
+  if(q.validity_date)out+='<div style="font-size:11px;color:#777">صالح حتى: '+plEsc((q.validity_date||'').slice(0,10))+'</div>';
+  if(q.rejection_reason)out+='<div style="font-size:11.5px;color:#cf3636;margin-top:4px">سبب الرفض: '+plEsc(q.rejection_reason)+'</div>';
+  if(q.response_method)out+='<div style="font-size:11px;color:#777">طريقة الرد: '+plEsc(q.response_method)+'</div>';
+  // actions
+  if(!qtCanUse())return out;
+  var act='';
+  if(q.status==='sent'){
+    if(QT_MODE==='reject'){
+      act='<div style="margin-top:10px;background:#fdecec;border-radius:8px;padding:10px"><label style="font-size:11px;color:#888;font-weight:600">سبب الرفض</label><input id="qt-rej-reason" placeholder="مثال: السعر مرتفع" style="'+QT_INP+';margin-bottom:6px"><label style="font-size:11px;color:#888;font-weight:600">طريقة الرد</label>'+qtMethodSel('qt-rej-method')+'<div style="display:flex;gap:6px;margin-top:8px"><button class="btn" onclick="qtDoReject()" style="font-size:12px;background:#cf3636;color:#fff;border-color:#cf3636">تأكيد الرفض</button><button class="btn bs" onclick="qtMode(null)" style="font-size:12px">إلغاء</button></div></div>';
+    } else if(QT_MODE==='approve'){
+      act='<div style="margin-top:10px;background:#e7f5ee;border-radius:8px;padding:10px"><label style="font-size:11px;color:#888;font-weight:600">طريقة موافقة العميل</label>'+qtMethodSel('qt-app-method')+'<div style="display:flex;gap:6px;margin-top:8px"><button class="btn" onclick="qtDoApprove()" style="font-size:12px;background:#1f8f5f;color:#fff;border-color:#1f8f5f">تأكيد الموافقة</button><button class="btn bs" onclick="qtMode(null)" style="font-size:12px">إلغاء</button></div></div>';
+    } else if(QT_MODE==='partial'){
+      var chk=(q.items||[]).map(function(i){return '<label style="display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 0"><input type="checkbox" class="qt-pchk" data-id="'+i.id+'" checked> '+plEsc(i.name)+' <span style="margin-right:auto;font-weight:700" dir="ltr">'+qtMoney((Number(i.qty)||0)*(Number(i.unit_price)||0))+'</span></label>';}).join('');
+      act='<div style="margin-top:10px;background:#e8f1fb;border-radius:8px;padding:10px"><div style="font-size:11px;color:#888;font-weight:700;margin-bottom:4px">اختر البنود التي وافق عليها العميل</div>'+chk+'<label style="font-size:11px;color:#888;font-weight:600;margin-top:6px;display:block">طريقة الرد</label>'+qtMethodSel('qt-part-method')+'<div style="display:flex;gap:6px;margin-top:8px"><button class="btn" onclick="qtDoPartial()" style="font-size:12px;background:#2470b0;color:#fff;border-color:#2470b0">تأكيد الموافقة الجزئية</button><button class="btn bs" onclick="qtMode(null)" style="font-size:12px">إلغاء</button></div></div>';
+    } else {
+      act='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px"><button class="btn" onclick="qtMode(\'approve\')" style="font-size:12px;background:#1f8f5f;color:#fff;border-color:#1f8f5f">✓ تسجيل موافقة</button><button class="btn bs" onclick="qtMode(\'partial\')" style="font-size:12px">موافقة جزئية</button><button class="btn bs" onclick="qtMode(\'reject\')" style="font-size:12px;color:#cf3636">✗ تسجيل رفض</button></div><div style="font-size:11px;color:#999;margin-top:5px">يُسجَّل الرد يدويًا (مكالمة/واتساب) — لا يُعتمد تلقائيًا.</div>';
+    }
+  } else if(q.status==='approved'||q.status==='partial'){
+    act='<div style="margin-top:10px"><button class="btn" onclick="qtInvoice()" style="font-size:12px;background:#0f6e56;color:#fff;border-color:#0f6e56">🧾 إصدار الفاتورة (إضافة للفاتورة)</button><div style="font-size:11px;color:#999;margin-top:5px">تُضاف البنود المعتمدة لفاتورة المهمة — عدّل الأسعار للفعلي عند الإصدار إن لزم.</div></div>';
+  } else if(q.status==='rejected'||q.status==='expired'){
+    act='<div style="margin-top:10px"><button class="btn bs" onclick="qtReviseFlow()" style="font-size:12px">↻ إنشاء عرض معدّل</button></div>';
+  } else if(q.status==='invoiced'){
+    act='<div style="margin-top:10px;font-size:11.5px;color:#0f6e56;background:#e7f5ee;border-radius:8px;padding:8px">✓ تم إصدار الفاتورة وإضافة البنود المعتمدة لفاتورة المهمة.</div>';
+  }
+  return out+act;
+}
+function qtMode(m){QT_MODE=m;qtRender();}
+async function qtDoReject(){
+  var q=qtActive();if(!q)return;
+  var reason=(document.getElementById('qt-rej-reason')||{}).value||'';
+  var method=(document.getElementById('qt-rej-method')||{}).value||'';
+  var r=await db.rpc('quote_respond',{p_id:q.id,p_response:'rejected',p:{reason:reason,method:method}});
+  if(r.error){toast('خطأ: '+r.error.message,true);return;}
+  await qtReload();toast('تم تسجيل رفض العميل');
+}
+async function qtDoApprove(){
+  var q=qtActive();if(!q)return;
+  var method=(document.getElementById('qt-app-method')||{}).value||'';
+  var r=await db.rpc('quote_respond',{p_id:q.id,p_response:'approved',p:{method:method}});
+  if(r.error){toast('خطأ: '+r.error.message,true);return;}
+  await qtReload();toast('تم تسجيل موافقة العميل');
+}
+async function qtDoPartial(){
+  var q=qtActive();if(!q)return;
+  var ids=[];document.querySelectorAll('.qt-pchk').forEach(function(c){if(c.checked)ids.push(c.getAttribute('data-id'));});
+  if(!ids.length){toast('اختر بندًا واحدًا على الأقل',true);return;}
+  var method=(document.getElementById('qt-part-method')||{}).value||'';
+  var r=await db.rpc('quote_respond',{p_id:q.id,p_response:'partial',p:{approved_ids:ids,method:method}});
+  if(r.error){toast('خطأ: '+r.error.message,true);return;}
+  await qtReload();toast('تم تسجيل الموافقة الجزئية');
+}
+async function qtInvoice(){
+  var q=qtActive();if(!q)return;
+  var r=await db.rpc('quote_issue_invoice',{p_id:q.id});
+  if(r.error){toast('خطأ: '+r.error.message,true);return;}
+  toast('تم إصدار الفاتورة — أُضيفت البنود لفاتورة المهمة');
+  try{await openTask(CT.id);}catch(e){await qtReload();}
+}
+async function qtReviseFlow(){
+  var q=qtActive();if(!q)return;
+  var r=await db.rpc('quote_revise',{p_id:q.id});
+  if(r.error){toast('خطأ: '+r.error.message,true);return;}
+  await qtReload();toast('تم إنشاء عرض معدّل');
+}
+// ══════════ END QUOTATIONS ══════════
 
 // ══════════ RESPONSIVE LAYER (design system helpers) ══════════
 // 1) Tables: copy each column heading onto its cells so the phone layout can show every row as a labelled card.
