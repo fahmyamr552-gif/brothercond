@@ -468,7 +468,7 @@ td{padding:10px 12px;border-color:#edf1ee;overflow-wrap:anywhere}
 <div class="mn">
 <div class="tb">
   <button class="hamburger" onclick="toggleSidebar()" style="display:none;background:none;border:none;font-size:22px;cursor:pointer;padding:4px 10px;color:#333">&#9776;</button>
-  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-11-29</span>
+  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-11-30</span>
   <div style="display:flex;align-items:center;gap:8px"><div class="lang-btns"><button class="lbtn on" onclick="setLang('en',this)">EN</button><button class="lbtn" onclick="setLang('ar',this)">عربي</button></div><div id="tact" style="display:flex;gap:7px"></div></div>
 </div>
 <div class="ct">
@@ -486,6 +486,7 @@ td{padding:10px 12px;border-color:#edf1ee;overflow-wrap:anywhere}
     <div class="cd"><div class="sh" data-t="tasksbystatus">Tasks by status</div><div id="dbars"></div></div>
     <div class="cd"><div class="sh" data-t="outstandingpayments">Outstanding payments</div><div id="dout"></div></div>
   </div>
+  <div id="qapp-inbox" style="display:none;margin-top:14px"></div>
   <div id="prq-inbox" style="display:none;margin-top:14px"></div>
 </div>
 
@@ -1467,7 +1468,7 @@ async function doSignIn(){
     applyRole();
     try{plCheckUpdates();}catch(e){}
     if(CU.role==='owner')go('dash',document.getElementById('ni-dash'));
-    else if(roleEq('salesperson')||roleEq('technician'))go('mydash',document.getElementById('ni-dash'));
+    else if(roleEq('salesperson')||roleEq('technician')||can('quote_approve')||can('parts_price'))go('mydash',document.getElementById('ni-dash'));
     else go('tasks',document.getElementById('ni-tasks'));
   }catch(err){
     console.error('Login error:',err);
@@ -1516,7 +1517,7 @@ function applyRole(){
     const el=document.getElementById('ni-'+k);if(!el)return;
     const pg={dash:'dash',tasks:'tasks',inv:'inv',pur:'pur',fin:'fin',cust:'cust',sup:'sup',usr:'usr'}[k];
     // Dashboard is owner-only
-    if(k==='dash'){(CU&&(CU.role==='owner'||roleEq('salesperson')||roleEq('technician')))?el.classList.remove('off'):el.classList.add('off');return;}
+    if(k==='dash'){(CU&&(CU.role==='owner'||roleEq('salesperson')||roleEq('technician')||can('quote_approve')||can('parts_price')))?el.classList.remove('off'):el.classList.add('off');return;}
     perms.includes(pg)?el.classList.remove('off'):el.classList.add('off');
   });
   if(invViewOnly()){var invNav=document.getElementById('ni-inv');if(invNav)invNav.classList.remove('off');}
@@ -1689,6 +1690,7 @@ async function loadDash(){
     const ot=tasks.filter(t=>Math.max(0,grand(t.id)-paid(t.id))>0);
     oEl.innerHTML=ot.length?'':'<div style="font-size:12px;color:#3B6D11">'+t('nooutstanding')+'</div>';
     ot.slice(0,6).forEach(t=>{const rem=Math.max(0,grand(t.id)-paid(t.id));const d=document.createElement('div');d.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f0f0e8;font-size:12px;cursor:pointer';d.innerHTML=('<div><div style="font-weight:700">'+(t.customer_name||'-')+'</div><div style="font-size:11px;color:#888">'+(t.task_num)+(t.due_date?' - Due '+t.due_date:'')+'</div></div><span style="font-weight:700;color:#A32D2D">'+(f(rem))+'</span>');d.onclick=()=>openTask(t.id);oEl.appendChild(d);});
+    try{qappLoadInbox('qapp-inbox');}catch(e){}
     try{prqLoadInbox('prq-inbox');}catch(e){}
   }catch(e){console.error('Dash error:',e);document.getElementById('dstats').innerHTML=('<div style="color:#A32D2D;padding:10px">r loading data.</div>');
   }
@@ -6799,6 +6801,30 @@ async function prqReject(id){
   if(r.error){toast('خطأ: '+r.error.message,true);return;}
   toast('تم رفض الطلب');prqLoadInbox('prq-inbox');
 }
+
+// ---- manager approvals inbox (dashboard widget) ----
+var QAPP=[];
+async function qappLoadInbox(elId){
+  var el=document.getElementById(elId||'qapp-inbox');if(!el)return;
+  if(!qtCanApprove()){el.style.display='none';return;}
+  el.style.display='';
+  var r=await db.rpc('quotes_pending_inbox');
+  QAPP=(r&&r.data)||[];
+  qappRenderInbox(elId||'qapp-inbox');
+}
+function qappRenderInbox(elId){
+  var el=document.getElementById(elId);if(!el)return;
+  var h='<div class="cd"><div class="sh" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span>بانتظار موافقتك · عروض الأسعار</span><span style="font-size:12px;font-weight:700;color:#2470b0">'+(QAPP.length||'')+'</span></div>';
+  if(!QAPP.length){h+='<div style="font-size:12px;color:#888;padding:4px 0">لا توجد عروض بانتظار موافقتك.</div></div>';el.innerHTML=h;return;}
+  h+=QAPP.map(function(q){
+    return '<div onclick="openTask(\''+q.task_id+'\')" style="border:1px solid #eee;border-radius:9px;padding:10px 12px;margin-top:8px;cursor:pointer">'
+      +'<div style="display:flex;justify-content:space-between;gap:8px"><span style="font-size:13px;font-weight:700">'+plEsc(q.customer_name||'-')+'</span>'
+      +'<span style="font-size:12px;font-weight:800;color:#0f2347" dir="ltr">'+qtMoney(q.net)+' ج.م</span></div>'
+      +'<div style="display:flex;justify-content:space-between;gap:8px;margin-top:3px"><span style="font-size:11px;color:#888">'+plEsc(q.quote_num||'')+(q.task_num?(' · '+plEsc(q.task_num)):'')+'</span>'
+      +(q.created_by_name?'<span style="font-size:10px;color:#aaa">أعدّه: '+plEsc(q.created_by_name)+'</span>':'')+'</div></div>';
+  }).join('');
+  el.innerHTML=h+'</div>';
+}
 // ══════════ END QUOTATIONS ══════════
 
 // ══════════ RESPONSIVE LAYER (design system helpers) ══════════
@@ -10014,17 +10040,21 @@ async function deleteDeduction(id){
 async function loadRoleDashboard(){
   var body=document.getElementById('mydash-body');
   if(!body)return;
-  body.innerHTML='<div style="text-align:center;padding:30px;color:#888">جاري التحميل...</div>';
-  var role=CU?CU.role:'';
-  if(roleEq('salesperson')){return loadSalesDashboard(body);}
-  if(roleEq('technician')){return loadTechDashboard(body);}
-  // parts-pricing inbox for parts manager / pricing-enabled roles
-  if(typeof qtCanPrice==='function'&&qtCanPrice()){
-    body.innerHTML='<div id="prq-inbox"></div>';
-    try{prqLoadInbox('prq-inbox');}catch(e){}
+  var pre='';
+  if(typeof qtCanApprove==='function'&&qtCanApprove())pre+='<div id="qapp-inbox" style="margin-bottom:14px"></div>';
+  if(typeof qtCanPrice==='function'&&qtCanPrice())pre+='<div id="prq-inbox" style="margin-bottom:14px"></div>';
+  if(pre){
+    body.innerHTML=pre+'<div id="roledash-rest"></div>';
+    if(qtCanApprove())try{qappLoadInbox('qapp-inbox');}catch(e){}
+    if(qtCanPrice())try{prqLoadInbox('prq-inbox');}catch(e){}
+    var rest=document.getElementById('roledash-rest');
+    if(roleEq('salesperson'))return loadSalesDashboard(rest);
+    if(roleEq('technician'))return loadTechDashboard(rest);
     return;
   }
-  // fallback
+  body.innerHTML='<div style="text-align:center;padding:30px;color:#888">جاري التحميل...</div>';
+  if(roleEq('salesperson')){return loadSalesDashboard(body);}
+  if(roleEq('technician')){return loadTechDashboard(body);}
   body.innerHTML='<div style="padding:30px;text-align:center;color:#888">لا توجد لوحة مخصصة</div>';
 }
 
