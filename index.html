@@ -468,7 +468,7 @@ td{padding:10px 12px;border-color:#edf1ee;overflow-wrap:anywhere}
 <div class="mn">
 <div class="tb">
   <button class="hamburger" onclick="toggleSidebar()" style="display:none;background:none;border:none;font-size:22px;cursor:pointer;padding:4px 10px;color:#333">&#9776;</button>
-  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-12-01</span>
+  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-12-02</span>
   <div style="display:flex;align-items:center;gap:8px"><div class="lang-btns"><button class="lbtn on" onclick="setLang('en',this)">EN</button><button class="lbtn" onclick="setLang('ar',this)">عربي</button></div><div id="tact" style="display:flex;gap:7px"></div></div>
 </div>
 <div class="ct">
@@ -6761,13 +6761,15 @@ function qtPrintPdf(){
 
 // ---- parts-manager pricing inbox (dashboard widget) ----
 var PRQ=[];
+var PRQ_EL='prq-inbox';
 async function prqLoadInbox(elId){
-  var el=document.getElementById(elId||'prq-inbox');if(!el)return;
+  PRQ_EL=elId||'prq-inbox';
+  var el=document.getElementById(PRQ_EL);if(!el)return;
   if(!qtCanPrice()){el.style.display='none';return;}
   el.style.display='';
   var r=await db.rpc('part_request_inbox');
   PRQ=(r&&r.data)||[];
-  prqRenderInbox(elId||'prq-inbox');
+  prqRenderInbox(PRQ_EL);
 }
 function prqRenderInbox(elId){
   var el=document.getElementById(elId);if(!el)return;
@@ -6793,24 +6795,26 @@ async function prqPrice(id){
   if(!(v>=0)){toast('أدخل سعرًا صحيحًا',true);return;}
   var r=await db.rpc('part_request_price',{p_id:id,p_unit_price:v,p_spare_part_id:null});
   if(r.error){toast('خطأ: '+r.error.message,true);return;}
-  toast('تم حفظ السعر');prqLoadInbox('prq-inbox');
+  toast('تم حفظ السعر');prqLoadInbox(PRQ_EL);
 }
 async function prqReject(id){
   var reason=prompt('سبب الرفض (اختياري):')||'';
   var r=await db.rpc('part_request_reject',{p_id:id,p_reason:reason});
   if(r.error){toast('خطأ: '+r.error.message,true);return;}
-  toast('تم رفض الطلب');prqLoadInbox('prq-inbox');
+  toast('تم رفض الطلب');prqLoadInbox(PRQ_EL);
 }
 
 // ---- manager approvals inbox (dashboard widget) ----
 var QAPP=[];
+var QAPP_EL='qapp-inbox';
 async function qappLoadInbox(elId){
-  var el=document.getElementById(elId||'qapp-inbox');if(!el)return;
+  QAPP_EL=elId||'qapp-inbox';
+  var el=document.getElementById(QAPP_EL);if(!el)return;
   if(!qtCanApprove()){el.style.display='none';return;}
   el.style.display='';
   var r=await db.rpc('quotes_pending_inbox');
   QAPP=(r&&r.data)||[];
-  qappRenderInbox(elId||'qapp-inbox');
+  qappRenderInbox(QAPP_EL);
 }
 function qappRenderInbox(elId){
   var el=document.getElementById(elId);if(!el)return;
@@ -10041,12 +10045,12 @@ async function loadRoleDashboard(){
   var body=document.getElementById('mydash-body');
   if(!body)return;
   var pre='';
-  if(typeof qtCanApprove==='function'&&qtCanApprove())pre+='<div id="qapp-inbox" style="margin-bottom:14px"></div>';
-  if(typeof qtCanPrice==='function'&&qtCanPrice())pre+='<div id="prq-inbox" style="margin-bottom:14px"></div>';
+  if(typeof qtCanApprove==='function'&&qtCanApprove())pre+='<div id="qapp-inbox-my" style="margin-bottom:14px"></div>';
+  if(typeof qtCanPrice==='function'&&qtCanPrice())pre+='<div id="prq-inbox-my" style="margin-bottom:14px"></div>';
   if(pre){
     body.innerHTML=pre+'<div id="roledash-rest"></div>';
-    if(qtCanApprove())try{qappLoadInbox('qapp-inbox');}catch(e){}
-    if(qtCanPrice())try{prqLoadInbox('prq-inbox');}catch(e){}
+    if(qtCanApprove())try{qappLoadInbox('qapp-inbox-my');}catch(e){}
+    if(qtCanPrice())try{prqLoadInbox('prq-inbox-my');}catch(e){}
     var rest=document.getElementById('roledash-rest');
     if(roleEq('salesperson'))return loadSalesDashboard(rest);
     if(roleEq('technician'))return loadTechDashboard(rest);
