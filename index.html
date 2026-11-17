@@ -468,7 +468,7 @@ td{padding:10px 12px;border-color:#edf1ee;overflow-wrap:anywhere}
 <div class="mn">
 <div class="tb">
   <button class="hamburger" onclick="toggleSidebar()" style="display:none;background:none;border:none;font-size:22px;cursor:pointer;padding:4px 10px;color:#333">&#9776;</button>
-  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-11-28</span>
+  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-11-29</span>
   <div style="display:flex;align-items:center;gap:8px"><div class="lang-btns"><button class="lbtn on" onclick="setLang('en',this)">EN</button><button class="lbtn" onclick="setLang('ar',this)">عربي</button></div><div id="tact" style="display:flex;gap:7px"></div></div>
 </div>
 <div class="ct">
@@ -551,6 +551,7 @@ td{padding:10px 12px;border-color:#edf1ee;overflow-wrap:anywhere}
     <span style="font-size:15px;font-weight:700" id="tdtitle">Task</span>
     <div id="sbtns" style="display:flex;gap:5px;flex-wrap:wrap;margin-left:auto"></div>
     <button class="btn bs" onclick="doPrint()">&#128438; <span data-t="print">Print</span></button>
+    <button class="btn bs" onclick="custPdfMenu()" style="background:#0f2238;color:#fff;border-color:#0f2238">&#128196; <span>مستند العميل</span></button>
     <button class="btn bs" onclick="sendWhatsApp()" style="background:#25D366;color:#fff;border-color:#25D366">&#128241; واتساب</button>
     <button class="btn bs" onclick="sendReviewOffer()" title="إرسال عرض الصيانة مقابل تقييم جوجل (فرع الرحاب)" style="background:#fff;color:#0f2347;border-color:#c8a96a">&#11088; عرض التقييم</button>
     <button class="btn bs bk" id="delbtn" style="display:none" onclick="deleteTask()">&#128465; Delete task</button>
@@ -3031,6 +3032,150 @@ function doPrint(){
     alert('Please allow popups to print.');
   }
 }
+
+
+// ══════════ CUSTOMER PDF (مستند العميل) — premium Direction B ══════════
+var CP_CO={bn:'BROTHERCOND',ar:'براذر كوند للتكييف',tag:'Air Conditioning Solutions · Est. 1990',
+  hotline:'01222211310',tel:'01006889931 · 01026586700',branches:'مدينة نصر · الرحاب · مدينتي · التجمع الخامس',web:'brothercond.com'};
+var CP_EMB='<svg width="44" height="44" viewBox="0 0 100 100"><circle cx="50" cy="50" r="47" fill="none" stroke="#b2884e" stroke-width="2"/><circle cx="50" cy="50" r="40" fill="#0f2238"/><text x="50" y="52" text-anchor="middle" dominant-baseline="central" font-family="Georgia,serif" font-weight="700" font-size="30" fill="#fff">BC</text></svg>';
+var CP_TITLE={report:['SERVICE COMPLETION REPORT','تقرير إتمام الخدمة','BC-SR'],invoice:['DETAILED INVOICE','فاتورة تفصيلية','BC-INV'],inspect:['INSPECTION REPORT','تقرير فحص فني','BC-IR']};
+function cpM(n){return Math.round(n||0).toLocaleString('en-US');}
+function cpDate(d){if(!d)return'';try{return new Date(d).toLocaleDateString('en-GB');}catch(e){return String(d).slice(0,10);}}
+
+function custPdfMenu(){
+  if(!CT){return;}
+  var old=document.getElementById('cp-menu');if(old)old.remove();
+  var ov=document.createElement('div');ov.id='cp-menu';
+  ov.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(15,34,56,.45);display:flex;align-items:center;justify-content:center;padding:18px';
+  ov.onclick=function(e){if(e.target===ov)ov.remove();};
+  var box='<div style="background:#fff;border-radius:14px;max-width:360px;width:100%;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.3);font-family:Cairo,sans-serif" dir="rtl">'
+    +'<div style="background:#0f2238;color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center"><span style="font-weight:800;font-size:14px">مستند للعميل · Customer PDF</span><span onclick="document.getElementById(\'cp-menu\').remove()" style="cursor:pointer;font-size:18px;opacity:.8">✕</span></div>'
+    +'<div style="padding:12px 14px 6px;font-size:11.5px;color:#8a94a0">اختر نوع المستند لمعاينته وطباعته أو حفظه PDF:</div>'
+    +'<div style="padding:8px 14px 14px;display:flex;flex-direction:column;gap:8px">'
+    +cpMenuBtn('report','🧾','تقرير إتمام الخدمة','Service Completion Report')
+    +cpMenuBtn('invoice','💳','فاتورة تفصيلية','Detailed Invoice')
+    +cpMenuBtn('inspect','🔍','تقرير فحص فني','Inspection Report')
+    +'<div style="border-top:1px solid #eee;margin-top:4px;padding-top:10px"><button onclick="custWhats()" style="width:100%;background:#25D366;color:#fff;border:0;border-radius:9px;padding:11px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">📱 فتح واتساب العميل</button>'
+    +'<div style="font-size:10.5px;color:#9aa4b0;margin-top:6px;line-height:1.5">احفظ المستند PDF أولًا، ثم أرفقه في محادثة واتساب (واتساب لا يسمح بإرفاق الملف تلقائيًا).</div></div>'
+    +'</div></div>';
+  ov.innerHTML=box;document.body.appendChild(ov);
+}
+function cpMenuBtn(t,ic,ar,en){
+  return '<button onclick="custPdf(\''+t+'\')" style="display:flex;align-items:center;gap:11px;width:100%;background:#f3f6f9;border:1px solid #e3e7ec;border-radius:9px;padding:11px 13px;cursor:pointer;font-family:inherit;text-align:right">'
+    +'<span style="font-size:19px">'+ic+'</span><span style="flex:1"><span style="display:block;font-weight:800;font-size:13px;color:#0f2238">'+ar+'</span><span style="display:block;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#8a94a0">'+en+'</span></span><span style="color:#3d6e8e;font-weight:800">←</span></button>';
+}
+function custWhats(){try{sendWhatsApp();}catch(e){}}
+
+function custPdf(type){
+  if(!CT){return;}
+  var m=document.getElementById('cp-menu');if(m)m.remove();
+  var cu=CT.cust||CT.customers||{};
+  var useTax=CT.use_tax===false?false:true;
+  var prods=CT.prods||[];
+  var grRaw=prods.reduce(function(a,p){return a+p.qty*p.price;},0);
+  var discAmt=calcDiscount(CT,grRaw);
+  var gr=Math.max(0,grRaw-discAmt);
+  var sub=useTax?gr/1.14:gr;
+  var tax=useTax?gr-sub:0;
+  var pd=(CT.pays||[]).reduce(function(a,p){return a+p.amount;},0);
+  var rem=Math.max(0,gr-pd);
+  var status=gr<=0?'nc':(rem<=0?'paid':(pd>0?'part':'un'));
+  var ti=CP_TITLE[type];
+  var year=(CT.date||CT.completion_time||'').toString().slice(0,4)||new Date().getFullYear();
+  var tdig=(CT.task_num||'').replace(/[^0-9]/g,'')||'0';
+  var ref=ti[2]+'-'+year+'-'+tdig;
+  var svc=(typeof typeLabels!=='undefined'&&typeLabels[CT.type])?typeLabels[CT.type]:CT.type;
+
+  var h='<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>'+plEsc(ti[1])+' '+plEsc(ref)+'</title>';
+  h+='<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap">';
+  h+='<style>@page{size:A4;margin:12mm 12mm 14mm}*{box-sizing:border-box;margin:0;padding:0}';
+  h+='body{font-family:"Cairo",Tahoma,Arial,sans-serif;color:#2b2f36;font-size:11.5px;direction:rtl}';
+  h+='.num{font-variant-numeric:tabular-nums}';
+  h+='.band{background:#0f2238;color:#fff;padding:15px 18px;display:flex;justify-content:space-between;align-items:center;border-radius:7px}';
+  h+='.band .bn{font-family:Georgia,serif;font-weight:800;font-size:18px;letter-spacing:.5px}';
+  h+='.band .tg{font-size:8.5px;letter-spacing:.16em;color:#9fb6c9;text-transform:uppercase;margin-top:4px}';
+  h+='.band .dt{text-align:left}.band .dt .en{font-size:12.5px;font-weight:800;letter-spacing:.04em}.band .dt .ar{font-size:11px;color:#bcd0df;margin-top:2px}.band .dt .rf{font-size:9px;color:#8ea7ba;margin-top:4px;letter-spacing:.06em}';
+  h+='.strip{display:grid;grid-template-columns:repeat(4,1fr);background:#f3f6f9;border:1px solid #e3e7ec;border-top:0;margin-bottom:13px}';
+  h+='.strip .c{padding:8px 12px;border-right:1px solid #e3e7ec}.strip .c:last-child{border-right:0}';
+  h+='.strip .k{font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:#8a94a0;font-weight:800}.strip .v{font-size:11px;font-weight:800;color:#1f2a37;margin-top:3px}';
+  h+='.cards{display:flex;gap:10px;margin-bottom:13px}.card{flex:1;border:1px solid #e3e7ec;border-radius:7px;overflow:hidden}';
+  h+='.card .ch{background:#0f2238;color:#fff;font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:800;padding:6px 11px;display:flex;justify-content:space-between}.card .ch .a{color:#bcd0df}';
+  h+='.card .cb{padding:8px 11px}.li{display:flex;justify-content:space-between;gap:10px;padding:3px 0;font-size:11px}.li .kk{color:#8a94a0}.li .vv{font-weight:700;color:#1f2a37}';
+  h+='.sh{display:flex;align-items:center;gap:8px;margin:2px 0 9px}.sh .b4{width:4px;height:14px;background:#3d6e8e;border-radius:2px}.sh .ar{font-weight:800;font-size:12.5px;color:#0f2238}.sh .en{font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;color:#8a94a0;font-weight:800}';
+  h+='table.w{width:100%;border-collapse:collapse;margin-bottom:13px}table.w th{background:#0f2238;color:#fff;font-size:9px;letter-spacing:.05em;text-transform:uppercase;padding:7px 8px;text-align:right}table.w th.r{text-align:left}';
+  h+='table.w td{font-size:11px;padding:7px 8px;border-bottom:1px solid #e3e7ec}table.w tr:nth-child(even) td{background:#f7f9fb}table.w td.r{text-align:left;font-weight:800;color:#1f2a37}table.w td .sub{display:block;font-size:9px;color:#9aa4b0;margin-top:1px}';
+  h+='.fin{display:flex;gap:12px;align-items:flex-start;margin-bottom:6px}.notes{flex:1;font-size:11px;line-height:1.7;color:#55606d}.notes .row{margin-bottom:9px}.notes b{display:block;color:#0f2238;font-size:8.5px;letter-spacing:.09em;text-transform:uppercase;margin-bottom:2px}';
+  h+='.fb{width:46%;border:1px solid #e3e7ec;border-radius:7px;overflow:hidden}.fb .fl{display:flex;justify-content:space-between;padding:6px 11px;font-size:11px;border-bottom:1px solid #e3e7ec}.fb .fl .vv{font-weight:700}.fb .fl.disc{color:#a3542f}';
+  h+='.fb .tot{display:flex;justify-content:space-between;align-items:center;background:#0f2238;color:#fff;padding:10px 11px}.fb .tot .l{font-size:11px;font-weight:700}.fb .tot .a{font-size:17px;font-weight:800}';
+  h+='.badge{display:inline-block;font-size:10px;font-weight:800;padding:5px 11px;border-radius:6px;margin-top:9px}.b-paid{background:#e7f5ee;color:#1f7a53}.b-part{background:#fbf0d8;color:#8a5a00}.b-un{background:#fdecec;color:#b23}.b-nc{background:#eef3f8;color:#2f5a86}';
+  h+='.close{margin-top:14px;background:#f3f6f9;border:1px solid #e3e7ec;border-radius:7px;padding:13px;text-align:center;font-size:11px;line-height:1.85;color:#55606d}.close .sg{color:#0f2238;font-weight:800;font-size:12.5px;margin-top:3px}.close .gl{color:#3d6e8e;font-weight:800}';
+  h+='.foot{margin-top:12px;background:#0f2238;color:#cdd8e2;border-radius:7px;padding:9px 15px;display:flex;justify-content:space-between;align-items:center;font-size:8.5px;letter-spacing:.03em}.foot .hot{color:#fff;font-size:12px;font-weight:800}';
+  h+='</style></head><body>';
+
+  // header band
+  h+='<div class="band"><div style="display:flex;gap:12px;align-items:center">'+CP_EMB+'<div><div class="bn">BROTHERCOND</div><div class="tg">'+CP_CO.tag+'</div></div></div>';
+  h+='<div class="dt"><div class="en">'+ti[0]+'</div><div class="ar">'+ti[1]+'</div><div class="rf num">'+plEsc(ref)+'</div></div></div>';
+  // strip
+  h+='<div class="strip"><div class="c"><div class="k">Task No.</div><div class="v num">'+plEsc(CT.task_num||'-')+'</div></div>';
+  h+='<div class="c"><div class="k">'+(type==='invoice'?'Invoice Date':(type==='inspect'?'Inspection':'Completion'))+'</div><div class="v num">'+(cpDate(CT.completion_time)||cpDate(CT.date)||cpDate(new Date()))+'</div></div>';
+  h+='<div class="c"><div class="k">Issue Date</div><div class="v num">'+cpDate(new Date())+'</div></div>';
+  h+='<div class="c"><div class="k">Technician</div><div class="v">'+plEsc(CT.technician_name||'—')+'</div></div></div>';
+  // cards
+  var cust='';
+  cust+='<div class="li"><span class="kk">العميل / Customer</span><span class="vv">'+plEsc(cu.full_name||CT.customer_name||'-')+'</span></div>';
+  if(cu.phone||CT.phone)cust+='<div class="li"><span class="kk">الهاتف / Phone</span><span class="vv num" dir="ltr">'+plEsc(cu.phone||CT.phone)+'</span></div>';
+  var addr=CT.address||cu.address;if(addr)cust+='<div class="li"><span class="kk">العنوان / Address</span><span class="vv">'+plEsc(addr)+'</span></div>';
+  var svcRows='';
+  svcRows+='<div class="li"><span class="kk">نوع الخدمة / Service</span><span class="vv">'+plEsc(svc||'-')+'</span></div>';
+  if(CT.branch)svcRows+='<div class="li"><span class="kk">الفرع / Branch</span><span class="vv">'+plEsc(CT.branch)+'</span></div>';
+  if(CT.technician_name)svcRows+='<div class="li"><span class="kk">الفني / Technician</span><span class="vv">'+plEsc(CT.technician_name)+'</span></div>';
+  if(CT.completion_time)svcRows+='<div class="li"><span class="kk">تاريخ الإنجاز / Completed</span><span class="vv num">'+cpDate(CT.completion_time)+'</span></div>';
+  h+='<div class="cards"><div class="card"><div class="ch"><span>CUSTOMER</span><span class="a">العميل</span></div><div class="cb">'+cust+'</div></div>';
+  h+='<div class="card"><div class="ch"><span>SERVICE</span><span class="a">الخدمة</span></div><div class="cb">'+svcRows+'</div></div></div>';
+
+  // technical notes
+  var notes='';
+  if(CT.description)notes+='<div class="row"><b>العطل المبلّغ عنه · Complaint</b>'+plEsc(CT.description)+'</div>';
+  if(CT.completion_notes)notes+='<div class="row"><b>الأعمال المنفّذة · Work Performed</b>'+plEsc(CT.completion_notes)+'</div>';
+
+  if(type==='inspect'){
+    h+='<div class="sh"><span class="b4"></span><span class="ar">الفحص والتشخيص</span><span class="en">Inspection & Findings</span></div>';
+    h+='<div style="font-size:11px;line-height:1.75;color:#55606d;margin-bottom:12px">'+(notes||'<span style="color:#9aa4b0">لا توجد ملاحظات فنية مسجّلة لهذه المهمة.</span>')+'</div>';
+    h+='<div>'+(gr<=0?'<span class="badge b-nc">بدون رسوم · NO CHARGE</span>':('<span class="badge b-part">رسوم الفحص: '+cpM(gr)+' ج.م</span>'))+'</div>';
+  } else {
+    // work table
+    var rows='';
+    prods.forEach(function(p){rows+='<tr><td>'+plEsc(p.name||'')+'</td><td style="text-align:center" class="num">'+p.qty+'</td><td class="r num">'+cpM(p.price)+'</td><td class="r num">'+cpM(p.qty*p.price)+'</td></tr>';});
+    if(!rows)rows='<tr><td colspan="4" style="color:#9aa4b0;text-align:center">لا توجد بنود مسجّلة.</td></tr>';
+    h+='<div class="sh"><span class="b4"></span><span class="ar">'+(type==='invoice'?'بنود الفاتورة':'تفاصيل الأعمال')+'</span><span class="en">'+(type==='invoice'?'Invoice Items':'Work Performed')+'</span></div>';
+    h+='<table class="w"><thead><tr><th>البند / Description</th><th style="text-align:center">الكمية</th><th class="r">سعر الوحدة</th><th class="r">الإجمالي</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    // financial + notes
+    var fb='<div class="fb">';
+    fb+='<div class="fl"><span>الإجمالي الفرعي · Subtotal</span><span class="vv num">'+cpM(grRaw)+' EGP</span></div>';
+    if(discAmt>0)fb+='<div class="fl disc"><span>الخصم · Discount'+(CT.discount_note?(' ('+plEsc(CT.discount_note)+')'):'')+'</span><span class="num">- '+cpM(discAmt)+' EGP</span></div>';
+    if(useTax){fb+='<div class="fl"><span>قبل الضريبة · Before VAT</span><span class="vv num">'+cpM(sub)+' EGP</span></div>';
+      fb+='<div class="fl"><span>ضريبة 14% · VAT</span><span class="vv num">'+cpM(tax)+' EGP</span></div>';}
+    fb+='<div class="fl"><span>المدفوع · Paid</span><span class="vv num">'+cpM(pd)+' EGP</span></div>';
+    fb+='<div class="fl" style="font-weight:800"><span>المتبقي · Balance Due</span><span class="vv num">'+cpM(rem)+' EGP</span></div>';
+    fb+='<div class="tot"><span class="l">الإجمالي · TOTAL</span><span class="a num">'+cpM(gr)+' EGP</span></div></div>';
+    var statusTxt={paid:['b-paid','مدفوع بالكامل · PAID'],part:['b-part','مدفوع جزئيًا · PARTIALLY PAID'],un:['b-un','غير مدفوع · UNPAID'],nc:['b-nc','بدون رسوم · NO CHARGE']}[status];
+    var payLine='';var lastPay=(CT.pays||[])[ (CT.pays||[]).length-1 ];
+    if(lastPay)payLine='<span style="font-size:10px;color:#9aa4b0;margin-right:10px">'+plEsc(lastPay.method||'')+' · '+cpDate(lastPay.created_at)+'</span>';
+    h+='<div class="fin"><div class="notes">'+(notes||'')+'<div class="badge '+statusTxt[0]+'">'+statusTxt[1]+'</div>'+payLine+'</div>'+fb+'</div>';
+  }
+
+  // closing + footer
+  h+='<div class="close">شكرًا لاختياركم براذر كوند. نقدّر ثقتكم ونلتزم دائمًا بتقديم حلول تكييف موثوقة وخدمة ما بعد البيع باحترافية.';
+  h+='<div class="sg">BROTHERCOND — Comfort Since 1990</div><div class="gl">حيث تلتقي الجودة مع راحتك</div></div>';
+  h+='<div class="foot"><div>'+CP_CO.branches+' · '+CP_CO.web+'<br>'+CP_CO.tel+'</div>';
+  h+='<div style="text-align:left"><div style="font-size:7.5px;letter-spacing:.12em;text-transform:uppercase;color:#9fb6c9">Customer Service</div><div class="hot num" dir="ltr">'+CP_CO.hotline+'</div></div></div>';
+  h+='</body></html>';
+
+  var w=window.open('','_blank','width=900,height=1200');
+  if(w){w.document.write(h);w.document.close();setTimeout(function(){w.print();},700);}
+  else{toast('اسمح بالنوافذ المنبثقة للطباعة',true);}
+}
+// ══════════ END CUSTOMER PDF ══════════
 
 
 function openNT(){
