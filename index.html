@@ -468,7 +468,7 @@ td{padding:10px 12px;border-color:#edf1ee;overflow-wrap:anywhere}
 <div class="mn">
 <div class="tb">
   <button class="hamburger" onclick="toggleSidebar()" style="display:none;background:none;border:none;font-size:22px;cursor:pointer;padding:4px 10px;color:#333">&#9776;</button>
-  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-11-30</span>
+  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-12-01</span>
   <div style="display:flex;align-items:center;gap:8px"><div class="lang-btns"><button class="lbtn on" onclick="setLang('en',this)">EN</button><button class="lbtn" onclick="setLang('ar',this)">عربي</button></div><div id="tact" style="display:flex;gap:7px"></div></div>
 </div>
 <div class="ct">
@@ -6874,7 +6874,7 @@ function bcBuildBottomNav(){
   var old=document.getElementById('bc-bnav');if(old)old.remove();
   if(!CU)return;
   var items=[];
-  var dashOk=(CU.role==='owner'||roleEq('salesperson')||roleEq('technician'));
+  var dashOk=(CU.role==='owner'||roleEq('salesperson')||roleEq('technician')||can('quote_approve')||can('parts_price'));
   if(dashOk)items.push({k:'dash',ic:'home',l:'الرئيسية',fn:function(){go('dash',document.getElementById('ni-dash'));}});
   if(can('tasks'))items.push({k:'tasks',ic:'tasks',l:'الطلبات',fn:function(){go('tasks',document.getElementById('ni-tasks'));}});
   if(can('tasks'))items.push({k:'nt',ic:'plus',l:'',fab:true,fn:function(){openNT();}});
@@ -11125,6 +11125,7 @@ function applyTranslations(){
     applyRole();
     try{plCheckUpdates();}catch(e){}
     if(CU.role==='owner')go('dash',document.getElementById('ni-dash'));
+    else if(roleEq('salesperson')||roleEq('technician')||can('quote_approve')||can('parts_price'))go('mydash',document.getElementById('ni-dash'));
     else go('tasks',document.getElementById('ni-tasks'));
   }catch(e){
     console.log('Session restore error:',e);
