@@ -468,7 +468,7 @@ td{padding:10px 12px;border-color:#edf1ee;overflow-wrap:anywhere}
 <div class="mn">
 <div class="tb">
   <button class="hamburger" onclick="toggleSidebar()" style="display:none;background:none;border:none;font-size:22px;cursor:pointer;padding:4px 10px;color:#333">&#9776;</button>
-  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-12-06</span>
+  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-12-08</span>
   <div style="display:flex;align-items:center;gap:8px"><div class="lang-btns"><button class="lbtn on" onclick="setLang('en',this)">EN</button><button class="lbtn" onclick="setLang('ar',this)">عربي</button></div><div id="tact" style="display:flex;gap:7px"></div></div>
 </div>
 <div class="ct">
@@ -1433,6 +1433,23 @@ function canDeleteHard(){return !!CU&&CU.role!=='finance_manager'&&roleIn(['owne
 function noDel(){if(CU&&CU.role==='finance_manager'){toast('غير مسموح بالحذف',true);return true;}return false;}
 // ── Customer privacy: every lookup is written to customer_access_log ──
 var _calLast='';
+// ── Customer lookup goes through the server: search shows name + last 3 digits; full details only on pick (counted + logged)
+async function custSearchRpc(v){
+  var r=await db.rpc('customer_search',{p_q:v});
+  if(r.error){toast(r.error.message,true);return [];}
+  return r.data||[];
+}
+async function custPick(id,ctx){
+  var r=await db.rpc('customer_pick',{p_id:id,p_ctx:ctx||''});
+  if(r.error){toast(r.error.message,true);return null;}
+  if(r.data&&r.data.refused){toast(r.data.message||'غير مسموح',true);return null;}
+  return r.data||null;
+}
+async function custPhoneCheck(phone){
+  var r=await db.rpc('customer_phone_check',{p_phone:phone||''});
+  if(r.error)return null;
+  return r.data||null;
+}
 function logCust(action,c,detail){
   try{
     if(!CU)return;
@@ -4608,8 +4625,8 @@ async function saveNewDispatch(){
     // Create or find customer
     var custId=null;
     if(custPhone){
-      var cr=await db.from('customers').select('id').eq('phone',custPhone).limit(1);
-      if(cr.data&&cr.data.length)custId=cr.data[0].id;
+      var cr=await custPhoneCheck(custPhone);
+      if(cr&&cr.id)custId=cr.id;
     }
     if(!custId){
       var nc=await db.from('customers').insert({full_name:custName,phone:custPhone||'',address:custAddr||''}).select().single();
@@ -6035,13 +6052,7 @@ function normalizePhone(ph){
 async function checkPhoneDuplicate(phone){
   var norm=normalizePhone(phone);
   if(!norm||norm.length<6)return null; // too short to check
-  var tail=norm.slice(-8);
-  var{data:allC}=await db.from('customers').select('id,full_name,phone').ilike('phone','%'+tail+'%').limit(20);
-  allC=allC||[];
-  for(var i=0;i<allC.length;i++){
-    if(normalizePhone(allC[i].phone)===norm)return allC[i];
-  }
-  return null;
+  return await custPhoneCheck(norm);
 }
 
 async function loadMergeGroups(){
@@ -7039,7 +7050,7 @@ function csNeedsMe(c){
   return false;
 }
 function csUpdateBadge(){
-  var n=CS_LIST.filter(csNeedsMe).length;
+  var n=csPartsOnly()?CS_REQ.filter(function(r){return r.status==='pending';}).length:CS_LIST.filter(csNeedsMe).length;
   var b=document.getElementById('cs-badge');if(b){b.style.display=n?'':'none';b.textContent=n;}
   var b2=document.getElementById('bc-bn-badge');if(b2){b2.style.display=n?'flex':'none';b2.textContent=n;}
 }
@@ -7050,7 +7061,16 @@ async function csLoadMeta(){
   var u=await db.from('users').select('id,full_name,role,active').order('full_name');
   CS_USERS=(u.data||[]).filter(function(x){return x.active!==false;});
 }
+function csPartsOnly(){return !!CU&&CU.role==='parts_manager';}
 async function csFetch(){
+  // Parts manager: only the part requests addressed to him — never the complaint itself
+  if(csPartsOnly()){
+    CS_LIST=[];
+    var pq=await db.rpc('case_parts_inbox');
+    if(!pq.error)CS_REQ=pq.data||[];
+    csUpdateBadge();
+    return;
+  }
   try{await db.rpc('cases_escalate');}catch(e){}
   var r=await db.from('cases').select('*').order('created_at',{ascending:false}).limit(1000);
   if(!r.error)CS_LIST=r.data||[];
@@ -7107,8 +7127,22 @@ function csRow(c){
     +'<div style="flex-shrink:0;font-size:12px;font-weight:800;color:'+slaColor+';text-align:end;max-width:150px">'+sla.t+'</div>'
     +'</div>';
 }
+function csRenderPartsInbox(body){
+  var open=CS_REQ.filter(function(r){return r.status!=='delivered'&&r.status!=='cancelled';});
+  var closed=CS_REQ.filter(function(r){return r.status==='delivered'||r.status==='cancelled';}).slice(0,30);
+  var card=function(r){
+    var ref='<div style="font-size:12px;color:#5f6f67;font-weight:700;margin-bottom:6px">'+(r.case_num?'شكوى '+plEsc(r.case_num):'')+(r.task_num?' · طلب '+plEsc(r.task_num):'')+(r.customer_name?' · العميل: '+plEsc(r.customer_name):'')+'</div>';
+    return '<div>'+ref+csReqCard(r)+'</div>';
+  };
+  var h='<div style="font-size:17px;font-weight:800;margin-bottom:4px">طلبات قطع الغيار من خدمة العملاء</div>'
+    +'<div style="font-size:12.5px;color:#7b8a82;margin-bottom:14px">حدّد حالة كل قطعة: متوفرة، غير متوفرة، تم طلبها من المورد، أو تم تسليمها.</div>';
+  h+=open.length?open.map(card).join(''):'<div style="padding:26px;text-align:center;color:#888;background:#fff;border:1px solid #e6ebe8;border-radius:12px">لا توجد طلبات مفتوحة</div>';
+  if(closed.length)h+='<div style="font-size:14px;font-weight:800;margin:18px 0 8px">طلبات منتهية</div>'+closed.map(card).join('');
+  body.innerHTML=h;
+}
 function renderCases(){
   var body=document.getElementById('cs-body');if(!body)return;
+  if(csPartsOnly()){_csView=null;csRenderPartsInbox(body);return;}
   if(_csView){csRenderConsole();return;}
   var mgr=csIsMgr();
   var attn=CS_LIST.filter(csNeedsMe);
@@ -7181,16 +7215,15 @@ function csCustSearch(v){
   var box=document.getElementById('csn-res');if(!box)return;
   v=(v||'').trim();if(v.length<3){box.style.display='none';return;}
   _csCT=setTimeout(async function(){
-    var r=await db.from('customers').select('id,full_name,phone,address').or('full_name.ilike.%'+v+'%,phone.ilike.%'+v+'%').limit(6);
-    var d=r.data||[];window._csCustRes=d;
+    var d=await custSearchRpc(v);window._csCustRes=d;
     if(!d.length){box.style.display='none';return;}
     box.style.display='block';
     box.innerHTML=d.map(function(c,i){return '<div onclick="csPickCust('+i+')" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #f0f0e8;font-size:13px"><b>'+plEsc(c.full_name)+'</b> <span style="color:#888;font-size:11px">'+plEsc(c.phone||'')+'</span></div>';}).join('');
   },250);
 }
-function csPickCust(i){
+async function csPickCust(i){
   var c=(window._csCustRes||[])[i];if(!c)return;
-  logCust('attach',c,'case');
+  c=await custPick(c.id,'case');if(!c)return;
   document.getElementById('csn-cid').value=c.id;
   document.getElementById('csn-name').value=c.full_name||'';
   document.getElementById('csn-phone').value=c.phone||'';
@@ -7208,6 +7241,7 @@ async function csSaveNew(){
 }
 // ---- service console (one case, full page) ----
 async function csOpen(id){
+  if(csPartsOnly()){await csFetch();renderCases();return;}
   var c=csFind(id);
   if(!c){await csFetch();c=csFind(id);if(!c){toast('الشكوى غير متاحة لك',true);return;}}
   _csView=id;
@@ -7299,6 +7333,7 @@ async function csReqRespond(rid,status){
   var r=await db.rpc('case_request_respond',{p_id:rid,p_status:status,p:{note:n?n.value.trim():'',eta:e?e.value:''}});
   if(r.error){toast(r.error.message,true);return;}
   toast('تم تسجيل الرد');
+  if(csPartsOnly()){await csFetch();renderCases();return;}
   await csRefreshCase(_csView);
 }
 function csMgrOptions(){
@@ -7382,7 +7417,7 @@ async function csCreateOrder(id){
   var c=csFind(id);if(!c)return;
   if(!can('tasks')){toast('غير مسموح بإنشاء طلبات',true);return;}
   var cust=null;
-  if(c.customer_id){var r=await db.from('customers').select('id,full_name,phone,address').eq('id',c.customer_id).limit(1);cust=(r.data||[])[0]||null;}
+  if(c.customer_id){cust=await custPick(c.customer_id,'case order');}
   openNT();
   window._ntCase={id:c.id,case_num:c.case_num};
   setTimeout(function(){
@@ -8198,7 +8233,7 @@ function ntRec(){
 async function cSearch(v){
   var box=document.getElementById('csg');
   if(v.trim().length<3){box.style.display='none';return;}
-  var{data}=await db.from('customers').select('id,full_name,phone,address,addresses').or(('full_name.ilike.%'+(v)+'%,phone.ilike.%'+(v)+'%')).limit(6);
+  var data=await custSearchRpc(v.trim());
   if(!data?.length){box.style.display='none';return;}
   box.style.display='block';box.innerHTML='';
   data.forEach(function(c){
@@ -8207,7 +8242,7 @@ async function cSearch(v){
     d.onmouseover=function(){d.style.background='#f5f5f0';};d.onmouseout=function(){d.style.background='';};
     d.innerHTML='<div style="font-weight:700">'+c.full_name+'</div><div style="font-size:11px;color:#888">'+(c.phone||'')+'</div>';
     d.onclick=async function(){
-      logCust('attach',c,'order');
+      var _full=await custPick(c.id,'order');if(!_full)return;c=_full;
       scid=c.id;
       document.getElementById('ncav').textContent=ini(c.full_name);
       document.getElementById('ncnm').textContent=c.full_name;
@@ -9171,8 +9206,8 @@ async function convertBooking(id){
   var phoneVal=(bk.phone||'').trim();
   try{
     if(phoneVal){
-      var cr=await db.from('customers').select('id').eq('phone',phoneVal).limit(1);
-      if(cr.data&&cr.data.length)custId=cr.data[0].id;
+      var cr=await custPhoneCheck(phoneVal);
+      if(cr&&cr.id)custId=cr.id;
     }
     if(!custId){
       var addr=bk.address||bk.from_address||'';
@@ -9359,8 +9394,8 @@ function ctSearchCust(v){
   if(v.length<3)return;
   _ctST=setTimeout(async function(){
     var dl=document.getElementById('ct-cust-list');if(!dl)return;
-    var r=await db.from('customers').select('id,full_name,phone').or('full_name.ilike.%'+v+'%,phone.ilike.%'+v+'%').limit(6);
-    dl.innerHTML=(r.data||[]).map(function(c){return '<option data-id="'+c.id+'" data-phone="'+(c.phone||'')+'" value="'+(c.full_name||'').replace(/"/g,'')+'">';}).join('');
+    var _cr=await custSearchRpc(v);
+    dl.innerHTML=_cr.map(function(c){return '<option data-id="'+c.id+'" data-phone="" value="'+(c.full_name||'').replace(/"/g,'')+'">';}).join('');
     ctPickCust();
   },250);
 }
@@ -9368,7 +9403,10 @@ function ctPickCust(){
   var inp=document.getElementById('ct-cust');var dl=document.getElementById('ct-cust-list');
   if(!inp||!dl)return;
   for(var i=0;i<dl.options.length;i++){
-    if(dl.options[i].value===inp.value){document.getElementById('ct-phone').value=dl.options[i].dataset.phone||'';inp.dataset.custId=dl.options[i].dataset.id||'';logCust('attach',{id:dl.options[i].dataset.id,full_name:inp.value},'contract');break;}
+    if(dl.options[i].value===inp.value){
+      var _pid=dl.options[i].dataset.id||'';
+      if(_pid&&inp.dataset.custId!==_pid){inp.dataset.custId=_pid;custPick(_pid,'contract').then(function(f){if(f){var ph=document.getElementById('ct-phone');if(ph)ph.value=f.phone||'';}else{inp.dataset.custId='';}});}
+      break;}
   }
 }
 function ctTierChange(){
