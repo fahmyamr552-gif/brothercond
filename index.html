@@ -468,7 +468,7 @@ td{padding:10px 12px;border-color:#edf1ee;overflow-wrap:anywhere}
 <div class="mn">
 <div class="tb">
   <button class="hamburger" onclick="toggleSidebar()" style="display:none;background:none;border:none;font-size:22px;cursor:pointer;padding:4px 10px;color:#333">&#9776;</button>
-  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-12-02</span>
+  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-12-06</span>
   <div style="display:flex;align-items:center;gap:8px"><div class="lang-btns"><button class="lbtn on" onclick="setLang('en',this)">EN</button><button class="lbtn" onclick="setLang('ar',this)">عربي</button></div><div id="tact" style="display:flex;gap:7px"></div></div>
 </div>
 <div class="ct">
@@ -737,10 +737,10 @@ td{padding:10px 12px;border-color:#edf1ee;overflow-wrap:anywhere}
   </div>
   <div id="ti-sub" style="display:none">
     <div class="cd">
-      <div class="sh">Sub-tasks
-        <button class="btn bs bp" style="margin-left:8px" onclick="openSubForm()">+ New sub-task</button>
+      <div class="sh" dir="rtl">المهام الفرعية
+        <button class="btn bs bp" style="margin-right:8px" onclick="subNew()">+ مهمة فرعية جديدة</button>
       </div>
-      <div style="font-size:12px;color:#888;margin-bottom:10px">Sub-tasks are follow-up visits linked to this order</div>
+      <div dir="rtl" style="font-size:12px;color:#888;margin-bottom:10px">المهمة الفرعية طلب كامل مرتبط بهذا الطلب (نفس العميل) — يمكن أن يكون من نوع مختلف، وله بنوده وحسابه ومدفوعاته المستقلة.</div>
       <div id="subl"></div>
     </div>
     <!-- Sub-task form -->
@@ -1981,6 +1981,7 @@ async function openTask(id){
     CT.spUsed=spUsedData||[];
     go('td',null);
     try{csTaskBanner(CT);}catch(e){}
+    try{subTaskBanner(CT);}catch(e){}
     try{qtLoad();}catch(e){}
     const S=(id)=>document.getElementById(id);
     const isLocked2=CT.pay_status==='paid'&&!roleIn(['owner','admin','finance']);
@@ -2014,6 +2015,7 @@ async function openTask(id){
           b.className='ss'+(CT.status===s.k?' '+s.c:'');
           b.textContent=s.l;
           b.onclick=async()=>{
+            if(!(await subOpenWarn(CT.id,s.k)))return;
             await db.from('tasks').update({status:s.k}).eq('id',CT.id);
             syncContractVisitFromTask(CT.id,s.k);
             CT.status=s.k;
@@ -2698,6 +2700,7 @@ async function saveComp(){
   if(!techName2){toast('Technician name is required',true);document.getElementById('ctech-name')?.focus();return;}
   if(!compTime2){toast('Completion time is required',true);document.getElementById('cdt')?.focus();return;}
   if(!compNotes2){toast('Work done description is required',true);document.getElementById('cdn')?.focus();return;}
+  if(!(await subOpenWarn(CT.id,'done')))return;
   const{error}=await db.from('tasks').update({
     completion_notes:compNotes2,
     completion_time:compTime2,
@@ -2761,38 +2764,96 @@ async function saveSubTask(){
   loadSubTasks();
 }
 
+function addSub(){subNew();}
+function openSubForm(){subNew();}
+
+// ══════════ SUB-TASKS (linked orders) ══════════
+function subRootNum(num){return String(num||'').split('-')[0];}
+async function subNew(){
+  if(!CT){return;}
+  if(!can('tasks')){toast('غير مسموح بإنشاء طلبات',true);return;}
+  var par={id:CT.parent_task_id||CT.id,task_num:subRootNum(CT.task_num),customer_id:CT.customer_id,customer_name:CT.customer_name,branch:CT.branch,address:CT.address||''};
+  var cust=CT.cust||null;
+  openNT();
+  window._ntParent=par;
+  setTimeout(function(){
+    var g=function(i){return document.getElementById(i);};
+    var pg=g('pg-nt');
+    if(pg&&!g('nt-sub-banner')){
+      var b=document.createElement('div');b.id='nt-sub-banner';b.dir='rtl';
+      b.style.cssText='background:#F1F8F4;border:1px solid #BFE3CF;color:#0F6E56;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;font-weight:700;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap';
+      b.innerHTML='<span>🔗 مهمة فرعية للطلب '+plEsc(par.task_num)+' — '+plEsc(par.customer_name||'')+'</span>'+csBtn('إلغاء الربط','subUnlink()','#888');
+      pg.insertBefore(b,pg.firstChild);
+    }
+    scid=par.customer_id||null;
+    var nm=par.customer_name||'';
+    if(g('ncav'))g('ncav').textContent=ini(nm);
+    if(g('ncnm'))g('ncnm').textContent=nm;
+    if(g('ncph'))g('ncph').textContent=cust?((cust.phone||'')+(cust.address?' - '+cust.address:'')):'';
+    if(g('sct'))g('sct').style.display='flex';
+    if(g('nt-task-address'))g('nt-task-address').value=par.address||(cust&&cust.address)||'';
+    if(g('ntbr')&&par.branch){try{g('ntbr').value=par.branch;}catch(e){}}
+  },350);
+}
+function subUnlink(){window._ntParent=null;var b=document.getElementById('nt-sub-banner');if(b)b.remove();toast('تم إلغاء الربط — سيُحفظ كطلب مستقل');}
+// Next sub number for a parent: #00634-1, #00634-2 ...
+async function subNextNum(parentNum){
+  var r=await db.from('tasks').select('task_num').like('task_num',parentNum+'-%').limit(1000);
+  if(r.error){throw new Error(r.error.message);}
+  var mx=0;(r.data||[]).forEach(function(x){var m=String(x.task_num||'').slice(parentNum.length+1).match(/^[0-9]+/);var n=m?parseInt(m[0],10):0;if(n>mx)mx=n;});
+  return parentNum+'-'+(mx+1);
+}
+function subTaskBanner(task){
+  var pg=document.getElementById('pg-td');if(!pg)return;
+  var b=document.getElementById('td-sub-banner');
+  if(!task||!task.parent_task_id){if(b)b.remove();return;}
+  if(!b){b=document.createElement('div');b.id='td-sub-banner';b.dir='rtl';pg.insertBefore(b,pg.firstChild);}
+  b.style.cssText='background:#F1F8F4;border:1px solid #BFE3CF;color:#0F6E56;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;font-weight:700;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap';
+  b.innerHTML='<span>🔗 مهمة فرعية من الطلب '+plEsc(subRootNum(task.task_num))+'</span>'+csBtn('فتح الطلب الأصلي','openTask(\''+task.parent_task_id+'\')','#0F6E56');
+}
+// Warn (do not block) when closing an order that still has open sub-tasks
+async function subOpenWarn(taskId,newStatus){
+  if(newStatus!=='done'&&newStatus!=='field_done')return true;
+  try{
+    var r=await db.from('tasks').select('task_num,status').eq('parent_task_id',taskId).in('status',['pending','progress']);
+    var open=r.data||[];
+    if(!open.length)return true;
+    return confirm('تنبيه: يوجد '+open.length+' مهمة فرعية لم تكتمل بعد:\n'+open.map(function(x){return x.task_num;}).join('، ')+'\n\nهل تريد إتمام الطلب الأصلي على أي حال؟');
+  }catch(e){return true;}
+}
 async function loadSubTasks(){
   if(!CT)return;
-  const{data,error}=await db.from('tasks').select('*,task_products(qty,price)').eq('parent_task_id',CT.id).order('created_at',{ascending:false});
-  const list=document.getElementById('subl');list.innerHTML='';
-  if(error){
-    if(error.message&&error.message.includes('parent_task_id')){
-      list.innerHTML='<div style="background:#FAEEDA;border:1px solid #EF9F27;border-radius:8px;padding:12px;font-size:12px;color:#854F0B">'+'<b>One-time setup needed:</b><br>Run this in your Supabase SQL editor:<br> <code style="background:#fff;padding:3px 6px;border-radius:4px;font-size:11px;display:block;margin-top:5px">alter table tasks add column if not exists parent_task_id uuid;</code> </div>\';\'';
-    } else {
-      list.innerHTML='<div style="font-size:12px;color:#A32D2D;padding:8px 0">Error: '+error.message+'</div>';
-    }
-    return;
-  }
-  if(!data?.length){list.innerHTML='<div style="font-size:12px;color:#888;padding:8px 0">'+t('nosubsections')+'</div>';return;}
-  const sm={pending:'a',progress:'b',done:'g',cancel:'r'};
-  const sl={pending:'Pending',progress:'In progress',done:'Completed',cancel:'Cancelled'};
-  data.forEach(st=>{
-    const gr=(st.task_products||[]).reduce((a,p)=>a+p.qty*p.price,0);
-    const d=document.createElement('div');
-    d.style.cssText='display:flex;align-items:center;gap:10px;padding:10px;background:#f9f9f6;border:1px solid #e0ddd8;border-radius:8px;margin-bottom:7px;cursor:pointer';
-    d.innerHTML='<div style="flex:1"><div style="font-weight:700">'+st.task_num+' . '+st.type+'</div><div style="font-size:11px;color:#888;margin-top:2px">'+(st.date||'-')+' . '+st.salesperson+' . '+(st.description||'-')+'</div>'+(gr>0?'<div style="font-size:12px;color:#1D9E75;font-weight:700;margin-top:3px">'+f(gr)+'</div>':'')+'</div><span class="bx '+(sm[st.status]||'gr')+'">'+(sl[st.status]||st.status)+'</span><span style="font-size:18px;color:#ccc">&gt;</span>';
-
-
-    list.appendChild(d);
+  var list=document.getElementById('subl');if(!list)return;
+  list.dir='rtl';list.innerHTML='<div style="font-size:12px;color:#888;padding:8px 0">جارٍ التحميل...</div>';
+  var rootId=CT.parent_task_id||CT.id;
+  var r=await db.from('tasks').select('id,task_num,type,date,status,pay_status,discount_amount,discount_percent,task_products(qty,price)').eq('parent_task_id',rootId).order('created_at',{ascending:true});
+  if(r.error){list.innerHTML='<div style="font-size:12px;color:#A32D2D;padding:8px 0">خطأ: '+plEsc(r.error.message)+'</div>';return;}
+  var data=r.data||[];
+  if(!data.length){list.innerHTML='<div style="font-size:12px;color:#888;padding:8px 0">لا توجد مهام فرعية لهذا الطلب.</div>';return;}
+  var sc={pending:'#B7791F',progress:'#1E6FB8',field_done:'#128C5E',done:'#128C5E',cancel:'#A32D2D'};
+  var sl={pending:'قيد الانتظار',progress:'جارٍ التنفيذ',field_done:'تم ميدانياً',done:'مكتمل',cancel:'ملغي'};
+  var pl={paid:'مدفوع',partial:'مدفوع جزئياً',unpaid:'غير مدفوع'};
+  var h='';
+  data.forEach(function(st){
+    var gr=(st.task_products||[]).reduce(function(a,p){return a+(parseFloat(p.qty)||0)*(parseFloat(p.price)||0);},0);
+    var c=sc[st.status]||'#888';var cur=(st.id===CT.id);
+    h+='<div onclick="openTask(\''+st.id+'\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:'+(cur?'#F1F8F4':'#f9f9f6')+';border:1px solid '+(cur?'#BFE3CF':'#e0ddd8')+';border-radius:8px;margin-bottom:7px;cursor:pointer">'
+      +'<div style="flex:1;min-width:0"><div style="font-weight:700">'+plEsc(st.task_num)+' · '+plEsc(typeLabels[st.type]||st.type||'')+(cur?' <span style="font-size:11px;color:#0F6E56">(الحالي)</span>':'')+'</div>'
+      +'<div style="font-size:11px;color:#888;margin-top:2px">'+plEsc(st.date||'-')+(st.status!=='cancel'?' · '+(pl[st.pay_status]||''):'')+'</div></div>'
+      +'<div style="font-size:12px;font-weight:700;color:#1D9E75;white-space:nowrap">'+f(gr)+'</div>'
+      +'<span style="font-size:11px;font-weight:700;color:'+c+';background:'+c+'18;border-radius:6px;padding:3px 8px;white-space:nowrap">'+(sl[st.status]||plEsc(st.status||''))+'</span></div>';
   });
+  list.innerHTML=h;
 }
+// ══════════ END SUB-TASKS ══════════
 
-function addSub(){openSubForm();}
 function handleUp(input){const grid=document.getElementById('pgr');Array.from(input.files).forEach(f2=>{const d=document.createElement('div');d.style.cssText='aspect-ratio:1;border-radius:8px;border:1px solid #e0ddd8;background:#f5f5f0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:3px;font-size:10px;color:#888;overflow:hidden';if(f2.type.startsWith('image/')){const img=document.createElement('img');img.style='width:100%;height:100%;object-fit:cover';const r=new FileReader();r.onload=e=>img.src=e.target.result;r.readAsDataURL(f2);d.appendChild(img);}else{d.innerHTML=('<span>&#128196;</span><span>'+(f2.name.slice(0,10))+'</span>');}grid.appendChild(d);});}
 
 async function deleteTask(){
   if(!CT)return;
   if(!CU||CU.role!=='owner'){toast('فقط المالك يمكنه حذف الطلبات',true);return;}
+  var _kids=await db.from('tasks').select('task_num').eq('parent_task_id',CT.id).limit(50);
+  if(_kids.data&&_kids.data.length){toast('لا يمكن حذف طلب له مهام فرعية ('+_kids.data.map(function(x){return x.task_num;}).join('، ')+') — احذف أو ألغِ المهام الفرعية أولاً',true);return;}
   if(!confirm(t('taskdelconfirm')+' '+CT.task_num))return;
   // Restore inventory for sales tasks (direct products AND bundles)
   if(CT.type==='sales'){
@@ -3084,7 +3145,7 @@ function custPdf(type){
   var status=gr<=0?'nc':(rem<=0?'paid':(pd>0?'part':'un'));
   var ti=CP_TITLE[type];
   var year=(CT.date||CT.completion_time||'').toString().slice(0,4)||new Date().getFullYear();
-  var tdig=(CT.task_num||'').replace(/[^0-9]/g,'')||'0';
+  var tdig=(CT.task_num||'').replace(/[^0-9-]/g,'')||'0';
   var ref=ti[2]+'-'+year+'-'+tdig;
   var svc=(typeof typeLabels!=='undefined'&&typeLabels[CT.type])?typeLabels[CT.type]:CT.type;
 
@@ -3182,6 +3243,7 @@ function custPdf(type){
 
 function openNT(){
   window._ntCase=null;var _ncb=document.getElementById('nt-case-banner');if(_ncb)_ncb.remove();
+  window._ntParent=null;var _nsb=document.getElementById('nt-sub-banner');if(_nsb)_nsb.remove();
   go('nt',null);
   scid=null;
   document.getElementById('ntb').innerHTML='';
@@ -3798,9 +3860,7 @@ async function refundDirectSale(dispId){
       try{await db.from('payments').delete().eq('task_id',tk.id);}catch(e){}
     }
     // 3) generate a return serial number
-    var{data:lastRet}=await db.from('dispatches').select('return_num').not('return_num','is',null).order('returned_at',{ascending:false}).limit(1);
-    var lastN=lastRet&&lastRet.length?parseInt((lastRet[0].return_num||'0').replace(/[^0-9]/g,''))||0:0;
-    var retNum='RET-'+String(lastN+1).padStart(5,'0');
+    var retNum=await bcNextNum('dispatches','return_num','RET-',5);
     // 4) Create a SEPARATE return dispatch record (original sale dispatch stays untouched).
     var nowISO=new Date().toISOString();
     var{data:retDisp}=await db.from('dispatches').insert({
@@ -4466,6 +4526,15 @@ async function openNewDispatch(){
 }
 
 
+// Next serial number: highest existing number with this prefix + 1 (never "the most recently created row")
+async function bcNextNum(table,col,prefix,pad){
+  var r=await db.from(table).select(col).like(col,prefix+'%').order(col,{ascending:false}).limit(1);
+  if(r.error){throw new Error('تعذر توليد الرقم التسلسلي: '+r.error.message);}
+  var last=(r.data&&r.data.length)?(r.data[0][col]||''):'';
+  var m=String(last).slice(prefix.length).match(/^[0-9]+/);
+  var n=m?parseInt(m[0],10):0;
+  return prefix+String(n+1).padStart(pad,'0');
+}
 async function saveNewDispatch(){
   var dispType=document.querySelector('input[name="disp-type"]:checked')?.value||'عادي';
   var warehouse=document.querySelector('input[name="disp-wh"]:checked')?.value||'مخزن تجمع';
@@ -4492,10 +4561,7 @@ async function saveNewDispatch(){
   var resetBtn=function(){if(btn){btn.disabled=false;btn.textContent='✓ إنشاء التوزيع';}};
   // Create dispatch record
   // Generate serial dispatch number
-  var{data:lastDisp}=await db.from('dispatches').select('dispatch_num').not('dispatch_num','is',null).order('dispatch_num',{ascending:false}).limit(1);
-  var lastDN=(lastDisp&&lastDisp.length)?lastDisp[0].dispatch_num:'DS-00000';
-  var lastDNum=parseInt((lastDN||'DS-00000').replace(/[^0-9]/g,''))||0;
-  var dispatchNum='DS-'+String(lastDNum+1).padStart(5,'0');
+  var dispatchNum=await bcNextNum('dispatches','dispatch_num','DS-',5);
   var{data:disp,error}=await db.from('dispatches').insert({
     dispatch_num:dispatchNum,
     technician_name:tech||'بيع مباشر',date:date,notes:notes,
@@ -4550,9 +4616,7 @@ async function saveNewDispatch(){
       if(nc.data)custId=nc.data.id;
     }
     // Next task number
-    var lt=await db.from('tasks').select('task_num').order('created_at',{ascending:false}).limit(1);
-    var lastN=lt.data&&lt.data.length?parseInt((lt.data[0].task_num||'0').replace(/[^0-9]/g,''))||0:0;
-    var taskNum='#'+String(lastN+1).padStart(5,'0');
+    var taskNum=await bcNextNum('tasks','task_num','#',5);
     // Create task
     var ps=totalWithTax>0?'unpaid':'unpaid';
     var st=await db.from('tasks').insert({
@@ -5296,7 +5360,8 @@ function updatePOItemCost(inp){
 }
 
 async function financeConfirmPO(poId){
-  var inputs=document.querySelectorAll('.po-cost-inp');
+  var _pms=document.querySelectorAll('.po-modal');var _scope=_pms.length?_pms[_pms.length-1]:document;
+  var inputs=_scope.querySelectorAll('.po-cost-inp');
   if(!inputs.length){toast('لا توجد منتجات',true);return;}
   var tot=0;var saved=0;var errors=[];
   for(var i=0;i<inputs.length;i++){
@@ -5630,10 +5695,7 @@ async function savePO(){
   if(!items.length){toast('Add at least one valid product',true);return;}
   var tot=items.reduce(function(a,it){return a+it.qty*it.price;},0);
   // Generate PO number
-  var{data:lastPO}=await db.from('purchase_orders').select('po_num').order('created_at',{ascending:false}).limit(1);
-  var lastPN=lastPO&&lastPO.length?lastPO[0].po_num:'PO-00000';
-  var lastPNum=parseInt((lastPN||'PO-00000').replace(/[^0-9]/g,''))||0;
-  var poNum='PO-'+String(lastPNum+1).padStart(5,'0');
+  var poNum=await bcNextNum('purchase_orders','po_num','PO-',5);
   var{data:po,error}=await db.from('purchase_orders').insert({po_num:poNum,supplier_id:supId||null,supplier_name:supNm,date:date,total:0,status:'draft',warehouse:warehouse,notes:document.getElementById('ponotes')?.value,expected_delivery:document.getElementById('podel')?.value}).select().single();
   if(error){toast('Error: '+error.message,true);return;}
   var poItems=items.map(function(it){return{po_id:po.id,inventory_id:it.inventory_id||null,spare_part_id:it.spare_part_id||null,product_name:it.product_name||null,qty:it.qty,unit_cost:it.unit_cost||0,qty_received:0};});
@@ -5661,6 +5723,7 @@ async function openPODetail(poId){
   var invMap={};var spMap={};
   if(invIds.length){var{data:invData}=await db.from('inventory').select('id,brand,model,hp,qty').in('id',invIds);(invData||[]).forEach(function(inv){invMap[inv.id]={name:inv.brand+' '+inv.model+' '+inv.hp+'HP',qty:inv.qty};});}
   if(spIds.length){var{data:spData}=await db.from('spare_parts').select('id,name').in('id',spIds);(spData||[]).forEach(function(sp){spMap[sp.id]=sp.name;});}
+  document.querySelectorAll('.po-modal').forEach(function(e){e.remove();});
   var overlay=document.createElement('div');overlay.className='po-modal';
   overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9000;display:flex;align-items:center;justify-content:center';
   overlay.onclick=function(e){if(e.target===overlay)overlay.remove();};
@@ -6279,9 +6342,7 @@ async function saveEmp(){
     toast('تم تحديث بيانات الموظف');
   }else{
     // Generate emp_id
-    var{data:last}=await db.from('employees').select('emp_id').order('created_at',{ascending:false}).limit(1).single();
-    var lastNum=last?parseInt((last.emp_id||'EMP-000').split('-')[1])||0:0;
-    var newId='EMP-'+String(lastNum+1).padStart(3,'0');
+    var newId=await bcNextNum('employees','emp_id','EMP-',3);
     var{error}=await db.from('employees').insert({emp_id:newId,full_name:name,phone:phone,position:pos,branch:branch,active:true});
     if(error){toast('خطأ: '+error.message,true);return;}
     toast('تم إضافة الموظف '+newId);
@@ -7928,8 +7989,9 @@ async function saveTask(){
   }
   if(!customerName||customerName==='-'||customerName===''){toast('Please select or add a customer',true);return;}
   var today=document.getElementById('ntdate')?.value||new Date().toISOString().slice(0,10);
-  // Duplicate check
-  if(customerName){
+  // Duplicate check (skipped for a sub-task: the parent order is expected to be open)
+  var _par=window._ntParent||null;
+  if(customerName&&!_par){
     var pendQ=db.from('tasks').select('task_num,status,type,date').in('status',['pending','progress']);
     if(scid){pendQ=pendQ.eq('customer_id',scid);}else{pendQ=pendQ.eq('customer_name',customerName);}
     var{data:pendTasks}=await pendQ;
@@ -7953,13 +8015,11 @@ async function saveTask(){
     }
   }
   // Sequential task number
-  var{data:lastTask}=await db.from('tasks').select('task_num').order('created_at',{ascending:false}).limit(1);
-  var lastTNum=lastTask&&lastTask.length?lastTask[0].task_num:'#00000';
-  var lastNum=parseInt((lastTNum||'#00000').replace(/[^0-9]/g,''))||0;
-  var tnum='#'+String(lastNum+1).padStart(5,'0');
+  var tnum;
+  try{tnum=_par?await subNextNum(_par.task_num):await bcNextNum('tasks','task_num','#',5);}catch(e){toast(e.message,true);return;}
   var taskType=document.getElementById('ntt')?.value||'maintenance';
   var{data:task,error:te}=await db.from('tasks').insert({
-    task_num:tnum,customer_id:cid,customer_name:customerName,
+    task_num:tnum,customer_id:cid,customer_name:customerName,parent_task_id:_par?_par.id:null,
     type:taskType,
     branch:document.getElementById('ntbr')?.value,
     salesperson:document.getElementById('ntsp')?.value,
@@ -7976,6 +8036,7 @@ async function saveTask(){
     installation_status:null
   }).select().single();
   if(te){toast('Error: '+te.message,true);return;}
+  window._ntParent=null;
   var rows=taskRows.map(function(r){return{task_id:task.id,name:r.name,qty:r.qty,price:r.price,inventory_id:r.pid||null,bundle_id:r.bundleId||null};});
   if(rows.length){
     var{error:re}=await db.from('task_products').insert(rows);
@@ -8372,6 +8433,7 @@ function planStatusDropdown(taskId,status){
 }
 
 async function savePlanStatus(taskId,newStatus){
+  if(!(await subOpenWarn(taskId,newStatus))){try{loadPlan();}catch(e){}return;}
   var{error}=await db.from('tasks').update({status:newStatus}).eq('id',taskId);
   if(error){toast('Error: '+error.message,true);return;}
   syncContractVisitFromTask(taskId,newStatus);
@@ -9128,9 +9190,7 @@ async function convertBooking(id){
   var typeMap={'صيانة':'maintenance','تركيب':'installation','فك و تركيب':'uninstall_install','سحب':'pull','بيع جهاز':'sales','أخرى':'maintenance'};
   var ttype=typeMap[bk.service_type]||'maintenance';
   // Next task number
-  var lt=await db.from('tasks').select('task_num').order('created_at',{ascending:false}).limit(1);
-  var lastN=lt.data&&lt.data.length?parseInt((lt.data[0].task_num||'0').replace(/[^0-9]/g,''))||0:0;
-  var tnum='#'+String(lastN+1).padStart(5,'0');
+  var tnum=await bcNextNum('tasks','task_num','#',5);
   // Description = the customer's problem/notes only (products & time go to their own fields)
   var desc=(bk.problem||'').trim()||bk.service_type||'حجز أونلاين';
   var ins=await db.from('tasks').insert({
@@ -9414,9 +9474,7 @@ async function createTaskFromVisit(vid,cid){
   var c=cr.data;if(!c)return;
   if(!confirm('إنشاء مهمة صيانة لزيارة '+(v.scheduled_date||'')+'؟'))return;
   // next task number
-  var lt=await db.from('tasks').select('task_num').order('created_at',{ascending:false}).limit(1);
-  var lastN=lt.data&&lt.data.length?parseInt((lt.data[0].task_num||'0').replace(/[^0-9]/g,''))||0:0;
-  var tnum='#'+String(lastN+1).padStart(5,'0');
+  var tnum=await bcNextNum('tasks','task_num','#',5);
   var ins=await db.from('tasks').insert({
     task_num:tnum,customer_id:c.customer_id||null,customer_name:c.customer_name,
     type:'maintenance',branch:'Head Office',
