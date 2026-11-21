@@ -468,7 +468,7 @@ td{padding:10px 12px;border-color:#edf1ee;overflow-wrap:anywhere}
 <div class="mn">
 <div class="tb">
   <button class="hamburger" onclick="toggleSidebar()" style="display:none;background:none;border:none;font-size:22px;cursor:pointer;padding:4px 10px;color:#333">&#9776;</button>
-  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-12-10</span>
+  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-12-11</span>
   <div style="display:flex;align-items:center;gap:8px"><div class="lang-btns"><button class="lbtn on" onclick="setLang('en',this)">EN</button><button class="lbtn" onclick="setLang('ar',this)">عربي</button></div><div id="tact" style="display:flex;gap:7px"></div></div>
 </div>
 <div class="ct">
@@ -5972,12 +5972,58 @@ function finCashChart(months){
   return s+'</svg>'+finLegend([[la,'#3B6D11','box'],[lb,'#A32D2D','box']]);
 }
 function finReviewLbl(k){return ({overpaid:L('دفع زائد عن قيمة الطلب','Paid more than the order total'),paid_no_priced_lines:L('مدفوع بدون بنود مسعّرة','Paid with no priced lines'),cancelled_with_payment:L('طلب ملغي عليه دفعة — لا يوجد استرداد مسجّل','Cancelled order with a payment — no refund recorded'),awaiting_approval:L('دفعة بانتظار التحقق','Payment awaiting verification')})[k]||k;}
+var FIN_AC=null;
+// AC sales performance — figures from database function fin_ac_sales (same filters as the rest of the dashboard)
+function finAcSection(){
+  var a=FIN_AC;if(!a)return '';
+  var num=function(x){return parseFloat(x)||0;},pl=finPeriodLbl(),bl=finBranchLbl(),al=LANG==='ar'?'right':'left';
+  var th=function(x){return '<th style="padding:7px 8px;text-align:'+al+'">'+x+'</th>';},td=function(x,s){return '<td style="padding:7px 8px;'+(s||'')+'">'+x+'</td>';};
+  var bs=a.by_source||{},pe=a.pending||{},co=a.cost||{},st=a.standalone||{},pu=a.purchased||{};
+  var src=function(k){return num((bs[k]||{}).units);};
+  var h='<div class="cd" style="margin-bottom:12px"><div class="sh">'+L('أداء مبيعات التكييفات','AC sales performance')+'<span style="font-size:11px;font-weight:400;color:#888;margin-inline-start:8px">'+plEsc(pl)+' · '+plEsc(bl)+' · '+L('طلبات بيع منفّذة فقط','completed sales orders only')+'</span></div>';
+  h+='<div class="r4" style="margin-bottom:10px">'
+    +finCard(L('تكييفات مباعة','AC units sold'),finNum(a.units)+' '+L('وحدة','units'),num(a.orders)+' '+L('طلب بيع','sales orders'))
+    +finCard(L('إيراد مبيعات التكييفات','AC sales revenue'),finM(a.revenue),L('بعد الخصم · بدون الإكسسوارات والتركيب','After discount · excludes accessories and installation'))
+    +finCard(L('متوسط سعر بيع الوحدة','Average selling price per unit'),a.avg_price==null?'—':finM(a.avg_price),'')
+    +finCard(L('وحدات على طلبات لم تُنفّذ','Units on orders not yet carried out'),finNum(pe.units)+' '+L('وحدة','units'),L('القيمة: ','Value: ')+finNum(pe.value)+' · '+L('غير محسوبة ضمن المباع','not counted as sold'),'#854F0B')+'</div>';
+  h+='<div style="font-size:11.5px;color:#666;margin-bottom:10px;line-height:1.7">'+L('طريقة العد: ','How units are counted: ')+L('جهاز كامل = وحدة','complete product = 1 unit')+' ('+src('complete')+') · '+L('طقم مجمّع = وحدة','kit = 1 unit')+' ('+src('kit')+') · '+L('فانة + كباس على نفس الطلب = وحدة واحدة','indoor + outdoor on the same order = 1 unit')+' ('+src('pair')+')</div>';
+  if(num(st.indoor)+num(st.outdoor)>0)h+='<div style="background:#FAEEDA;border:1px solid #EF9F27;border-radius:8px;padding:9px 12px;font-size:12px;color:#7A5000;margin-bottom:10px">'+L('قطع مباعة منفردة (غير محسوبة كأجهزة كاملة): ','Parts sold on their own (not counted as complete units): ')+num(st.indoor)+' '+L('فانة','indoor')+' · '+num(st.outdoor)+' '+L('كباس','outdoor')+' · '+finM(st.revenue)+' — '+(st.orders||[]).map(function(x){return plEsc(x.task_num);}).join('، ')+'</div>';
+  var bars=function(rows,lbl,color){var mx=1;rows.forEach(function(r){mx=Math.max(mx,num(r.units));});return rows.length?rows.map(function(r){return '<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:3px"><span><b>'+lbl(r)+'</b></span><span style="font-weight:700">'+finNum(r.units)+' <span style="color:#888;font-weight:400">· '+finNum(r.revenue)+'</span></span></div><div class="pbw"><div class="pbb" style="width:'+Math.round(num(r.units)/mx*100)+'%;background:'+color+'"></div></div></div>';}).join(''):'<div style="font-size:12px;color:#888">'+L('لا توجد مبيعات في هذه الفترة','No sales in this period')+'</div>';};
+  var sub=function(ti,inner){return '<div><div style="font-size:12px;font-weight:700;color:#5f6f67;margin-bottom:8px">'+ti+'</div>'+inner+'</div>';};
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px;margin-bottom:14px">'
+    +sub(L('حسب الماركة (وحدات · إيراد)','By brand (units · revenue)'),bars(a.by_brand||[],function(r){return plEsc(r.brand||L('غير مصنّف','Unclassified'));},'#185FA5'))
+    +sub(L('حسب القدرة (وحدات · إيراد)','By capacity (units · revenue)'),bars(a.by_hp||[],function(r){return r.hp==null?L('غير مصنّف','Unclassified'):(finHp(r.hp)+' '+L('حصان','HP'));},'#1D9E75'))+'</div>';
+  var mt='<div class="tw"><table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr style="background:#f9f9f6">'+th(L('الموديل / المنتج','Model / product'))+th(L('القدرة','HP'))+th(L('وحدات','Units'))+th(L('الإيراد','Revenue'))+th(L('متوسط السعر','Avg. price'))+'</tr></thead><tbody>';
+  (a.by_model||[]).forEach(function(r){mt+='<tr style="border-bottom:1px solid #f0f0e8">'+td(plEsc(r.model||'-'),'font-weight:700')+td(r.hp==null?'-':finHp(r.hp))+td(finNum(r.units))+td(finNum(r.revenue))+td(num(r.units)?finNum(num(r.revenue)/num(r.units)):'-')+'</tr>';});
+  mt+='</tbody></table></div>';
+  var bt='<div class="tw"><table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr style="background:#f9f9f6">'+th(L('الفرع','Branch'))+th(L('وحدات','Units'))+th(L('الإيراد','Revenue'))+'</tr></thead><tbody>',bu=0,brv=0;
+  (a.by_branch||[]).forEach(function(r){bu+=num(r.units);brv+=num(r.revenue);bt+='<tr style="border-bottom:1px solid #f0f0e8">'+td(plEsc(r.branch),'font-weight:700')+td(finNum(r.units))+td(finNum(r.revenue))+'</tr>';});
+  bt+='<tr style="background:#f9f9f6;font-weight:700">'+td(L('الإجمالي','Total'))+td(finNum(bu))+td(finNum(brv))+'</tr></tbody></table></div>';
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px;margin-bottom:14px">'+sub(L('حسب الموديل / المنتج','By model / product'),(a.by_model||[]).length?mt:'<div style="font-size:12px;color:#888">'+L('لا توجد مبيعات في هذه الفترة','No sales in this period')+'</div>')+sub(L('حسب الفرع','By branch'),bt)+'</div>';
+  h+=sub(L('عدد التكييفات المباعة شهرياً','AC units sold per month')+' <span style="font-weight:400;color:#888">· '+L('آخر 12 شهراً','last 12 months')+' · '+plEsc(bl)+'</span>',finChart(a.monthly||[],function(m){return finMonthLbl(m.ym);},[['units',L('وحدات مباعة','Units sold'),'#185FA5']],null,L('عدد التكييفات المباعة شهرياً','AC units sold per month'),180));
+  var row=function(x,y,c){return '<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid #f0f0e8;font-size:12.5px"><span>'+x+'</span><span style="font-weight:700;'+(c?'color:'+c:'')+'">'+y+'</span></div>';};
+  var na='<span style="color:#888;font-weight:400">'+L('غير مسجّل في النظام','Not recorded in the system')+'</span>';
+  var cmp=row(L('مباع (طلبات بيع منفّذة)','Sold (completed sales orders)'),finNum(a.units)+' '+L('وحدة','units'))
+    +row(L('مشترى (مستلم من أوامر الشراء في الفترة · الشركة كلها)','Purchased (received on purchase orders in the period · company-wide)'),finNum(pu.units_received)+' '+L('وحدة','units'))
+    +row(L('مركّب (تم تأكيد التركيب)','Installed (installation confirmed)'),na);
+  var gp;
+  if(num(co.units_with_cost)>0){gp=row(L('وحدات لها تكلفة شراء مسجّلة','Units with a recorded purchase cost'),finNum(co.units_with_cost),'#3B6D11')+row(L('وحدات بدون تكلفة مسجّلة','Units with no recorded cost'),finNum(co.units_without_cost),num(co.units_without_cost)?'#A32D2D':'')
+    +row(L('إيراد الوحدات التي لها تكلفة','Revenue of the units with a cost'),finNum(co.revenue_with_cost))+row(L('تكلفتها','Their cost'),'− '+finNum(co.cost_total))
+    +row('<b>'+L('مجمل الربح (لهذه الوحدات فقط)','Gross profit (these units only)')+'</b>','<b>'+finNum(co.gross_profit)+'</b>',num(co.gross_profit)>=0?'#1D9E75':'#A32D2D')
+    +row(L('هامش الربح (لهذه الوحدات فقط)','Margin (these units only)'),(co.margin_pct==null?'—':co.margin_pct+'%'))
+    +'<div style="font-size:11.5px;color:#888;margin-top:8px;line-height:1.7">'+L('لا يشمل الوحدات بدون تكلفة — التكلفة الغائبة لا تُعامل كصفر. التكلفة هي المسجّلة حالياً على المنتج وليست تكلفة تاريخ البيع.','Units without a cost are left out — a missing cost is never treated as zero. Cost is the one currently recorded on the product, not the cost at the time of sale.')+'</div>';}
+  else gp='<div style="background:#FAEEDA;border:1px solid #EF9F27;border-radius:8px;padding:12px;font-size:12.5px;line-height:1.8;color:#7A5000"><b>'+L('مجمل الربح: غير متاح','Gross profit: not available')+'</b><br>'+L('لا توجد تكلفة شراء مسجّلة لأي وحدة مباعة في هذه الفترة','No sold unit in this period has a recorded purchase cost')+' ('+finNum(co.units_without_cost)+' '+L('وحدة','units')+').</div>';
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px;margin-top:14px">'+sub(L('مباع / مشترى / مركّب','Sold / purchased / installed'),cmp)+sub(L('مجمل ربح التكييفات وتغطية التكلفة','AC gross profit and cost coverage'),gp)+'</div>';
+  return h+'</div>';
+}
+function finHp(x){var v=parseFloat(x);return isNaN(v)?'-':String(v);}
 async function ceoLoad(){
   var el=document.getElementById('ceo-dash');if(!el)return;
   if(!CU||['owner','finance_manager','finance'].indexOf(CU.role)<0){el.innerHTML='';return;}
   if(!FIN)el.innerHTML='<div style="padding:18px;text-align:center;color:#888">'+L('جارٍ تحميل البيانات المالية...','Loading financial data...')+'</div>';
   var d=await finLoad();
   if(!d){el.innerHTML='<div class="cd" style="color:#A32D2D">'+L('تعذر تحميل البيانات المالية: ','Could not load financial data: ')+plEsc(FIN_ERR||'')+'</div>';return;}
+  try{var _r=finRange();var _a=await db.rpc('fin_ac_sales',{p_from:_r[0],p_to:_r[1],p_branch:FIN_F.branch||null});FIN_AC=_a.error?null:_a.data;}catch(e){FIN_AC=null;}
   FIN=d;ceoRender(el,d);
 }
 function ceoRender(el,d){
@@ -6015,6 +6061,7 @@ function ceoRender(el,d){
   (d.branches||[]).forEach(function(b){var cr=num(b.total)?Math.round(num(b.cancelled)/num(b.total)*100):0;bsum+=num(b.revenue);brt+='<tr style="border-bottom:1px solid #f0f0e8"><td style="padding:7px 8px;font-weight:700">'+plEsc(b.branch)+'</td><td style="padding:7px 8px">'+finNum(b.revenue)+'</td><td style="padding:7px 8px">'+num(b.orders)+'</td><td style="padding:7px 8px;color:#3B6D11">'+finNum(b.collected)+'</td><td style="padding:7px 8px;color:#A32D2D">'+finNum(b.receivable)+'</td><td style="padding:7px 8px">'+cr+'%</td></tr>';});
   brt+='<tr style="background:#f9f9f6;font-weight:700"><td style="padding:7px 8px">'+L('الإجمالي','Total')+'</td><td style="padding:7px 8px">'+finNum(bsum)+'</td><td colspan="4"></td></tr></tbody></table></div>';
   h+=finSec(L('أداء الفروع','Branch performance'),brt,plEsc(pl))+'</div>';
+  h+=finAcSection();
   if(d.daily&&d.daily.length>1)h+=finSec(L('الإيراد والتحصيل اليومي','Daily revenue and collections'),finChart(d.daily,function(m){return finDayLbl(m.d);},[['revenue',L('الإيراد','Revenue'),'#185FA5']],['collections',L('التحصيل النقدي','Cash collections')],L('الإيراد والتحصيل اليومي','Daily revenue and collections'),200),plEsc(pl)+' · '+plEsc(bl));
   h+=finSec(L('الإيراد الشهري حسب النشاط','Monthly revenue by activity'),finChart(d.monthly||[],function(m){return finMonthLbl(m.ym);},FIN_CATS.map(function(c){return [c[0],finCatLbl(c),c[3]];}),['collections',L('التحصيل النقدي','Cash collections')],L('الإيراد الشهري','Monthly revenue')),L('آخر 12 شهراً · حسب تاريخ الطلب · ','Last 12 months · by order date · ')+plEsc(bl));
   h+=finSec(L('التدفق النقدي الشهري','Monthly cash flow'),finCashChart(d.monthly||[]),L('آخر 12 شهراً · حسب تاريخ الدفع','Last 12 months · by payment date')+(br0?' · '+L('التحصيل للفرع، مدفوعات الموردين للشركة كلها','collections for the branch, supplier payments company-wide'):''));
