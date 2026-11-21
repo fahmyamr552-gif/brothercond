@@ -468,7 +468,7 @@ td{padding:10px 12px;border-color:#edf1ee;overflow-wrap:anywhere}
 <div class="mn">
 <div class="tb">
   <button class="hamburger" onclick="toggleSidebar()" style="display:none;background:none;border:none;font-size:22px;cursor:pointer;padding:4px 10px;color:#333">&#9776;</button>
-  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-12-08</span>
+  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-12-10</span>
   <div style="display:flex;align-items:center;gap:8px"><div class="lang-btns"><button class="lbtn on" onclick="setLang('en',this)">EN</button><button class="lbtn" onclick="setLang('ar',this)">عربي</button></div><div id="tact" style="display:flex;gap:7px"></div></div>
 </div>
 <div class="ct">
@@ -477,14 +477,10 @@ td{padding:10px 12px;border-color:#edf1ee;overflow-wrap:anywhere}
 
 <!-- DASHBOARD -->
 <div class="pg on" id="pg-dash">
-  <div class="r4" id="dstats" style="margin-bottom:14px"></div>
+  <div id="ceo-dash" style="margin-bottom:14px"></div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
     <div class="cd"><div class="sh" data-t="todaystasks">Today's tasks</div><div id="dtoday"><div style="color:#888;font-size:12px">Loading...</div></div></div>
     <div class="cd"><div class="sh" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span data-t="acavail">Available AC units</span><span id="dlow-total" style="font-size:12px;font-weight:700;color:#3B6D11"></span></div><div id="dlow" style="max-height:340px;overflow-y:auto"></div></div>
-  </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-    <div class="cd"><div class="sh" data-t="tasksbystatus">Tasks by status</div><div id="dbars"></div></div>
-    <div class="cd"><div class="sh" data-t="outstandingpayments">Outstanding payments</div><div id="dout"></div></div>
   </div>
   <div id="qapp-inbox" style="display:none;margin-top:14px"></div>
   <div id="prq-inbox" style="display:none;margin-top:14px"></div>
@@ -1143,15 +1139,22 @@ td{padding:10px 12px;border-color:#edf1ee;overflow-wrap:anywhere}
 
 <!-- FINANCE -->
 <div class="pg" id="pg-fin">
+  <div id="fin-filter"></div>
   <div class="r4" id="fstats" style="margin-bottom:14px"></div>
   <div style="display:flex;border-bottom:1px solid #e0ddd8;margin-bottom:14px;overflow-x:auto">
-    <button class="tab on" onclick="finTab('all',this)" data-t="allsales">All</button>
-    <button class="tab" onclick="finTab('sales',this)" data-t="sales">Sales</button>
-    <button class="tab" onclick="finTab('maintenance',this)" data-t="maintenance">Maintenance</button>
-    <button class="tab" onclick="finTab('installation',this)" data-t="installation">Installation</button>
-    <button class="tab" onclick="finTab('uninstall',this)" data-t="uninstall">Uninstall</button>
-    <button class="tab" onclick="finTab('expenses',this)" data-t="expenses">Expenses</button>
-    <button class="tab" onclick="finTab('outstanding',this)" data-t="outstanding">Outstanding</button>
+    <button class="tab on" data-fv="all" onclick="finTab('all',this)" data-t="allsales">All</button>
+    <button class="tab" data-fv="sales" onclick="finTab('sales',this)" data-t="sales">Sales</button>
+    <button class="tab" data-fv="maintenance" onclick="finTab('maintenance',this)" data-t="maintenance">Maintenance</button>
+    <button class="tab" data-fv="installation" onclick="finTab('installation',this)" data-t="installation">Installation</button>
+    <button class="tab" data-fv="uninstall" onclick="finTab('uninstall',this)" data-t="uninstall">Uninstall</button>
+    <button class="tab" data-fv="other" onclick="finTab('other',this)" data-t="finother">خدمات أخرى</button>
+    <button class="tab" data-fv="expenses" onclick="finTab('expenses',this)" data-t="expenses">Expenses</button>
+    <button class="tab" data-fv="outstanding" onclick="finTab('outstanding',this)" data-t="finoutstanding">Outstanding</button>
+    <button class="tab" data-fv="overdue" onclick="finTab('overdue',this)" data-t="finoverdue">متأخرات</button>
+    <button class="tab" data-fv="pending" onclick="finTab('pending',this)" data-t="finpending">طلبات لم تُنفّذ</button>
+    <button class="tab" data-fv="verification" onclick="finTab('verification',this)" data-t="finverif">بانتظار التحقق</button>
+    <button class="tab" data-fv="credit" onclick="finTab('credit',this)" data-t="fincredit">رصيد دائن</button>
+    <button class="tab" data-fv="cancelled_paid" onclick="finTab('cancelled_paid',this)" data-t="fincancpaid">ملغي عليه دفعات</button>
   </div>
   <div id="fcont"></div>
 </div>
@@ -1656,19 +1659,11 @@ function go(pg,el){
 
 async function loadDash(){
   try{
-    const[tr,ti,tp,tpo]=await Promise.all([
-      db.from('tasks').select('id,task_num,type,branch,status,date,time_slot,customer_name,pay_status,due_date,installation_date,installation_status,installation_confirmed_at'),
-      db.from('task_products').select('task_id,qty,price'),
-      db.from('payments').select('task_id,amount'),
-      db.from('po_payments').select('amount'),
-    ]);
-    const tasks=tr.data||[];const prods=ti.data||[];const pays=tp.data||[];
-    const grand=id=>{const ps=prods.filter(p=>p.task_id===id);return ps.reduce((a,p)=>a+p.qty*p.price,0);};
-    const paid=id=>{const py=pays.filter(p=>p.task_id===id);return py.reduce((a,p)=>a+p.amount,0);};
-    let rev=0,col=0,out=0;
-    tasks.forEach(t=>{const g=grand(t.id),p=paid(t.id);rev+=g;col+=p;out+=Math.max(0,g-p);});
-    const exp=(tpo.data||[]).reduce((a,p)=>a+(p.amount||0),0);
-    document.getElementById('dstats').innerHTML='<div class="sc"><div class="sl">'+t('revenue')+'</div><div class="sv">'+f(rev)+'</div></div><div class="sc"><div class="sl">'+t('collected')+'</div><div class="sv" style="color:#3B6D11">'+f(col)+'</div></div><div class="sc"><div class="sl">'+t('outstanding')+'</div><div class="sv" style="color:#A32D2D">'+f(out)+'</div></div><div class="sc"><div class="sl">Expenses</div><div class="sv">'+f(exp)+'</div></div>';
+    // Financial figures, status bars and receivables come from the shared engine (ceoLoad)
+    try{ceoLoad();}catch(e){}
+    const _td=new Date().toISOString().slice(0,10);
+    const tr=await db.from('tasks').select('id,task_num,type,branch,status,date,time_slot,customer_name').eq('date',_td).limit(500);
+    const tasks=tr.data||[];
     const today=new Date().toISOString().slice(0,10);
     const todayEl=document.getElementById('dtoday');
     const tt=tasks.filter(t=>t.date===today);
@@ -1694,23 +1689,9 @@ async function loadDash(){
         lowEl.appendChild(d);
       });
     }
-    const counts={pending:0,progress:0,done:0,cancel:0};
-    tasks.forEach(t=>{if(counts[t.status]!==undefined)counts[t.status]++;});
-    const bEl=document.getElementById('dbars');bEl.innerHTML='';
-    const tot=Math.max(1,tasks.length);
-    [{k:'pending',l:t('pending'),c:'#854F0B'},{k:'progress',l:t('inprogress'),c:'#185FA5'},{k:'field_done',l:t('fielddone'),c:'#0F6E56'},{k:'done',l:t('donewithreport'),c:'#3B6D11'},{k:'cancel',l:t('cancelled'),c:'#A32D2D'}].forEach(({k,l,c})=>{
-      const pct=Math.round(counts[k]/tot*100);const d=document.createElement('div');d.style.marginBottom='8px';
-      d.innerHTML=('<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span>'+(l)+'</span><span style="font-weight:700;color:'+(c)+'">'+(counts[k])+'</span></div><div class="pbw"><div class="pbb" style="width:'+(pct)+'%;background:'+(c)+'"></div></div>');
-      bEl.appendChild(d);
-    });
-    const oEl=document.getElementById('dout');
-    const ot=tasks.filter(t=>Math.max(0,grand(t.id)-paid(t.id))>0);
-    oEl.innerHTML=ot.length?'':'<div style="font-size:12px;color:#3B6D11">'+t('nooutstanding')+'</div>';
-    ot.slice(0,6).forEach(t=>{const rem=Math.max(0,grand(t.id)-paid(t.id));const d=document.createElement('div');d.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f0f0e8;font-size:12px;cursor:pointer';d.innerHTML=('<div><div style="font-weight:700">'+(t.customer_name||'-')+'</div><div style="font-size:11px;color:#888">'+(t.task_num)+(t.due_date?' - Due '+t.due_date:'')+'</div></div><span style="font-weight:700;color:#A32D2D">'+(f(rem))+'</span>');d.onclick=()=>openTask(t.id);oEl.appendChild(d);});
     try{qappLoadInbox('qapp-inbox');}catch(e){}
     try{prqLoadInbox('prq-inbox');}catch(e){}
-  }catch(e){console.error('Dash error:',e);document.getElementById('dstats').innerHTML=('<div style="color:#A32D2D;padding:10px">r loading data.</div>');
-  }
+  }catch(e){console.error('Dash error:',e);}
 }
 
 function selectEoiAddr(btn){
@@ -5895,25 +5876,226 @@ async function returnProducts(poId){
   };
 }
 
-async function loadFinStats(){
-  try{
-    var r1=await db.from('tasks').select('id,date,status,discount_amount,discount_percent').neq('status','cancel').limit(10000);
-    var r2=await db.from('task_products').select('task_id,qty,price').limit(20000);
-    var r3=await db.from('payments').select('task_id,amount,approved').limit(20000);
-    var tasks=r1.data||[];var prods=r2.data||[];var pays=r3.data||[];
-    var grand=function(id){return prods.filter(function(p){return p.task_id===id;}).reduce(function(a,p){return a+p.qty*p.price;},0);};
-    var paidFn=function(id){return pays.filter(function(p){return p.task_id===id&&p.approved!==false;}).reduce(function(a,p){return a+p.amount;},0);};
-    var todayStr=new Date().toISOString().split('T')[0];
-    var rev=0,col=0,out=0;
-    tasks.forEach(function(t){var g=grand(t.id);var da=parseFloat(t.discount_amount)||0;var dp=parseFloat(t.discount_percent)||0;if(da>0)g=g-da;else if(dp>0)g=g-Math.round(g*dp/100);g=Math.max(0,g);var p=paidFn(t.id);rev+=g;col+=p;if(!t.date||t.date<=todayStr){out+=Math.max(0,g-p);}});
-    var poPayR=await db.from('po_payments').select('amount');
-    var exp=poPayR.error?0:(poPayR.data||[]).reduce(function(a,p){return a+(p.amount||0);},0);
-    var el=document.getElementById('fstats');
-    if(el)el.innerHTML='<div class="sc"><div class="sl">'+t('revenue')+'</div><div class="sv">'+f(rev)+'</div></div><div class="sc"><div class="sl">'+t('collected')+'</div><div class="sv" style="color:#3B6D11">'+f(col)+'</div></div><div class="sc"><div class="sl">'+t('outstanding')+'</div><div class="sv" style="color:#A32D2D">'+f(out)+'</div></div><div class="sc"><div class="sl">'+t('netprofit')+'</div><div class="sv" style="color:#1D9E75">'+f(col-exp)+'</div></div>';
-  }catch(e){console.error('loadFinStats error:',e);}
+// ══════════ FINANCIAL ENGINE + CEO DASHBOARD ══════════
+// One source of truth: database functions fin_engine / fin_order_list. Dashboard and Finance both read from here.
+var FIN=null,FIN_ERR=null,FIN_VIEW='all';
+var FIN_F={period:'month',from:'',to:'',day:'',branch:''};
+function L(ar,en){return LANG==='ar'?ar:en;}
+var FIN_CATS=[['sales','مبيعات أجهزة','AC sales','#185FA5'],['maintenance','صيانة','Maintenance','#1D9E75'],['installation','تركيب','Installation','#C77F0A'],['uninstall','فك','Uninstall','#7A4FB5'],['other','خدمات أخرى','Other services','#7b8a82']];
+function finCatLbl(c){return L(c[1],c[2]);}
+var FIN_TYPE_EN={maintenance:'Maintenance',installation:'Installation',uninstall:'Uninstall',uninstall_install:'Uninstall & install',pull:'Pull',inspection:'Inspection',workshop:'Workshop repair',sales:'Sales','بيع مباشر':'Direct sale'};
+function finType(k){if(LANG==='ar')return (typeof typeLabels!=='undefined'&&typeLabels[k])||k||'';return FIN_TYPE_EN[k]||k||'';}
+function finNum(n){return Math.round(parseFloat(n)||0).toLocaleString('en-US');}
+function finMoney(n){return finNum(n);}
+function finM(n){return L(finNum(n)+' ج.م','EGP '+finNum(n));}
+function finIso(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+// Date ranges use the device's local calendar (Egypt time on company devices). Week = Saturday → Friday.
+function finRange(){
+  var p=FIN_F.period,n=new Date(),y=n.getFullYear(),m=n.getMonth(),d=n.getDate();
+  if(p==='today')return [finIso(n),finIso(n)];
+  if(p==='yesterday'){var yd=new Date(y,m,d-1);return [finIso(yd),finIso(yd)];}
+  if(p==='day'){var dd=FIN_F.day||finIso(n);return [dd,dd];}
+  if(p==='week'){var off=(n.getDay()+1)%7;return [finIso(new Date(y,m,d-off)),finIso(new Date(y,m,d-off+6))];}
+  if(p==='month')return [finIso(new Date(y,m,1)),finIso(new Date(y,m+1,0))];
+  if(p==='last')return [finIso(new Date(y,m-1,1)),finIso(new Date(y,m,0))];
+  if(p==='year')return [y+'-01-01',y+'-12-31'];
+  if(p==='custom'){var a=FIN_F.from||null,b=FIN_F.to||null;if(a&&b&&a>b){var x=a;a=b;b=x;}return [a,b];}
+  return [null,null];
 }
+function finPeriods(){return [['today',L('اليوم','Today')],['yesterday',L('أمس','Yesterday')],['day',L('يوم محدد','Daily (pick a day)')],['week',L('هذا الأسبوع','This week')],['month',L('هذا الشهر','This month')],['last',L('الشهر الماضي','Last month')],['year',L('هذه السنة','This year')],['all',L('كل الفترات','All time')],['custom',L('فترة مخصصة','Custom range')]];}
+function finPeriodLbl(){
+  var r=finRange(),nm='';finPeriods().forEach(function(p){if(p[0]===FIN_F.period)nm=p[1];});
+  if(FIN_F.period==='all'||(!r[0]&&!r[1]))return nm;
+  if(r[0]===r[1])return nm+' · '+r[0];
+  return nm+' · '+(r[0]||'…')+' → '+(r[1]||'…');
+}
+function finBranchLbl(){return FIN_F.branch?FIN_F.branch:L('كل الفروع','All branches');}
+async function finLoad(){
+  var r=finRange();
+  var q=await db.rpc('fin_engine',{p_from:r[0],p_to:r[1],p_branch:FIN_F.branch||null});
+  if(q.error){FIN_ERR=q.error.message;return null;}
+  FIN_ERR=null;return q.data;
+}
+function finSetFilter(k,v,ctx){
+  FIN_F[k]=v;
+  if(k==='period'&&v==='day'&&!FIN_F.day)FIN_F.day=finIso(new Date());
+  if(ctx==='fin'){loadFinStats();finTab(FIN_VIEW,null);}else{ceoLoad();}
+}
+function finFilterBar(ctx){
+  var inp='border:1px solid #dde5e0;border-radius:8px;padding:7px 10px;font-size:12.5px;background:#fff;color:#16241d;font-family:inherit';
+  var h='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">';
+  h+='<select aria-label="'+L('الفترة','Period')+'" onchange="finSetFilter(\'period\',this.value,\''+ctx+'\')" style="'+inp+'">'+finPeriods().map(function(p){return '<option value="'+p[0]+'"'+(FIN_F.period===p[0]?' selected':'')+'>'+p[1]+'</option>';}).join('')+'</select>';
+  if(FIN_F.period==='day')h+='<input type="date" aria-label="'+L('اليوم','Day')+'" value="'+(FIN_F.day||'')+'" onchange="finSetFilter(\'day\',this.value,\''+ctx+'\')" style="'+inp+'">';
+  if(FIN_F.period==='custom')h+='<span style="font-size:12px;color:#666">'+L('من','From')+'</span><input type="date" aria-label="'+L('من','From')+'" value="'+(FIN_F.from||'')+'" onchange="finSetFilter(\'from\',this.value,\''+ctx+'\')" style="'+inp+'"><span style="font-size:12px;color:#666">'+L('إلى','To')+'</span><input type="date" aria-label="'+L('إلى','To')+'" value="'+(FIN_F.to||'')+'" onchange="finSetFilter(\'to\',this.value,\''+ctx+'\')" style="'+inp+'">';
+  var bl=(FIN&&FIN.branch_list)||[];if(FIN_F.branch&&bl.indexOf(FIN_F.branch)<0)bl=bl.concat([FIN_F.branch]);
+  h+='<select aria-label="'+L('الفرع','Branch')+'" onchange="finSetFilter(\'branch\',this.value,\''+ctx+'\')" style="'+inp+'"><option value="">'+L('كل الفروع','All branches')+'</option>'+bl.map(function(b){return '<option value="'+plEsc(b).replace(/"/g,'&quot;')+'"'+(FIN_F.branch===b?' selected':'')+'>'+plEsc(b)+'</option>';}).join('')+'</select>';
+  return h+'</div>';
+}
+function finCard(lbl,val,sub,color,onclick){
+  return '<div class="sc"'+(onclick?' onclick="'+onclick+'" style="cursor:pointer"':'')+'><div class="sl">'+lbl+'</div><div class="sv" style="'+(color?'color:'+color:'')+'">'+val+'</div>'+(sub?'<div style="font-size:11px;color:#888;margin-top:3px;line-height:1.5">'+sub+'</div>':'')+'</div>';
+}
+function finSec(title,inner,note){
+  return '<div class="cd" style="margin-bottom:12px"><div class="sh">'+title+(note?'<span style="font-size:11px;font-weight:400;color:#888;margin-inline-start:8px">'+note+'</span>':'')+'</div>'+inner+'</div>';
+}
+function finMonthLbl(ym){var p=ym.split('-');return p[1]+'/'+p[0].slice(2);}
+function finDayLbl(d){var p=(''+d).split('-');return p[2]+'/'+p[1];}
+function finLegend(items){return '<div style="display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:#555;margin-top:6px">'+items.map(function(c){return '<span>'+(c[2]==='line'?'<span style="display:inline-block;width:14px;height:3px;background:'+c[1]+';vertical-align:middle;margin-inline-end:4px"></span>':'<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:'+c[1]+';margin-inline-end:4px"></span>')+c[0]+'</span>';}).join('')+'</div>';}
+// Generic chart: rows, label fn, stacked keys [[key,label,color]], optional line [key,label]. Charts are always drawn left-to-right (time axis).
+function finChart(rows,lbl,stacks,line,aria,H){
+  var W=720,L0=48,B=26,T=10,n=Math.max(1,rows.length),bw=(W-L0-8)/n,mx=1;H=H||230;
+  rows.forEach(function(m){var s=0;stacks.forEach(function(c){s+=parseFloat(m[c[0]])||0;});mx=Math.max(mx,s,line?(parseFloat(m[line[0]])||0):0);});
+  var sc=function(v){return (H-B-T)*v/mx;},every=Math.max(1,Math.ceil(n/16));
+  var s='<svg viewBox="0 0 '+W+' '+H+'" direction="ltr" style="width:100%;height:auto;display:block;direction:ltr" role="img" aria-label="'+aria+'">';
+  for(var g=0;g<=4;g++){var gy=H-B-(H-B-T)*g/4;s+='<line x1="'+L0+'" x2="'+(W-4)+'" y1="'+gy+'" y2="'+gy+'" stroke="#e8e6e0" stroke-width="1"/><text x="'+(L0-6)+'" y="'+(gy+4)+'" font-size="10" fill="#888" text-anchor="end">'+(mx>=4000?finNum(mx*g/4/1000)+'k':finNum(mx*g/4))+'</text>';}
+  rows.forEach(function(m,i){
+    var x=L0+i*bw+bw*0.18,w=bw*0.64,y=H-B,lb=lbl(m);
+    stacks.forEach(function(c){var v=parseFloat(m[c[0]])||0;if(v<=0)return;var h=sc(v);y-=h;s+='<rect x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+w.toFixed(1)+'" height="'+Math.max(h,0.5).toFixed(1)+'" fill="'+c[2]+'"><title>'+lb+' · '+c[1]+': '+finNum(v)+'</title></rect>';});
+    if(line){var cy=H-B-sc(parseFloat(m[line[0]])||0);s+='<line x1="'+(x-2).toFixed(1)+'" x2="'+(x+w+2).toFixed(1)+'" y1="'+cy.toFixed(1)+'" y2="'+cy.toFixed(1)+'" stroke="#16241d" stroke-width="2.5"><title>'+lb+' · '+line[1]+': '+finNum(m[line[0]])+'</title></line>';}
+    if(i%every===0)s+='<text x="'+(x+w/2).toFixed(1)+'" y="'+(H-8)+'" font-size="10" fill="#666" text-anchor="middle">'+lb+'</text>';
+  });
+  s+='</svg>';
+  var lg=stacks.map(function(c){return [c[1],c[2],'box'];});if(line)lg.push([line[1],'#16241d','line']);
+  return s+finLegend(lg);
+}
+function finCashChart(months){
+  var W=720,H=200,L0=48,B=26,T=10,n=Math.max(1,months.length),bw=(W-L0-8)/n,mx=1;
+  months.forEach(function(m){mx=Math.max(mx,parseFloat(m.collections)||0,parseFloat(m.supplier_payments)||0);});
+  var sc=function(v){return (H-B-T)*v/mx;},la=L('تحصيل من العملاء','Customer collections'),lb=L('مدفوع للموردين','Supplier payments');
+  var s='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block;direction:ltr" role="img" aria-label="'+L('التدفق النقدي الشهري','Monthly cash flow')+'">';
+  for(var g=0;g<=4;g++){var gy=H-B-(H-B-T)*g/4;s+='<line x1="'+L0+'" x2="'+(W-4)+'" y1="'+gy+'" y2="'+gy+'" stroke="#e8e6e0" stroke-width="1"/><text x="'+(L0-6)+'" y="'+(gy+4)+'" font-size="10" fill="#888" text-anchor="end">'+finNum(mx*g/4/1000)+'k</text>';}
+  months.forEach(function(m,i){
+    var x=L0+i*bw+bw*0.14,w=bw*0.34,a=parseFloat(m.collections)||0,b=parseFloat(m.supplier_payments)||0,ml=finMonthLbl(m.ym);
+    s+='<rect x="'+x.toFixed(1)+'" y="'+(H-B-sc(a)).toFixed(1)+'" width="'+w.toFixed(1)+'" height="'+sc(a).toFixed(1)+'" fill="#3B6D11"><title>'+ml+' · '+la+': '+finNum(a)+'</title></rect>';
+    s+='<rect x="'+(x+w+2).toFixed(1)+'" y="'+(H-B-sc(b)).toFixed(1)+'" width="'+w.toFixed(1)+'" height="'+sc(b).toFixed(1)+'" fill="#A32D2D"><title>'+ml+' · '+lb+': '+finNum(b)+'</title></rect>';
+    s+='<text x="'+(x+w).toFixed(1)+'" y="'+(H-8)+'" font-size="10" fill="#666" text-anchor="middle">'+ml+'</text>';
+  });
+  return s+'</svg>'+finLegend([[la,'#3B6D11','box'],[lb,'#A32D2D','box']]);
+}
+function finReviewLbl(k){return ({overpaid:L('دفع زائد عن قيمة الطلب','Paid more than the order total'),paid_no_priced_lines:L('مدفوع بدون بنود مسعّرة','Paid with no priced lines'),cancelled_with_payment:L('طلب ملغي عليه دفعة — لا يوجد استرداد مسجّل','Cancelled order with a payment — no refund recorded'),awaiting_approval:L('دفعة بانتظار التحقق','Payment awaiting verification')})[k]||k;}
+async function ceoLoad(){
+  var el=document.getElementById('ceo-dash');if(!el)return;
+  if(!CU||['owner','finance_manager','finance'].indexOf(CU.role)<0){el.innerHTML='';return;}
+  if(!FIN)el.innerHTML='<div style="padding:18px;text-align:center;color:#888">'+L('جارٍ تحميل البيانات المالية...','Loading financial data...')+'</div>';
+  var d=await finLoad();
+  if(!d){el.innerHTML='<div class="cd" style="color:#A32D2D">'+L('تعذر تحميل البيانات المالية: ','Could not load financial data: ')+plEsc(FIN_ERR||'')+'</div>';return;}
+  FIN=d;ceoRender(el,d);
+}
+function ceoRender(el,d){
+  var P=d.period||{},S=d.position||{},C=d.cash||{},O=d.ops||{},I=d.inventory||{},br0=!!FIN_F.branch;
+  var num=function(x){return parseFloat(x)||0;};
+  var inflow=num(C.collections)+num(C.collections_cancelled_orders),net=inflow-num(C.supplier_payments);
+  var pl=finPeriodLbl(),bl=finBranchLbl(),coNote=L('على مستوى الشركة — غير مقسّم على الفروع','Company-wide — not split by branch');
+  var al=LANG==='ar'?'right':'left';
+  var h='<div dir="'+(LANG==='ar'?'rtl':'ltr')+'">';
+  h+='<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px"><div><div style="font-size:18px;font-weight:800">'+L('لوحة الإدارة التنفيذية','Executive dashboard')+'</div><div style="font-size:11.5px;color:#888">'+L('حتى ','As of ')+plEsc(''+d.as_of)+' · '+L('كل الأرقام من محرك مالي واحد مشترك مع قسم المالية','All figures come from one engine shared with Finance')+'</div></div>'+finFilterBar('dash')+'</div>';
+  h+='<div style="font-size:12px;font-weight:700;color:#5f6f67;margin-bottom:6px">'+L('الفترة: ','Period: ')+plEsc(pl)+' · '+plEsc(bl)+'</div><div class="r4" style="margin-bottom:12px">'
+    +finCard(L('الإيراد (طلبات منفّذة)','Revenue (completed orders)'),finM(P.revenue),num(P.orders_completed)+' '+L('طلب','orders')+' · '+L('خصومات ','discounts ')+finNum(P.discounts))
+    +finCard(L('التحصيل النقدي','Cash collections'),finM(C.collections),L('دفعات معتمدة فقط','Approved payments only'),'#3B6D11')
+    +finCard(L('مدفوع للموردين','Paid to suppliers'),finM(C.supplier_payments),br0?coNote:L('مشتريات مطلوبة: ','Purchases ordered: ')+finNum(C.purchases_ordered),'#A32D2D')
+    +(br0?finCard(L('صافي التدفق النقدي','Net cash flow'),'—',L('غير متاح لفرع واحد: مدفوعات الموردين غير مقسّمة على الفروع','Not available for one branch: supplier payments are not split by branch'))
+         :finCard(L('صافي التدفق النقدي','Net cash flow'),finM(net),L('تحصيل − مدفوع للموردين (ليس ربحاً)','Collections − supplier payments (not profit)'),net>=0?'#1D9E75':'#A32D2D'))+'</div>';
+  h+='<div style="font-size:12px;font-weight:700;color:#5f6f67;margin-bottom:6px">'+L('الوضع الحالي (غير مرتبط بالفترة) · ','Current position (not limited by period) · ')+plEsc(bl)+'</div><div class="r4" style="margin-bottom:12px">'
+    +finCard(L('مستحقات على العملاء','Outstanding receivables'),finM(S.receivables),num(S.receivables_orders)+' '+L('طلب منفّذ','completed orders'),'#A32D2D',"finGo('outstanding')")
+    +finCard(L('مستحقات متأخرة','Overdue receivables'),finM(S.overdue),num(S.overdue_orders)+' '+L('طلب · أكثر من ','orders · more than ')+d.overdue_days+L(' يوم',' days'),'#A32D2D',"finGo('overdue')")
+    +finCard(L('دفعات بانتظار التحقق','Pending payment verification'),finM(S.pending_verification),num(S.pending_verification_count)+' '+L('دفعة · لا تُحسب ضمن التحصيل','payments · not counted as collected'),'#C77F0A',"finGo('verification')")
+    +finCard(L('رصيد دائن للعملاء','Customer credit'),finM(S.customer_credit),num(S.customer_credit_orders)+' '+L('طلب مدفوع بأكثر من قيمته','orders paid above their total'),'#185FA5',"finGo('credit')")+'</div>';
+  h+='<div style="font-size:12px;font-weight:700;color:#5f6f67;margin-bottom:6px">'+L('طلبات لم تُنفّذ بعد (خارج الإيراد) · ','Orders not yet carried out (outside revenue) · ')+plEsc(bl)+'</div><div class="r3" style="margin-bottom:12px">'
+    +finCard(L('قيمة الطلبات غير المنفّذة','Pending order value'),finM(S.pending_order_value),num(S.pending_orders)+' '+L('طلب','orders'),'',"finGo('pending')")
+    +finCard(L('مقدمات محصّلة من العملاء','Customer advances received'),finM(S.advances_on_pending),L('نقد مستلم على طلبات لم تُنفّذ — ليس إيراداً بعد','Cash received on orders not yet carried out — not revenue yet'),'#185FA5')
+    +finCard(L('المتبقي من قيمة الطلبات غير المنفّذة','Remaining pending order value'),finM(num(S.pending_order_value)-num(S.advances_on_pending)),num(S.invoiced_pending_receivables)>0?L('منها مفوتر ومستحق: ','of which invoiced and due: ')+finNum(S.invoiced_pending_receivables):L('لا توجد فواتير مستحقة على طلبات غير منفّذة','No invoiced amounts due on pending orders'))+'</div>';
+  // revenue by category
+  var cats=P.by_cat||{},tot=Math.max(1,num(P.revenue)),cb='';
+  FIN_CATS.forEach(function(c){var v=cats[c[0]]||{},r=num(v.revenue),pct=Math.round(r/tot*100);
+    cb+='<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:3px"><span><b>'+finCatLbl(c)+'</b> <span style="color:#888">· '+num(v.orders)+' '+L('طلب','orders')+'</span></span><span style="font-weight:700">'+finNum(r)+' <span style="color:#888;font-weight:400">('+pct+'%)</span></span></div><div class="pbw"><div class="pbb" style="width:'+pct+'%;background:'+c[3]+'"></div></div></div>';});
+  var ot=P.other_types||{},otk=Object.keys(ot);
+  if(otk.length)cb+='<div style="font-size:11.5px;color:#888;margin-top:4px">'+L('خدمات أخرى: ','Other services: ')+otk.map(function(k){return plEsc(finType(k))+' '+finNum(ot[k]);}).join(' · ')+'</div>';
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px">'+finSec(L('الإيراد حسب النشاط','Revenue by activity'),cb,plEsc(pl));
+  var th=function(x){return '<th style="padding:7px 8px;text-align:'+al+'">'+x+'</th>';};
+  var brt='<div class="tw"><table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr style="background:#f9f9f6">'+th(L('الفرع','Branch'))+th(L('الإيراد','Revenue'))+th(L('طلبات منفّذة','Completed'))+th(L('المحصّل','Collected'))+th(L('مستحقات','Receivable'))+th(L('نسبة الإلغاء','Cancel rate'))+'</tr></thead><tbody>',bsum=0;
+  (d.branches||[]).forEach(function(b){var cr=num(b.total)?Math.round(num(b.cancelled)/num(b.total)*100):0;bsum+=num(b.revenue);brt+='<tr style="border-bottom:1px solid #f0f0e8"><td style="padding:7px 8px;font-weight:700">'+plEsc(b.branch)+'</td><td style="padding:7px 8px">'+finNum(b.revenue)+'</td><td style="padding:7px 8px">'+num(b.orders)+'</td><td style="padding:7px 8px;color:#3B6D11">'+finNum(b.collected)+'</td><td style="padding:7px 8px;color:#A32D2D">'+finNum(b.receivable)+'</td><td style="padding:7px 8px">'+cr+'%</td></tr>';});
+  brt+='<tr style="background:#f9f9f6;font-weight:700"><td style="padding:7px 8px">'+L('الإجمالي','Total')+'</td><td style="padding:7px 8px">'+finNum(bsum)+'</td><td colspan="4"></td></tr></tbody></table></div>';
+  h+=finSec(L('أداء الفروع','Branch performance'),brt,plEsc(pl))+'</div>';
+  if(d.daily&&d.daily.length>1)h+=finSec(L('الإيراد والتحصيل اليومي','Daily revenue and collections'),finChart(d.daily,function(m){return finDayLbl(m.d);},[['revenue',L('الإيراد','Revenue'),'#185FA5']],['collections',L('التحصيل النقدي','Cash collections')],L('الإيراد والتحصيل اليومي','Daily revenue and collections'),200),plEsc(pl)+' · '+plEsc(bl));
+  h+=finSec(L('الإيراد الشهري حسب النشاط','Monthly revenue by activity'),finChart(d.monthly||[],function(m){return finMonthLbl(m.ym);},FIN_CATS.map(function(c){return [c[0],finCatLbl(c),c[3]];}),['collections',L('التحصيل النقدي','Cash collections')],L('الإيراد الشهري','Monthly revenue')),L('آخر 12 شهراً · حسب تاريخ الطلب · ','Last 12 months · by order date · ')+plEsc(bl));
+  h+=finSec(L('التدفق النقدي الشهري','Monthly cash flow'),finCashChart(d.monthly||[]),L('آخر 12 شهراً · حسب تاريخ الدفع','Last 12 months · by payment date')+(br0?' · '+L('التحصيل للفرع، مدفوعات الموردين للشركة كلها','collections for the branch, supplier payments company-wide'):''));
+  var row=function(a,b,c){return '<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid #f0f0e8;font-size:12.5px"><span>'+a+'</span><span style="font-weight:700;'+(c?'color:'+c:'')+'">'+b+'</span></div>';};
+  var na='<span style="color:#888;font-weight:400">'+L('غير مسجّل في النظام','Not recorded in the system')+'</span>';
+  var cf=row(L('تحصيل من العملاء (دفعات معتمدة)','Customer collections (approved payments)'),finNum(C.collections),'#3B6D11')
+    +(num(C.collections_cancelled_orders)>0?row(L('دفعات على طلبات ملغاة (بلا استرداد مسجّل)','Payments on cancelled orders (no refund recorded)'),finNum(C.collections_cancelled_orders),'#C77F0A'):'')
+    +row('<b>'+L('إجمالي التدفقات الداخلة','Total cash inflows')+'</b>','<b>'+finNum(inflow)+'</b>','#3B6D11')
+    +row(L('مدفوع للموردين (نقدي)','Supplier payments (cash)')+(br0?' <span style="color:#888;font-size:11px">('+coNote+')</span>':''),'− '+finNum(C.supplier_payments),'#A32D2D')
+    +row(L('الرواتب المدفوعة','Payroll paid'),na)+row(L('مصروفات تشغيلية','Operating expenses'),na)+row(L('مصروفات أخرى','Other expenses'),na)
+    +(br0?row('<b>'+L('صافي التدفق النقدي','Net cash flow')+'</b>','—'):row('<b>'+L('صافي التدفق النقدي (المسجّل فقط)','Net cash flow (recorded items only)')+'</b>','<b>'+finNum(net)+'</b>',net>=0?'#1D9E75':'#A32D2D'))
+    +'<div style="font-size:11.5px;color:#888;margin-top:8px;line-height:1.7">'+L('للمعلومية (ليست حركة نقدية، على مستوى الشركة): مشتريات مطلوبة في الفترة ','For information (not cash movements, company-wide): purchases ordered in the period ')+finNum(C.purchases_ordered)+' · '+L('مستحق للموردين حالياً ','currently owed to suppliers ')+finNum(C.supplier_owed_now)+' · '+L('التزام الرواتب الشهري ','monthly payroll commitment ')+finNum(C.payroll_monthly_commitment)+'</div>';
+  var pf='<div style="background:#FAEEDA;border:1px solid #EF9F27;border-radius:8px;padding:12px;font-size:12.5px;line-height:1.8;color:#7A5000"><b>'+L('صافي الربح: غير متاح حالياً','Net profit: not available')+'</b><br>'+L('لا يمكن حسابه بدقة لأن النظام لا يسجّل: تكلفة البضاعة المباعة، الرواتب المدفوعة فعلياً، المصروفات التشغيلية، والمصروفات الأخرى. مقدمات العملاء على طلبات لم تُنفّذ ليست إيراداً ولا ربحاً.','It cannot be calculated accurately because the system does not record cost of goods sold, payroll actually paid, operating expenses or other expenses. Customer advances on orders not yet carried out are neither revenue nor profit.')+'</div>';
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px">'+finSec(L('التدفق النقدي','Cash flow'),cf,plEsc(pl))+finSec(L('الربحية','Profitability'),pf)+'</div>';
+  var bs=O.by_status||{},ot2=Math.max(1,num(O.total)),ob='';
+  [['pending',L('قيد الانتظار','Pending'),'#854F0B'],['progress',L('جارٍ التنفيذ','In progress'),'#185FA5'],['field_done',L('تم ميدانياً','Field work done'),'#0F6E56'],['done',L('مكتمل بتقرير','Completed with report'),'#3B6D11'],['completed',L('بيع مباشر مكتمل','Direct sale completed'),'#3B6D11'],['cancel',L('ملغي','Cancelled'),'#A32D2D']].forEach(function(s){var c=num(bs[s[0]]),pct=Math.round(c/ot2*100);
+    ob+='<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span>'+s[1]+'</span><span style="font-weight:700;color:'+s[2]+'">'+c+'</span></div><div class="pbw"><div class="pbb" style="width:'+pct+'%;background:'+s[2]+'"></div></div></div>';});
+  ob+='<div style="font-size:11.5px;color:#666;margin-top:8px;line-height:1.8">'+L('متوسط قيمة الطلب: ','Average order value: ')+'<b>'+finNum(O.avg_order_value)+'</b> · '+L('نسبة الإلغاء: ','Cancel rate: ')+'<b>'+Math.round(num(O.cancelled)/ot2*100)+'%</b> · '+L('طلبات منفّذة بقيمة صفر: ','Completed orders with zero value: ')+'<b>'+num(O.zero_value_completed)+'</b><br>'+L('متابعات مفتوحة (الشركة): ','Open follow-ups (company): ')+'<b>'+num(O.followups_open)+'</b> · '+L('شكاوى مفتوحة (الشركة): ','Open complaints (company): ')+'<b>'+num(O.complaints_open)+'</b></div>';
+  var iv=row(L('وحدات تكييف متاحة','AC units available'),num(I.ac_units)+' '+L('وحدة','units')+' · '+num(I.ac_models_in_stock)+' '+L('موديل','models'))
+    +row(L('موديلات برصيد سالب','Models with negative stock'),num(I.ac_negative),num(I.ac_negative)?'#A32D2D':'')
+    +row(L('أصناف قطع الغيار','Spare-part items'),num(I.parts_items))
+    +row(L('قطع غيار برصيد سالب','Spare parts with negative stock'),num(I.parts_negative),num(I.parts_negative)?'#A32D2D':'')
+    +row(L('قطع غيار عند حد التنبيه','Spare parts at alert level'),num(I.parts_low),num(I.parts_low)?'#C77F0A':'')
+    +'<div style="font-size:11.5px;color:#888;margin-top:8px;line-height:1.7">'+L('قيمة المخزون بالتكلفة غير موثوقة: ','Stock value at cost is unreliable: ')+num(I.ac_missing_cost)+L(' موديل و',' models and ')+num(I.parts_missing_cost)+L(' صنف قطع غيار بدون تكلفة مسجّلة (المسجّل فقط: تكييفات ',' spare-part items have no cost recorded (recorded only: AC ')+finNum(I.ac_cost_value)+L(' · قطع غيار ',' · spare parts ')+finNum(I.parts_cost_value)+').</div>';
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px">'+finSec(L('الأداء التشغيلي','Operational performance'),ob,plEsc(pl)+' · '+plEsc(bl))+finSec(L('نظرة على المخزون','Inventory overview'),iv,L('الآن · على مستوى الشركة','Now · company-wide'))+'</div>';
+  var ag=S.aging||{};
+  var rc='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;font-size:12px">'+[[L('0–30 يوم','0–30 days'),ag.d0_30,'#3B6D11'],[L('31–60','31–60'),ag.d31_60,'#C77F0A'],[L('61–90','61–90'),ag.d61_90,'#C2570C'],[L('أكثر من 90','Over 90'),ag.d90p,'#A32D2D']].map(function(a){return '<span style="border:1px solid #e6ebe8;border-radius:8px;padding:6px 10px">'+a[0]+': <b style="color:'+a[2]+'">'+finNum(a[1])+'</b></span>';}).join('')+'</div>';
+  var tr=d.top_receivables||[];
+  rc+=tr.length?tr.map(function(x){return '<div onclick="openTask(\''+x.id+'\')" style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #f0f0e8;font-size:12.5px;cursor:pointer"><div><div style="font-weight:700">'+plEsc(x.customer||'-')+'</div><div style="font-size:11px;color:#888">'+plEsc(x.task_num)+' · '+plEsc(''+x.date)+' · '+L('منذ ','')+num(x.days)+L(' يوم',' days ago')+(x.overdue?' · <b style="color:#A32D2D">'+L('متأخر','Overdue')+'</b>':'')+'</div></div><span style="font-weight:700;color:#A32D2D;white-space:nowrap">'+finNum(x.balance)+'</span></div>';}).join(''):'<div style="font-size:12px;color:#3B6D11">'+L('لا توجد مستحقات','No receivables')+'</div>';
+  var rv=d.review||[];
+  var rw=rv.length?rv.map(function(x){return '<div onclick="openTask(\''+x.id+'\')" style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #f0f0e8;font-size:12.5px;cursor:pointer"><div><div style="font-weight:700">'+plEsc(x.task_num)+' · '+plEsc(x.customer||'-')+'</div><div style="font-size:11px;color:#854F0B">'+finReviewLbl(x.reason)+'</div></div><span style="font-weight:700;white-space:nowrap">'+finNum(x.amount)+'</span></div>';}).join('')+'<div style="font-size:11.5px;color:#888;margin-top:8px">'+L('هذه السجلات لم تُعدَّل. أي تصحيح يتم بقرارك فقط.','These records have not been changed. Any correction is your decision.')+'</div>':'<div style="font-size:12px;color:#3B6D11">'+L('لا توجد سجلات تحتاج مراجعة','No records need review')+'</div>';
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px">'+finSec(L('المستحقات على العملاء','Customer receivables'),rc,L('طلبات منفّذة فقط · ','Completed orders only · ')+plEsc(bl))+finSec(L('سجلات مالية للمراجعة اليدوية','Financial records for manual review'),rw,plEsc(bl))+'</div>';
+  var yr=(d.yearly||[]).map(function(y){return row(plEsc(y.year)+' · '+num(y.orders)+' '+L('طلب منفّذ','completed orders'),L('إيراد ','Revenue ')+finNum(y.revenue)+' · '+L('تحصيل ','Collected ')+finNum(y.collected));}).join('');
+  h+=finSec(L('الإجمالي السنوي','Yearly totals'),yr||'-',plEsc(bl));
+  h+='</div>';
+  el.innerHTML=h;
+}
+function finGo(view){go('fin',document.getElementById('ni-fin'));setTimeout(function(){finTab(view,null);},500);}
+// Finance page cards — same engine, same filters
+async function loadFinStats(){
+  var el=document.getElementById('fstats');if(!el)return;
+  var fb=document.getElementById('fin-filter');
+  var d=await finLoad();
+  if(!d){el.innerHTML='<div style="color:#A32D2D;padding:10px">'+L('تعذر تحميل البيانات المالية: ','Could not load financial data: ')+plEsc(FIN_ERR||'')+'</div>';return;}
+  FIN=d;
+  if(fb)fb.innerHTML='<div dir="'+(LANG==='ar'?'rtl':'ltr')+'" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px"><div style="font-size:12px;font-weight:700;color:#5f6f67">'+plEsc(finPeriodLbl())+' · '+plEsc(finBranchLbl())+'</div>'+finFilterBar('fin')+'</div>';
+  var P=d.period,S=d.position,C=d.cash,num=function(x){return parseFloat(x)||0;},br0=!!FIN_F.branch;
+  var net=num(C.collections)+num(C.collections_cancelled_orders)-num(C.supplier_payments);
+  var cur=L('الوضع الحالي','Current position');
+  el.innerHTML=finCard(L('الإيراد (طلبات منفّذة)','Revenue (completed orders)'),finM(P.revenue),num(P.orders_completed)+' '+L('طلب','orders'))
+    +finCard(L('المحصّل (دفعات معتمدة)','Collected (approved payments)'),finM(C.collections),'','#3B6D11')
+    +finCard(L('مدفوع للموردين','Paid to suppliers'),finM(C.supplier_payments),br0?L('على مستوى الشركة','Company-wide'):L('مستحق للموردين: ','Owed to suppliers: ')+finNum(C.supplier_owed_now),'#A32D2D',"finTab('expenses',null)")
+    +(br0?finCard(L('صافي التدفق النقدي','Net cash flow'),'—',L('غير متاح لفرع واحد','Not available for one branch')):finCard(L('صافي التدفق النقدي','Net cash flow'),finM(net),L('تحصيل − مدفوع للموردين (ليس ربحاً)','Collections − supplier payments (not profit)'),'#1D9E75'))
+    +finCard(L('مستحقات على العملاء','Outstanding receivables'),finM(S.receivables),cur+' · '+L('متأخر: ','Overdue: ')+finNum(S.overdue),'#A32D2D',"finTab('outstanding',null)")
+    +finCard(L('دفعات بانتظار التحقق','Pending payment verification'),finM(S.pending_verification),cur+' · '+num(S.pending_verification_count)+' '+L('دفعة','payments'),'#C77F0A',"finTab('verification',null)")
+    +finCard(L('رصيد دائن للعملاء','Customer credit'),finM(S.customer_credit),cur+' · '+num(S.customer_credit_orders)+' '+L('طلب','orders'),'#185FA5',"finTab('credit',null)")
+    +finCard(L('قيمة الطلبات غير المنفّذة','Pending order value'),finM(S.pending_order_value),L('مقدمات محصّلة: ','Advances received: ')+finNum(S.advances_on_pending)+' · '+L('المتبقي: ','Remaining: ')+finNum(num(S.pending_order_value)-num(S.advances_on_pending)),'',"finTab('pending',null)");
+}
+function finStateLbl(k){return ({paid:[L('مدفوع','Paid'),'#3B6D11'],partial:[L('مدفوع جزئياً','Partly paid'),'#854F0B'],unpaid:[L('غير مدفوع','Unpaid'),'#A32D2D'],credit:[L('رصيد دائن','Credit'),'#185FA5'],no_charge:[L('بدون قيمة','No charge'),'#888'],cancelled:[L('ملغي','Cancelled'),'#888']})[k]||[k,'#888'];}
+var FIN_POSITION_VIEWS=['outstanding','overdue','pending','verification','credit','cancelled_paid'];
+async function finOrderTable(view,body){
+  var posv=FIN_POSITION_VIEWS.indexOf(view)>=0,r=posv?[null,null]:finRange();
+  var q=await db.rpc('fin_order_list',{p_view:view,p_from:r[0],p_to:r[1],p_branch:FIN_F.branch||null});
+  if(q.error){body.innerHTML='<div style="padding:20px;color:#A32D2D">'+plEsc(q.error.message)+'</div>';return;}
+  var rows=q.data||[],scope='<div style="font-size:11.5px;color:#888;margin-bottom:6px">'+(posv?L('وضع حالي — غير مرتبط بالفترة','Current position — not limited by period'):plEsc(finPeriodLbl()))+' · '+plEsc(finBranchLbl())+'</div>';
+  if(!rows.length){body.innerHTML=scope+'<div style="padding:20px;text-align:center;color:#888">'+L('لا توجد حركات.','No transactions.')+'</div>';return;}
+  var sN=0,sP=0,sB=0,sC=0,sV=0,num=function(x){return parseFloat(x)||0;},al=LANG==='ar'?'right':'left';
+  var th=function(x){return '<th style="padding:8px 10px;text-align:'+al+'">'+x+'</th>';};
+  var hb=rows.map(function(r){
+    sN+=num(r.net);sP+=num(r.paid);sB+=num(r.balance);sC+=num(r.credit);sV+=num(r.pending_verif);
+    var st=finStateLbl(r.pay_state);
+    return '<tr style="border-bottom:1px solid #f0f0e8;cursor:pointer" onclick="openTask(\''+r.id+'\')"><td style="padding:8px 10px;color:#1D9E75;font-weight:700">'+plEsc(r.task_num)+'</td><td style="padding:8px 10px">'+plEsc(r.customer||'-')+'</td><td style="padding:8px 10px">'+plEsc(finType(r.type))+(r.cls==='pending'?' <span style="font-size:10px;color:#854F0B">('+L('لم يُنفّذ','not carried out')+')</span>':'')+'</td><td style="padding:8px 10px">'+plEsc(r.branch||'')+'</td><td style="padding:8px 10px">'+plEsc(''+(r.date||''))+'</td><td style="padding:8px 10px;font-weight:700">'+finM(r.net)+(num(r.discount)>0?'<div style="font-size:10px;color:#888">'+L('خصم ','Discount ')+finNum(r.discount)+'</div>':'')+'</td><td style="padding:8px 10px;color:#3B6D11">'+finM(r.paid)+(num(r.pending_verif)>0?'<div style="font-size:10px;color:#C77F0A">'+L('بانتظار التحقق ','Awaiting verification ')+finNum(r.pending_verif)+'</div>':'')+'</td><td style="padding:8px 10px;color:#A32D2D">'+finM(r.balance)+(r.overdue?'<div style="font-size:10px;font-weight:700">'+L('متأخر','Overdue')+'</div>':'')+'</td><td style="padding:8px 10px;color:#185FA5">'+(num(r.credit)>0?finM(r.credit):'-')+'</td><td style="padding:8px 10px"><span style="font-size:11px;font-weight:700;color:'+st[1]+'">'+st[0]+'</span></td></tr>';
+  }).join('');
+  body.innerHTML='<div dir="'+(LANG==='ar'?'rtl':'ltr')+'">'+scope+'<div style="font-size:12px;color:#555;margin-bottom:8px">'+rows.length+' '+L('طلب','orders')+' · '+L('الإجمالي ','Total ')+'<b>'+finM(sN)+'</b> · '+L('المدفوع ','Paid ')+'<b>'+finM(sP)+'</b> · '+L('المتبقي ','Remaining ')+'<b style="color:#A32D2D">'+finM(sB)+'</b>'+(sC>0?' · '+L('رصيد دائن ','Credit ')+'<b style="color:#185FA5">'+finM(sC)+'</b>':'')+(sV>0?' · '+L('بانتظار التحقق ','Awaiting verification ')+'<b style="color:#C77F0A">'+finM(sV)+'</b>':'')+'</div>'
+    +'<div class="tw"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f9f9f6">'+th(L('رقم الطلب','Order #'))+th(L('العميل','Customer'))+th(L('النوع','Type'))+th(L('الفرع','Branch'))+th(L('التاريخ','Date'))+th(L('الإجمالي','Total'))+th(L('المدفوع','Paid'))+th(L('المتبقي','Remaining'))+th(L('رصيد دائن','Credit'))+th(L('الحالة','Status'))+'</tr></thead><tbody>'+hb+'</tbody></table></div></div>';
+}
+// ══════════ END FINANCIAL ENGINE ══════════
 
 async function finTab(type,btn){
+  FIN_VIEW=type;
+  if(!btn)btn=document.querySelector('#pg-fin .tab[data-fv="'+type+'"]');
   document.querySelectorAll('.tab').forEach(function(b){b.classList.remove('on');});
   if(btn)btn.classList.add('on');
   var body=document.getElementById('fcont');if(!body)return;
@@ -5943,45 +6125,9 @@ async function finTab(type,btn){
       +'<div style="text-align:right;font-weight:700;color:#A32D2D;margin-top:8px">Total paid out: '+f(totalPaid)+'</div>';
     return;
   }
-  if(type==='outstanding'){
-    var{data:tasks2}=await db.from('tasks').select('id,task_num,customer_name,date,type,branch,salesperson,pay_status,status,discount_amount,discount_percent').neq('status','cancel').limit(10000);
-    var{data:prods2}=await db.from('task_products').select('task_id,qty,price').limit(20000);
-    var{data:pays2}=await db.from('payments').select('task_id,amount,approved').limit(20000);
-    tasks2=tasks2||[];prods2=prods2||[];pays2=pays2||[];
-    var taskMap2={};tasks2.forEach(function(t){taskMap2[t.id]=t;});
-    var grand2=function(id){var raw=(prods2||[]).filter(function(p){return p.task_id===id;}).reduce(function(a,p){return a+p.qty*p.price;},0);var t=taskMap2[id];if(t){var da=parseFloat(t.discount_amount)||0;var dp=parseFloat(t.discount_percent)||0;if(da>0)raw=raw-da;else if(dp>0)raw=raw-Math.round(raw*dp/100);}return Math.max(0,raw);};
-    var paid2=function(id){return(pays2||[]).filter(function(p){return p.task_id===id&&p.approved!==false;}).reduce(function(a,p){return a+p.amount;},0);};
-    var todayStr=new Date().toISOString().split('T')[0];
-    var outstanding=tasks2.filter(function(t){var g=grand2(t.id);return g>0&&paid2(t.id)<g&&(!t.date||t.date<=todayStr);}).map(function(t){var g=grand2(t.id);var p=paid2(t.id);return{...t,grand:g,paid:p,rem:g-p};}).sort(function(a,b){return b.rem-a.rem;});
-    if(!outstanding.length){body.innerHTML='<div style="padding:20px;text-align:center;color:#888">No outstanding payments.</div>';return;}
-    var rows2=outstanding.map(function(t){return '<tr style="border-bottom:1px solid #f0f0e8;cursor:pointer" onclick="openTask(\''+t.id+'\')"><td style="padding:8px 10px;color:#1D9E75;font-weight:700">'+t.task_num+'</td><td style="padding:8px 10px">'+t.customer_name+'</td><td style="padding:8px 10px">'+t.date+'</td><td style="padding:8px 10px">'+t.type+'</td><td style="padding:8px 10px;font-weight:700">'+f(t.grand)+'</td><td style="padding:8px 10px;color:#3B6D11">'+f(t.paid)+'</td><td style="padding:8px 10px;color:#A32D2D;font-weight:700">'+f(t.rem)+'</td></tr>';}).join('');
-    body.innerHTML='<div class="tw"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f9f9f6"><th style="padding:8px 10px;text-align:left">Task#</th><th style="padding:8px 10px;text-align:left">Customer</th><th style="padding:8px 10px;text-align:left">Date</th><th style="padding:8px 10px;text-align:left">Type</th><th style="padding:8px 10px;text-align:left">Total</th><th style="padding:8px 10px;text-align:left">Paid</th><th style="padding:8px 10px;text-align:left">Remaining</th></tr></thead><tbody>'+rows2+'</tbody></table></div>';
-    return;
-  }
-  // Sales / Maintenance / Installation / Uninstall / All
-  var typeFilter=type==='sales'?null:({'maintenance':'maintenance','installation':'installation','uninstall':'uninstall'}[type]||null);
-  var salesTypes=type==='sales'?['sales']:null;
-  var q=db.from('tasks').select('id,task_num,customer_name,date,type,branch,salesperson,pay_status,discount_amount,discount_percent').neq('status','cancel').order('date',{ascending:false});
-  if(salesTypes)q=q.in('type',salesTypes);
-  else if(typeFilter)q=q.eq('type',typeFilter);
-  var{data:tasks3}=await q;tasks3=tasks3||[];
-  var tids=tasks3.map(function(t){return t.id;});
-  var prods3=[],pays3=[];
-  if(tids.length){
-    var pr=await db.from('task_products').select('task_id,qty,price').in('task_id',tids);prods3=pr.data||[];
-    var pa=await db.from('payments').select('task_id,amount,approved').in('task_id',tids);pays3=pa.data||[];
-  }
-  var _tk3={};tasks3.forEach(function(t){_tk3[t.id]=t;});
-  var grand3=function(id){var raw=prods3.filter(function(p){return p.task_id===id;}).reduce(function(a,p){return a+p.qty*p.price;},0);var tk=_tk3[id];if(tk){var da=parseFloat(tk.discount_amount)||0;var dp=parseFloat(tk.discount_percent)||0;if(da>0)raw=raw-da;else if(dp>0)raw=raw-Math.round(raw*dp/100);}return Math.max(0,raw);};
-  var paid3=function(id){return pays3.filter(function(p){return p.task_id===id&&p.approved!==false;}).reduce(function(a,p){return a+p.amount;},0);};
-  var psMap={paid:t('paidinfull'),unpaid:t('unpaid'),downpayment:t('downpayment'),installments:t('installments')};
-  var psColor={paid:'#3B6D11',unpaid:'#A32D2D',downpayment:'#854F0B',installments:'#185FA5'};
-  var rows3=tasks3.map(function(tk){var g=grand3(tk.id);var p=paid3(tk.id);var rem=Math.max(0,g-p);return '<tr style="border-bottom:1px solid #f0f0e8;cursor:pointer" onclick="openTask(\''+tk.id+'\')"><td style="padding:8px 10px;color:#1D9E75;font-weight:700">'+tk.task_num+'</td><td style="padding:8px 10px">'+tk.customer_name+'</td><td style="padding:8px 10px">'+tk.type+'</td><td style="padding:8px 10px">'+tk.branch+'</td><td style="padding:8px 10px">'+tk.date+'</td><td style="padding:8px 10px;font-weight:700">'+f(g)+'</td><td style="padding:8px 10px;color:#3B6D11">'+f(p)+'</td><td style="padding:8px 10px;color:#A32D2D">'+f(rem)+'</td><td style="padding:8px 10px"><span style="font-size:11px;color:'+(psColor[tk.pay_status]||'#888')+';font-weight:700">'+(psMap[tk.pay_status]||tk.pay_status||'-')+'</span></td></tr>';}).join('');
-  var tlLabel={all:t('allsales'),sales:t('sales'),maintenance:t('maintenance'),installation:t('installation'),uninstall:t('uninstall')}[type]||type;
-  body.innerHTML=(!rows3?'<div style="padding:20px;text-align:center;color:#888">No transactions.</div>':'')
-    +'<div class="tw"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f9f9f6"><th style="padding:8px 10px;text-align:left">Task#</th><th style="padding:8px 10px;text-align:left">Customer</th><th style="padding:8px 10px;text-align:left">Type</th><th style="padding:8px 10px;text-align:left">Branch</th><th style="padding:8px 10px;text-align:left">Date</th><th style="padding:8px 10px;text-align:left">Total</th><th style="padding:8px 10px;text-align:left">Paid</th><th style="padding:8px 10px;text-align:left">Remaining</th><th style="padding:8px 10px;text-align:left">Status</th></tr></thead><tbody>'+rows3+'</tbody></table></div>';
+  // All order tables come from the shared financial engine (fin_order_list)
+  await finOrderTable(type,body);
 }
-
 
 
 async function expCust(){
@@ -10989,6 +11135,7 @@ window.T={
     orderinfo2:'Order info',completionreport:'Completion report',
     technicianname:'Technician name',completiontime:'Completion time',
     techniciannote:'Technician note',customerconfirmed:'Customer confirmed & satisfied',
+    finother:'Other services',finoutstanding:'Outstanding',finoverdue:'Overdue',finpending:'Pending orders',finverif:'Pending verification',fincredit:'Customer credit',fincancpaid:'Cancelled with payments',
     subtasks:'Sub-tasks',attachments:'Attachments',partsused:'Parts used',
     termsandpolicy:'Terms & offer policy',whatwasdone:'What was done',
     paymenthistory:'Payment history',paymentstatus:'Payment status',
@@ -11084,6 +11231,7 @@ window.T={
     orderinfo2:'معلومات الطلب',completionreport:'تقرير الإنجاز',
     technicianname:'اسم الفني',completiontime:'وقت الإنجاز',
     techniciannote:'ملاحظة الفني',customerconfirmed:'العميل وافق وراضٍ عن العمل',
+    finother:'خدمات أخرى',finoutstanding:'مستحقات العملاء',finoverdue:'مستحقات متأخرة',finpending:'طلبات لم تُنفّذ',finverif:'بانتظار التحقق',fincredit:'رصيد دائن',fincancpaid:'ملغي عليه دفعات',
     subtasks:'المهام الفرعية',attachments:'المرفقات',partsused:'قطع الغيار المستخدمة',
     termsandpolicy:'الشروط وسياسة العرض',whatwasdone:'ما تم إنجازه',
     paymenthistory:'سجل المدفوعات',paymentstatus:'حالة الدفع',
