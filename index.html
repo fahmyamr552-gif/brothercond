@@ -435,6 +435,7 @@ td{padding:10px 12px;border-color:#edf1ee;overflow-wrap:anywhere}
   <div class="nv">
     <div class="ni on" id="ni-dash" onclick="go('dash',this)">&#9632; <span data-t="dashboard">Dashboard</span></div>
     <div class="ni" id="ni-tasks" onclick="go('tasks',this)">&#9632; <span data-t="tasks">Tasks</span></div>
+    <div class="ni" id="ni-appr" onclick="go('appr',this)" style="display:none">&#9632; <span>الموافقات</span><span id="appr-dot" role="status" aria-label="يوجد ما ينتظرك" style="display:none;width:9px;height:9px;border-radius:50%;background:#c0392b;vertical-align:middle;margin-right:5px"></span></div>
     <div class="ni" id="ni-pl" onclick="go('pl',this)">&#9632; <span>قائمة الأسعار</span> <span id="pl-badge" style="display:none;background:#c0392b;color:#fff;border-radius:10px;padding:0 7px;font-size:10px;font-weight:700;margin-right:4px"></span></div>
     <div class="ni" id="ni-cases" onclick="go('cases',this)" style="display:none">&#9632; <span>الشكاوى</span> <span id="cs-badge" style="display:none;background:#c0392b;color:#fff;border-radius:10px;padding:0 7px;font-size:10px;font-weight:700;margin-right:4px"></span></div>
     <div class="ni" id="ni-plan" onclick="openPlan()">&#9632; <span data-t="navplan">خطة يومية</span></div>
@@ -468,12 +469,17 @@ td{padding:10px 12px;border-color:#edf1ee;overflow-wrap:anywhere}
 <div class="mn">
 <div class="tb">
   <button class="hamburger" onclick="toggleSidebar()" style="display:none;background:none;border:none;font-size:22px;cursor:pointer;padding:4px 10px;color:#333">&#9776;</button>
-  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-12-14</span>
+  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-12-16</span>
   <div style="display:flex;align-items:center;gap:8px"><div class="lang-btns"><button class="lbtn on" onclick="setLang('en',this)">EN</button><button class="lbtn" onclick="setLang('ar',this)">عربي</button></div><div id="tact" style="display:flex;gap:7px"></div></div>
 </div>
 <div class="ct">
 
 <div id="backup-nudge" style="display:none;background:#f6efdd;border:1px solid #b5852a;color:#8a6a1e;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:600;margin-bottom:12px"></div>
+
+<div class="pg" id="pg-appr">
+  <div id="bc-alerts"></div>
+  <div id="prq-inbox-appr" style="margin-top:14px"></div>
+</div>
 
 <!-- DASHBOARD -->
 <div class="pg on" id="pg-dash">
@@ -482,7 +488,6 @@ td{padding:10px 12px;border-color:#edf1ee;overflow-wrap:anywhere}
     <div class="cd"><div class="sh" data-t="todaystasks">Today's tasks</div><div id="dtoday"><div style="color:#888;font-size:12px">Loading...</div></div></div>
     <div class="cd"><div class="sh" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span data-t="acavail">Available AC units</span><span id="dlow-total" style="font-size:12px;font-weight:700;color:#3B6D11"></span></div><div id="dlow" style="max-height:340px;overflow-y:auto"></div></div>
   </div>
-  <div id="qapp-inbox" style="display:none;margin-top:14px"></div>
   <div id="prq-inbox" style="display:none;margin-top:14px"></div>
 </div>
 
@@ -1519,7 +1524,7 @@ async function sessionCheck(){
   }catch(e){}
 }
 setInterval(function(){sessionCheck();},5*60*1000);
-function doSignOut(){try{bcPushForget();}catch(e){}var _bn=document.getElementById('bc-bnav');if(_bn)_bn.remove();CS_LIST=[];try{csUpdateBadge();}catch(e){}try{var tk0=bcToken();if(tk0)fetch(SU+'/rest/v1/rpc/app_logout',{method:'POST',headers:{'apikey':SK,'Authorization':'Bearer '+SK,'Content-Type':'application/json','x-app-session':tk0},body:'{}'}).then(function(){},function(){});}catch(e){}CU=null;try{localStorage.removeItem('bc_user');localStorage.removeItem('bc_login_at');localStorage.removeItem('bc_token');}catch(e){}document.getElementById('app').classList.add('h');document.getElementById('ls').style.display='flex';document.getElementById('lp').value='';}
+function doSignOut(){try{bcaStop();}catch(e){}try{bcPushForget();}catch(e){}var _bn=document.getElementById('bc-bnav');if(_bn)_bn.remove();CS_LIST=[];try{csUpdateBadge();}catch(e){}try{var tk0=bcToken();if(tk0)fetch(SU+'/rest/v1/rpc/app_logout',{method:'POST',headers:{'apikey':SK,'Authorization':'Bearer '+SK,'Content-Type':'application/json','x-app-session':tk0},body:'{}'}).then(function(){},function(){});}catch(e){}CU=null;try{localStorage.removeItem('bc_user');localStorage.removeItem('bc_login_at');localStorage.removeItem('bc_token');}catch(e){}document.getElementById('app').classList.add('h');document.getElementById('ls').style.display='flex';document.getElementById('lp').value='';}
 
 // AC inventory as a read-only preview (no add / edit / delete, AC units tab only)
 function invViewOnly(){return !!CU&&!can('inv')&&!!can('inv_view');}
@@ -1579,7 +1584,9 @@ function applyRole(){
   var ctNav=document.getElementById('ni-ct');
   if(ctNav)ctNav.style.display=(CU&&roleIn(['owner','admin','salesperson','finance']))?'':'none';
   var csNav=document.getElementById('ni-cases');if(csNav)csNav.style.display=(CU&&can('cases'))?'':'none';
+  var apNav=document.getElementById('ni-appr');if(apNav)apNav.style.display=(CU&&(can('quote_approve')||can('parts_price')))?'':'none';
   if(CU&&can('cases'))csStartPoll();
+  try{bcaStart();}catch(e){}
   bcInitResponsive();
   try{bcPushInit();}catch(e){}
   try{bcOpenCaseFromUrl();}catch(e){}
@@ -1624,7 +1631,7 @@ function go(pg,el){
   const pge=document.getElementById('pg-'+pg);
   if(pge)pge.classList.add('on');
   if(el)el.classList.add('on');
-  const titlesMap={dash:'dashboard',tasks:'tasks',inv:'inventory','np':'addproduct',pur:'purchases','npo':'newpo',fin:'finance',cust:'customers','cd':'customer',sup:'suppliers','sd':'supplier',usr:'users',disp:'dispatches','nt':'newtask','td':'tasks',plan:'خطة يومية',fb:'آراء العملاء',fu:'الاستكمالات',ds:'أوامر الصرف',rep:'التقرير اليومي',ded:'الخصومات',mydash:'لوحتي',pay:'الرواتب',att:'الحضور',ct:'عقود الصيانة',bk:'طلبات الحجز',pl:'قائمة الأسعار',cases:'الشكاوى'};
+  const titlesMap={dash:'dashboard',tasks:'tasks',inv:'inventory','np':'addproduct',pur:'purchases','npo':'newpo',fin:'finance',cust:'customers','cd':'customer',sup:'suppliers','sd':'supplier',usr:'users',disp:'dispatches','nt':'newtask','td':'tasks',plan:'خطة يومية',fb:'آراء العملاء',fu:'الاستكمالات',appr:'الموافقات',ds:'أوامر الصرف',rep:'التقرير اليومي',ded:'الخصومات',mydash:'لوحتي',pay:'الرواتب',att:'الحضور',ct:'عقود الصيانة',bk:'طلبات الحجز',pl:'قائمة الأسعار',cases:'الشكاوى'};
   const titles={}; Object.entries(titlesMap).forEach(([k,v])=>titles[k]=t(v));
   document.getElementById('ptitle').textContent=titles[pg]||pg;
   const ta=document.getElementById('tact');ta.innerHTML='';
@@ -1636,6 +1643,7 @@ function go(pg,el){
   if(pg==='tasks')loadTasks();
   if(pg==='pl')loadPriceList();
   if(pg==='cases')loadCases();
+  if(pg==='appr'){bcaCheck();if(qtCanPrice())try{prqLoadInbox('prq-inbox-appr');}catch(e){}}
   if(pg==='inv'){invApplyViewOnly();loadInv();}
   if(pg==='pur')loadPur();
   if(pg==='fin'){loadFinStats();finTab('all',document.querySelector('.tab.on')||document.querySelector('.tab'));}
@@ -1689,8 +1697,8 @@ async function loadDash(){
         lowEl.appendChild(d);
       });
     }
-    try{qappLoadInbox('qapp-inbox');}catch(e){}
     try{prqLoadInbox('prq-inbox');}catch(e){}
+    try{bcaCheck();}catch(e){}
   }catch(e){console.error('Dash error:',e);}
 }
 
@@ -6818,14 +6826,14 @@ async function qtApproveInternal(){
   if(QT_EDIT){var ok=await qtSave(true);if(!ok)return;}
   var r=await db.rpc('quote_approve_internal',{p_id:q.id});
   if(r.error){toast('خطأ: '+r.error.message,true);return;}
-  await qtReload();toast('تم اعتماد العرض');
+  await qtReload();toast('تم اعتماد العرض');try{bcaCheck();}catch(e){}
 }
 async function qtDoRejectInternal(){
   var q=qtActive();if(!q)return;
   var reason=(document.getElementById('qt-rejint-reason')||{}).value||'';
   var r=await db.rpc('quote_reject_internal',{p_id:q.id,p_reason:reason});
   if(r.error){toast('خطأ: '+r.error.message,true);return;}
-  await qtReload();toast('أُعيد العرض للموظف');
+  await qtReload();toast('أُعيد العرض للموظف');try{bcaCheck();}catch(e){}
 }
 
 // ---- view / response (sent and later) ----
@@ -7111,13 +7119,13 @@ async function prqPrice(id){
   var r=await db.rpc('part_request_price_v2',{p_id:id,p_options:out,p_note:PRQ_NOTE[id]||''});
   if(r.error){toast('خطأ: '+r.error.message,true);return;}
   delete PRQ_OPT[id];delete PRQ_NOTE[id];
-  toast('تم حفظ السعر');prqLoadInbox(PRQ_EL);
+  toast('تم حفظ السعر');prqLoadInbox(PRQ_EL);try{bcaCheck();}catch(e){}
 }
 async function prqReject(id){
   var reason=prompt('سبب الرفض (اختياري):')||'';
   var r=await db.rpc('part_request_reject',{p_id:id,p_reason:reason});
   if(r.error){toast('خطأ: '+r.error.message,true);return;}
-  toast('تم رفض الطلب');prqLoadInbox(PRQ_EL);
+  toast('تم رفض الطلب');prqLoadInbox(PRQ_EL);try{bcaCheck();}catch(e){}
 }
 
 // ---- manager approvals inbox (dashboard widget) ----
@@ -7144,6 +7152,92 @@ function qappRenderInbox(elId){
       +(q.created_by_name?'<span style="font-size:10px;color:#aaa">أعدّه: '+plEsc(q.created_by_name)+'</span>':'')+'</div></div>';
   }).join('');
   el.innerHTML=h+'</div>';
+}
+// ---- approvals strip: visible on every page, so nobody has to open orders to find what is waiting ----
+var BCA={q:[],p:0,open:false,exp:null,det:{},rej:null,t:null,busy:false};
+function bcaStart(){if(BCA.t)return;if(!CU||!(qtCanApprove()||qtCanPrice()))return;bcaCheck();BCA.t=setInterval(bcaCheck,60000);}
+function bcaStop(){if(BCA.t){clearInterval(BCA.t);BCA.t=null;}BCA.q=[];BCA.p=0;BCA.open=false;BCA.exp=null;BCA.det={};BCA.rej=null;var el=document.getElementById('bc-alerts');if(el)el.innerHTML='';bcaDots();}
+function bcaDots(){var n=BCA.q.length+BCA.p;['appr-dot','bc-bn-dot'].forEach(function(id){var d=document.getElementById(id);if(d)d.style.display=n?'inline-block':'none';});}
+async function bcaCheck(){
+  if(!CU)return;
+  try{
+    if(qtCanApprove()){var r=await db.rpc('quotes_pending_inbox');if(!r.error)BCA.q=r.data||[];}
+    if(qtCanPrice()){var r2=await db.rpc('part_request_inbox');if(!r2.error)BCA.p=(r2.data||[]).length;}
+  }catch(e){}
+  if(BCA.rej&&document.activeElement&&document.activeElement.id==='bca-reason')return; // do not wipe what is being typed
+  bcaRender();
+}
+function bcaRender(){
+  bcaDots();
+  var el=document.getElementById('bc-alerts');if(!el)return;
+  var nq=BCA.q.length,h='';
+  if(qtCanApprove()){
+    h+='<div class="cd"><div class="sh" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span>عروض أسعار بانتظار موافقتك</span>'
+      +(nq?'<span style="background:#c0392b;color:#fff;border-radius:10px;padding:0 8px;font-size:11px;font-weight:700">'+nq+'</span>':'')+'</div>';
+    h+=nq?BCA.q.map(bcaRow).join(''):'<div style="font-size:12px;color:#888;padding:4px 0">لا توجد عروض بانتظار موافقتك.</div>';
+    h+='</div>';
+  }
+  el.innerHTML=h;
+}
+function bcaRow(q){
+  var open=BCA.exp===q.id,d=BCA.det[q.id];
+  var wait='';
+  if(q.submitted_at){var m=Math.max(0,Math.round((Date.now()-new Date(q.submitted_at).getTime())/60000));wait=m<60?('منذ '+m+' د'):(m<1440?('منذ '+Math.round(m/60)+' س'):('منذ '+Math.round(m/1440)+' يوم'));}
+  var h='<div style="background:#fff;border:1px solid #dbe6f2;border-radius:9px;padding:10px 12px;margin-top:8px">'
+    +'<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><span style="font-size:13px;font-weight:700">'+plEsc(q.customer_name||'-')+'</span>'
+    +'<span style="font-size:13px;font-weight:800;color:#0f2347" dir="ltr">'+qtMoney(q.net)+' ج.م</span></div>'
+    +'<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:3px;font-size:11px;color:#777"><span>'+plEsc(q.quote_num||'')+(q.task_num?(' · '+plEsc(q.task_num)):'')+(q.created_by_name?(' · أعدّه: '+plEsc(q.created_by_name)):'')+'</span><span>'+wait+'</span></div>';
+  if(open){
+    if(!d)h+='<div style="font-size:12px;color:#888;margin-top:8px">جاري التحميل...</div>';
+    else{
+      h+='<div style="margin-top:8px">'+qtItemsTable(d,false)+'</div>';
+      var da=Number(d.discount_amount)||0,dp=Number(d.discount_percent)||0;
+      if(da||dp)h+='<div style="font-size:11px;color:#777;margin-top:4px">خصم: '+(da?(qtMoney(da)+' ج.م'):'')+(da&&dp?' + ':'')+(dp?(dp+'%'):'')+'</div>';
+      h+='<div class="tr" style="margin-top:6px"><span class="tl" style="font-weight:700">الإجمالي</span><span class="tv" dir="ltr">'+qtMoney(qtNet(d,false))+' ج.م</span></div>';
+      if(d.internal_notes)h+='<div style="font-size:11px;color:#555;margin-top:4px">ملاحظات داخلية: '+plEsc(d.internal_notes)+'</div>';
+    }
+  }
+  if(BCA.rej===q.id){
+    h+='<div style="margin-top:10px;background:#fdecec;border-radius:8px;padding:10px"><label for="bca-reason" style="font-size:11px;color:#888;font-weight:600">سبب الإرجاع (للموظف)</label><input id="bca-reason" placeholder="مثال: راجع سعر الكمبروسر" style="'+QT_INP+';margin-bottom:6px">'
+      +'<div style="display:flex;gap:6px"><button class="btn" onclick="bcaReject(\''+q.id+'\')" style="font-size:12px;background:#cf3636;color:#fff;border-color:#cf3636">تأكيد الإرجاع</button><button class="btn bs" onclick="BCA.rej=null;bcaRender()" style="font-size:12px">إلغاء</button></div></div>';
+  } else {
+    h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">'
+      +'<button class="btn bs" onclick="bcaExpand(\''+q.id+'\',\''+q.task_id+'\')" style="font-size:12px">'+(open?'إخفاء البنود':'عرض البنود')+'</button>'
+      +'<button class="btn" onclick="bcaApprove(\''+q.id+'\')" style="font-size:12px;background:#1f8f5f;color:#fff;border-color:#1f8f5f">✓ اعتماد</button>'
+      +'<button class="btn bs" onclick="BCA.rej=\''+q.id+'\';bcaRender()" style="font-size:12px;color:#cf3636">↩ إرجاع للموظف</button>'
+      +'<button class="btn bs" onclick="openTask(\''+q.task_id+'\')" style="font-size:12px">فتح المهمة للتعديل</button></div>';
+  }
+  return h+'</div>';
+}
+async function bcaExpand(qid,taskId){
+  if(BCA.exp===qid){BCA.exp=null;bcaRender();return;}
+  BCA.exp=qid;bcaRender();
+  var r=await db.rpc('quote_get',{p_task_id:taskId});
+  var q=((r&&r.data)||[]).filter(function(x){return x.id===qid;})[0];
+  if(q)BCA.det[qid]=q;else{BCA.exp=null;toast('تعذّر تحميل العرض',true);}
+  bcaRender();
+}
+async function bcaApprove(qid){
+  if(BCA.busy)return;
+  var q=BCA.q.filter(function(x){return x.id===qid;})[0];if(!q)return;
+  if(!confirm('اعتماد عرض السعر '+(q.quote_num||'')+' بقيمة '+qtMoney(q.net)+' ج.م؟'))return;
+  BCA.busy=true;
+  var r=await db.rpc('quote_approve_internal',{p_id:qid});
+  BCA.busy=false;
+  if(r.error){toast('خطأ: '+r.error.message,true);bcaCheck();return;}
+  toast('تم اعتماد العرض');BCA.exp=null;delete BCA.det[qid];await bcaCheck();
+  try{if(CT&&q.task_id===CT.id)qtReload();}catch(e){}
+}
+async function bcaReject(qid){
+  if(BCA.busy)return;
+  var q=BCA.q.filter(function(x){return x.id===qid;})[0];if(!q)return;
+  var reason=(document.getElementById('bca-reason')||{}).value||'';
+  BCA.busy=true;
+  var r=await db.rpc('quote_reject_internal',{p_id:qid,p_reason:reason});
+  BCA.busy=false;
+  if(r.error){toast('خطأ: '+r.error.message,true);return;}
+  toast('أُعيد العرض للموظف');BCA.rej=null;BCA.exp=null;delete BCA.det[qid];await bcaCheck();
+  try{if(CT&&q.task_id===CT.id)qtReload();}catch(e){}
 }
 // ══════════ END QUOTATIONS ══════════
 
@@ -7205,12 +7299,13 @@ function bcBuildBottomNav(){
   items.forEach(function(it){
     var b=document.createElement('button');b.type='button';b.setAttribute('data-k',it.k);
     if(it.fab){b.className='bc-fab';b.innerHTML='<span class="c">'+BC_ICONS[it.ic]+'</span>';b.setAttribute('aria-label','طلب جديد');}
-    else b.innerHTML=BC_ICONS[it.ic]+'<span>'+it.l+'</span>'+(it.badge?'<span class="bdg" id="bc-bn-badge" style="display:none"></span>':'');
+    else b.innerHTML=BC_ICONS[it.ic]+'<span>'+it.l+'</span>'+(it.badge?'<span class="bdg" id="bc-bn-badge" style="display:none"></span>':'')+(it.k==='menu'?'<span id="bc-bn-dot" style="display:none;position:absolute;top:6px;inset-inline-start:calc(50% + 8px);width:9px;height:9px;border-radius:50%;background:#c0392b"></span>':'');
     b.onclick=it.fn;nav.appendChild(b);
   });
   document.body.appendChild(nav);
   bcNavSync();
   try{csUpdateBadge();}catch(e){}
+  try{bcaDots();}catch(e){}
 }
 function bcNavSync(pg){
   var nav=document.getElementById('bc-bnav');if(!nav)return;
