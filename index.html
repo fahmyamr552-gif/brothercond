@@ -468,7 +468,7 @@ td{padding:10px 12px;border-color:#edf1ee;overflow-wrap:anywhere}
 <div class="mn">
 <div class="tb">
   <button class="hamburger" onclick="toggleSidebar()" style="display:none;background:none;border:none;font-size:22px;cursor:pointer;padding:4px 10px;color:#333">&#9776;</button>
-  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-12-12</span>
+  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-12-13</span>
   <div style="display:flex;align-items:center;gap:8px"><div class="lang-btns"><button class="lbtn on" onclick="setLang('en',this)">EN</button><button class="lbtn" onclick="setLang('ar',this)">عربي</button></div><div id="tact" style="display:flex;gap:7px"></div></div>
 </div>
 <div class="ct">
@@ -6681,7 +6681,7 @@ var PRQ_ST={pending:['بانتظار التسعير','#8a5a00','#fbf0dc'],priced
 function qtCanUse(){return can('tasks');}
 function qtCanApprove(){return can('quote_approve');}
 function qtCanPrice(){return can('parts_price');}
-function qtShouldShow(){return !!CT&&(CT.type==='inspection'||CT.type==='maintenance'||CT.type==='repair'||QT.length>0);}
+function qtShouldShow(){return !!CT;}
 function qtMoney(n){return plMoney(Math.round(n||0));}
 function qtPill(st){var s=QT_ST[st]||['',''];return '<span style="display:inline-flex;font-size:11px;font-weight:800;padding:4px 11px;border-radius:999px;color:'+s[1]+';background:'+s[2]+'">'+s[0]+'</span>';}
 function qtActive(){for(var i=0;i<QT.length;i++){if(!QT[i].superseded_by)return QT[i];}return QT[0]||null;}
