@@ -468,7 +468,7 @@ td{padding:10px 12px;border-color:#edf1ee;overflow-wrap:anywhere}
 <div class="mn">
 <div class="tb">
   <button class="hamburger" onclick="toggleSidebar()" style="display:none;background:none;border:none;font-size:22px;cursor:pointer;padding:4px 10px;color:#333">&#9776;</button>
-  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-12-13</span>
+  <div class="tt" id="ptitle">Dashboard</div><span style="font-size:10px;color:#bbb;margin-inline-start:8px">v2026-12-14</span>
   <div style="display:flex;align-items:center;gap:8px"><div class="lang-btns"><button class="lbtn on" onclick="setLang('en',this)">EN</button><button class="lbtn" onclick="setLang('ar',this)">عربي</button></div><div id="tact" style="display:flex;gap:7px"></div></div>
 </div>
 <div class="ct">
@@ -6938,7 +6938,20 @@ function qtPartReqSection(q,canAdd){
       +'<div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><span style="font-size:12px;font-weight:700">'+plEsc(p.part_name)+' <span style="font-size:10px;color:#999">×'+(p.qty||1)+'</span></span>'
       +'<span style="font-size:10px;font-weight:800;padding:3px 8px;border-radius:999px;color:'+s[1]+';background:'+s[2]+'">'+s[0]+'</span></div>';
     if(p.note)row+='<div style="font-size:11px;color:#888;margin-top:2px">'+plEsc(p.note)+'</div>';
-    if(p.status==='priced'){
+    if(p.status==='priced'&&p.price_options&&p.price_options.length){
+      row+=p.price_options.map(function(o,oi){
+        var isCost=o.kind==='cost';
+        var r2='<div style="border-top:1px dashed #e6e6dc;margin-top:6px;padding-top:6px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">'
+          +'<span style="font-size:12px;font-weight:700">'+(o.brand?plEsc(o.brand)+' · ':'')+'<span dir="ltr" style="color:'+(isCost?'#8a5a00':'#1f8f5f')+'">'+qtMoney(o.price)+' ج.م</span> '
+          +'<span style="font-size:10px;font-weight:800;padding:2px 7px;border-radius:999px;color:'+(isCost?'#8a5a00':'#1f8f5f')+';background:'+(isCost?'#fbf0dc':'#e7f5ee')+'">'+(isCost?'تكلفة':'سعر بيع')+'</span></span>';
+        if(canAdd&&QT_EDIT)r2+='<button class="btn bs" onclick="qtAddPricedToQuote(\''+p.id+'\','+oi+')" style="font-size:11px;padding:3px 9px">➕ أضف للعرض</button>';
+        r2+='</div>';
+        if(o.note)r2+='<div style="font-size:11px;color:#666;margin-top:2px">'+plEsc(o.note)+'</div>';
+        return r2+'</div>';
+      }).join('');
+      if(p.response_note)row+='<div style="font-size:11px;color:#444;background:#f3f1ea;border-radius:6px;padding:5px 8px;margin-top:6px">ملاحظة قطع الغيار: '+plEsc(p.response_note)+'</div>';
+      if(p.responded_by_name)row+='<div style="font-size:10px;color:#aaa;margin-top:4px">سعّرها: '+plEsc(p.responded_by_name)+'</div>';
+    } else if(p.status==='priced'){
       row+='<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px"><span style="font-size:12px;font-weight:700;color:#1f8f5f" dir="ltr">'+qtMoney(p.unit_price)+' ج.م</span>';
       if(canAdd&&QT_EDIT)row+='<button class="btn bs" onclick="qtAddPricedToQuote(\''+p.id+'\')" style="font-size:11px;padding:3px 9px">➕ أضف للعرض</button>';
       row+='</div>';
@@ -6962,11 +6975,20 @@ async function qtReqPartSubmit(){
   if(r.error){toast('خطأ: '+r.error.message,true);return;}
   await qtReload();toast('أُرسل طلب القطعة لقسم قطع الغيار');
 }
-function qtAddPricedToQuote(prid){
+function qtAddPricedToQuote(prid,oi){
   var q=qtActive();if(!q||!QT_EDIT)return;
   var p=(q.part_requests||[]).filter(function(x){return x.id===prid;})[0];if(!p)return;
+  var o=(oi!==undefined&&p.price_options)?p.price_options[oi]:null;
   // avoid empty trailing row
   if(QT_EDIT.items.length===1&&!QT_EDIT.items[0].name)QT_EDIT.items=[];
+  if(o){
+    var isCost=o.kind==='cost';
+    // a cost price never goes to the customer: the employee types the selling price
+    QT_EDIT.items.push({name:p.part_name+(o.brand?(' — '+o.brand):''),kind:'part',qty:Number(p.qty)||1,unit_price:isCost?0:(Number(o.price)||0)});
+    qtRender();
+    toast(isCost?('أُضيفت القطعة بدون سعر — التكلفة '+qtMoney(o.price)+' ج.م، اكتب سعر البيع'):'أُضيفت القطعة للعرض — احفظ العرض');
+    return;
+  }
   QT_EDIT.items.push({name:p.part_name,kind:'part',qty:Number(p.qty)||1,unit_price:Number(p.unit_price)||0});
   qtRender();toast('أُضيفت القطعة للعرض — احفظ العرض');
 }
@@ -7047,19 +7069,48 @@ function prqRenderInbox(elId){
       +(p.customer_name?'<div style="font-size:11px;color:#888;margin-top:2px">العميل: '+plEsc(p.customer_name)+'</div>':'')
       +(p.note?'<div style="font-size:11px;color:#888;margin-top:2px">'+plEsc(p.note)+'</div>':'')
       +(p.requested_by_name?'<div style="font-size:10px;color:#aaa;margin-top:2px">طلبها: '+plEsc(p.requested_by_name)+'</div>':'')
-      +'<div style="display:flex;gap:6px;align-items:end;margin-top:8px;flex-wrap:wrap">'
-      +'<div style="flex:1;min-width:120px"><label style="font-size:10px;color:#888">سعر البيع للوحدة (ج.م)</label><input id="prq-price-'+p.id+'" type="number" min="0" placeholder="0" style="'+QT_INP+'"></div>'
+      +prqOptRows(p.id)
+      +'<button class="btn bs" onclick="prqOptAdd(\''+p.id+'\')" style="font-size:11px;padding:4px 9px;margin-top:6px">➕ ماركة / سعر آخر</button>'
+      +'<div style="margin-top:8px"><label style="font-size:10px;color:#888">ملاحظة عامة (اختياري)</label><input value="'+prqAttr(PRQ_NOTE[p.id]||'')+'" oninput="PRQ_NOTE[\''+p.id+'\']=this.value" placeholder="مثال: متوفر خلال يومين" style="'+QT_INP+'"></div>'
+      +'<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">'
       +'<button class="btn" onclick="prqPrice(\''+p.id+'\')" style="font-size:12px;background:#1f8f5f;color:#fff;border-color:#1f8f5f">حفظ السعر</button>'
       +'<button class="btn bs" onclick="prqReject(\''+p.id+'\')" style="font-size:12px;color:#cf3636">رفض</button>'
       +'</div></div>';
   }).join('');
   el.innerHTML=h+'</div>';
 }
+// each request: one or more price lines (brand, price, cost/selling, note) + a general note
+var PRQ_OPT={},PRQ_NOTE={};
+function prqAttr(s){return plEsc(s).replace(/"/g,'&quot;');}
+function prqOpts(id){if(!PRQ_OPT[id]||!PRQ_OPT[id].length)PRQ_OPT[id]=[{brand:'',price:'',kind:'selling',note:''}];return PRQ_OPT[id];}
+function prqOptSet(id,i,f,v){var o=prqOpts(id)[i];if(o)o[f]=v;}
+function prqOptAdd(id){prqOpts(id).push({brand:'',price:'',kind:'selling',note:''});prqRenderInbox(PRQ_EL);}
+function prqOptDel(id,i){var a=prqOpts(id);a.splice(i,1);if(!a.length)PRQ_OPT[id]=[];prqRenderInbox(PRQ_EL);}
+function prqOptRows(id){
+  var a=prqOpts(id);
+  return a.map(function(o,i){
+    var s="prqOptSet('"+id+"',"+i+",";
+    return '<div style="background:#f7f5ef;border-radius:8px;padding:8px;margin-top:8px">'
+      +'<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:end">'
+      +'<div style="flex:2;min-width:110px"><label style="font-size:10px;color:#888">الماركة (اختياري)</label><input value="'+prqAttr(o.brand||'')+'" oninput="'+s+'\'brand\',this.value)" placeholder="مثال: أصلي / صيني" style="'+QT_INP+'"></div>'
+      +'<div style="flex:1;min-width:90px"><label style="font-size:10px;color:#888">السعر للوحدة (ج.م)</label><input type="number" min="0" value="'+prqAttr(o.price===0?'0':(o.price||''))+'" oninput="'+s+'\'price\',this.value)" placeholder="0" style="'+QT_INP+'"></div>'
+      +'<div style="flex:1;min-width:100px"><label style="font-size:10px;color:#888">نوع السعر</label><select onchange="'+s+'\'kind\',this.value)" style="'+QT_INP+'"><option value="selling"'+(o.kind!=='cost'?' selected':'')+'>سعر بيع</option><option value="cost"'+(o.kind==='cost'?' selected':'')+'>تكلفة</option></select></div>'
+      +(a.length>1?'<button class="btn bs" onclick="prqOptDel(\''+id+'\','+i+')" aria-label="حذف السطر" style="font-size:12px;padding:5px 9px;color:#cf3636">✕</button>':'')
+      +'</div>'
+      +'<div style="margin-top:6px"><label style="font-size:10px;color:#888">ملاحظة على هذا السعر (اختياري)</label><input value="'+prqAttr(o.note||'')+'" oninput="'+s+'\'note\',this.value)" placeholder="مثال: ضمان سنة" style="'+QT_INP+'"></div>'
+      +'</div>';
+  }).join('');
+}
 async function prqPrice(id){
-  var v=parseFloat((document.getElementById('prq-price-'+id)||{}).value);
-  if(!(v>=0)){toast('أدخل سعرًا صحيحًا',true);return;}
-  var r=await db.rpc('part_request_price',{p_id:id,p_unit_price:v,p_spare_part_id:null});
+  var a=prqOpts(id),out=[];
+  for(var i=0;i<a.length;i++){
+    var v=parseFloat(a[i].price);
+    if(a[i].price===''||a[i].price==null||!(v>=0)){toast('أدخل سعرًا صحيحًا في كل سطر',true);return;}
+    out.push({brand:(a[i].brand||'').trim(),price:v,kind:a[i].kind==='cost'?'cost':'selling',note:(a[i].note||'').trim()});
+  }
+  var r=await db.rpc('part_request_price_v2',{p_id:id,p_options:out,p_note:PRQ_NOTE[id]||''});
   if(r.error){toast('خطأ: '+r.error.message,true);return;}
+  delete PRQ_OPT[id];delete PRQ_NOTE[id];
   toast('تم حفظ السعر');prqLoadInbox(PRQ_EL);
 }
 async function prqReject(id){
